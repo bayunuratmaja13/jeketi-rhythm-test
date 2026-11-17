@@ -1157,7 +1157,7 @@ async function tryFullscreen() {
 
 // ---------- SOUND ----------
 // SFX VOLUME: 1 = as before, 2 = twice as loud, 3 = three times... (songs are not affected, they play through <audio>)
-const SFX_VOLUME = 2.0;
+const SFX_VOLUME = 1.5;
 function ensureAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1193,6 +1193,8 @@ function getNoiseBuffer(seconds, decay) {
   return buf;
 }
 
+// NOTE-TAP VOLUME: 1 = as before, 0.5 = half as loud (only the sound of hitting a note; other sfx are not affected)
+const HIT_VOLUME = 0.5;
 function playHitSound(judgement, comboValue) {
   ensureAudio();
   const now = audioCtx.currentTime;
@@ -1204,7 +1206,7 @@ function playHitSound(judgement, comboValue) {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(320, now);
     osc.frequency.exponentialRampToValueAtTime(160, now + 0.12);
-    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.setValueAtTime(0.16 * HIT_VOLUME, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
     osc.connect(gain).connect(audioCtx.destination);
     osc.start(now);
@@ -1222,7 +1224,7 @@ function playHitSound(judgement, comboValue) {
   osc.type = 'sine';
   osc.frequency.setValueAtTime(freq, now);
   osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + 0.03);
-  gain.gain.setValueAtTime(0.13, now);
+  gain.gain.setValueAtTime(0.13 * HIT_VOLUME, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
   osc.connect(gain).connect(audioCtx.destination);
   osc.start(now);
@@ -1231,7 +1233,7 @@ function playHitSound(judgement, comboValue) {
   const noise = audioCtx.createBufferSource();
   noise.buffer = getNoiseBuffer(0.02, 0.1);
   const noiseGain = audioCtx.createGain();
-  noiseGain.gain.setValueAtTime(0.06, now);
+  noiseGain.gain.setValueAtTime(0.06 * HIT_VOLUME, now);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
   const filter = audioCtx.createBiquadFilter();
   filter.type = 'highpass';

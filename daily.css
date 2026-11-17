@@ -5,7 +5,7 @@
 
 /* ---- Daily button: sits under the Points chip, top-right (daily.js places it) ---- */
 #daily-btn { position: fixed; right: 12px; left: auto; top: 80px; z-index: 10; }
-#daily-btn .btn-gif { height: clamp(56px, 12.5vh, 104px); width: auto; }
+#daily-btn .btn-gif { height: clamp(84px, 19vh, 156px); width: auto; }
 #daily-btn .btn-fallback {
   display: inline-block; font-family: var(--font-ui); font-size: 26px; line-height: 1; color: var(--black);
   background: var(--yellow); padding: 12px 20px; border: 2px solid var(--black); border-radius: 4px; box-shadow: 0 3px 0 rgba(0, 0, 0, .35);
@@ -33,7 +33,7 @@
    ============================================================ */
 #daily-screen {
   position: fixed; inset: 0; z-index: 60; display: none; flex-direction: column; box-sizing: border-box; overflow: hidden;
-  padding: max(6px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  padding: max(4px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(4px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   /* the same green desk mat as the rest of the game */
   background-color: #2f5a40;
   background-image:
@@ -50,9 +50,9 @@
 @keyframes dy-in { from { opacity: 0; } }
 
 /* header: title image in the middle, Points note taped top-right */
-.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(60px, 15dvh, 108px); padding: 0 0 4px; }
+.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(64px, 16dvh, 112px); padding: 0; }
 .dy-title { display: flex; align-items: center; justify-content: center; }
-.dy-title img { height: clamp(44px, 12.5dvh, 88px); width: auto; display: block; }
+.dy-title img { height: clamp(40px, 11dvh, 78px); width: auto; display: block; }
 .dy-title-text { font: clamp(28px, 8dvh, 46px)/1 var(--font-ui); color: var(--paper); -webkit-text-stroke: 3px var(--black); paint-order: stroke fill; letter-spacing: 2px; }
 .dy-pts {
   position: absolute; right: 4px; top: 50%; margin-top: -22px; z-index: 2;
@@ -66,17 +66,17 @@
 /* back: big image button, top-left (same place as BACK on the song select), so the sheets can use the whole screen */
 .dy-back {
   position: fixed; top: max(6px, env(safe-area-inset-top, 0px)); left: max(10px, env(safe-area-inset-left, 0px));
-  z-index: 20; padding: 8px;
+  z-index: 20; padding: 4px;
 }
-.dy-back .btn-gif { height: clamp(64px, 15dvh, 112px); width: auto; }
+.dy-back .btn-gif { height: clamp(88px, 20dvh, 136px); width: auto; }
 
 /* body: two paper sheets that fill the remaining screen */
 .dy-body {
   flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 3vw, 30px);
   grid-template-rows: minmax(0, 1fr);
-  padding: 22px clamp(2px, 1vw, 10px) 0; overflow: auto; -webkit-overflow-scrolling: touch;
-  /* leave room for the back button so it never covers the sheets' bottom edge */
-  padding-bottom: clamp(6px, 1.4dvh, 12px);
+  align-items: stretch;
+  padding: 20px 0 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
 }
 .dy-col {
   position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: clamp(6px, 1.6dvh, 12px);
@@ -210,7 +210,7 @@
   .dy-body { padding-top: 18px; }
   .dy-pts { margin-top: -16px; padding: 4px 10px; }
   .dy-back { padding: 4px; }
-  .dy-back .btn-gif { height: clamp(48px, 15vh, 68px); }
-  .dy-body { padding-bottom: 8px; }
+  .dy-back .btn-gif { height: clamp(60px, 20vh, 84px); }
+  .dy-body { padding-bottom: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { #daily-screen.show, #daily-btn.has-new::after, .dy-dot { animation: none; } }
