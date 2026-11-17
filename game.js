@@ -2282,11 +2282,16 @@ const playfieldEl = document.getElementById('playfield');
 
 function findLaneFromPoint(x, y) {
   const el = document.elementFromPoint(x, y);
-  if (!el) return null;
-  const lane = el.closest('.lane');
-  if (!lane) return null;
-  const idx = Number(lane.dataset.lane);
-  return Number.isNaN(idx) ? null : idx;
+  const lane = el && el.closest ? el.closest('.lane') : null;
+  if (lane) {
+    const idx = Number(lane.dataset.lane);
+    if (!Number.isNaN(idx)) return idx;
+  }
+  // forgiving fallback: a thumb that lands just outside the lanes still counts, mapped by x across the field's bottom edge
+  const r = playfieldEl.getBoundingClientRect();
+  const laneW = r.width / 4, margin = laneW * 0.9;
+  if (x < r.left - margin || x > r.right + margin) return null;
+  return Math.max(0, Math.min(3, Math.floor((x - r.left) / laneW)));
 }
 
 playfieldEl.addEventListener('touchstart', (e) => {
@@ -2775,3 +2780,18 @@ music.addEventListener('ended', () => {
 // ---------- INIT ----------
 buildMenu();
 showMainMenu();
+
+// ---------- PHONE PLAY MODE ----------
+// While a song is on screen the launcher gives the game a smaller virtual screen (bigger lanes / notes for thumbs).
+(function watchPlayMode() {
+  let last = null;
+  function sync() {
+    const playing = game.style.display !== 'none';
+    if (playing === last) return;
+    last = playing;
+    document.documentElement.classList.toggle('play-phone', playing);
+    if (window.parent !== window) { try { window.parent.postMessage({ jeketi: 'play', on: playing }, '*'); } catch (e) {} }
+  }
+  new MutationObserver(sync).observe(game, { attributes: true, attributeFilter: ['style'] });
+  sync();
+})();

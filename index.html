@@ -28,9 +28,16 @@
   var dbg;
   if (debug) { dbg = document.createElement('div'); dbg.id = 'dbg'; document.body.appendChild(dbg); }
 
+  var playing = false;
+  var PW = 1000;                        // while playing: virtual screen is only 1000px wide, so lanes and notes are big
   function fit() {
     var w = window.innerWidth, h = window.innerHeight;
-    if (w > h && (w < VW || h < VH)) {  // landscape phone: a virtual PC screen, scaled to fit and centered
+    if (w > h && playing && w < 1500) { // song on screen: nearly native size, fills the whole phone
+      var p = w / PW;
+      f.style.width = PW + 'px';
+      f.style.height = (h / p) + 'px';
+      f.style.transform = 'scale(' + p + ')';
+    } else if (w > h && (w < VW || h < VH)) {  // menus: a virtual PC screen, scaled to fit and centered
       var s = Math.min(w / VW, h / VH);
       f.style.width = VW + 'px';
       f.style.height = VH + 'px';
@@ -38,13 +45,14 @@
     } else {                            // portrait / big screens: normal
       f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
     }
-    if (dbg) dbg.textContent = 'shell ' + w + 'x' + h + '  frame ' + f.style.width + ' x ' + f.style.height + '  dpr ' + devicePixelRatio;
+    if (dbg) dbg.textContent = (playing ? 'PLAY ' : 'MENU ') + w + 'x' + h + '  frame ' + f.style.width + ' x ' + f.style.height + '  dpr ' + devicePixelRatio;
   }
   fit();
   addEventListener('resize', fit);
   addEventListener('orientationchange', function () { setTimeout(fit, 150); setTimeout(fit, 500); });
 
   addEventListener('message', function (e) {
+    if (e.data && e.data.jeketi === 'play') { playing = !!e.data.on; fit(); return; }
     if (!e.data || e.data.jeketi !== 'fullscreen') return;
     var el = document.documentElement;
     try {
