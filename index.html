@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>JEKETI RHYTHM</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="packs.css">
+  <link rel="stylesheet" href="shop.css">
+  <link rel="stylesheet" href="daily.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2f5a40">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+
+  <!-- ============================================ -->
+  <!-- PORTRAIT ORIENTATION HINT (mobile only)      -->
+  <!-- ============================================ -->
+  <div id="rotate-hint">
+    <div class="rot-icon">⟳</div>
+    <div>Rotate your device<br>to landscape</div>
+    <small>Tap here to go fullscreen &amp; landscape<br>(iPhone: Share → Add to Home Screen for fullscreen)</small>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MAIN MENU / TITLE SCREEN -->
+  <!-- ============================================ -->
+  <div id="main-menu-screen">
+    <div class="desk-paper">
+      <div class="pin pin-tl"></div>
+      <div class="pin pin-tr"></div>
+
+      <div class="title-content">
+        <img src="images/title.gif" id="title-gif" alt="JEKETI RHYTHM">
+        <button id="play-btn" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Play"></button>
+      </div>
+
+      <p class="credit">created by @bnuratmaja</p>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SONG SELECT SCREEN -->
+  <!-- ============================================ -->
+  <div id="menu-screen" style="display:none">
+    <div class="menu-header">
+      <button id="shop-btn" class="gif-btn" aria-label="Card Shop"><img src="images/shop.gif" class="btn-gif" alt="Shop" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'Shop'}))"></button>
+      <button id="back-to-main-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <button id="daily-btn" class="gif-btn" aria-label="Daily"><img src="images/daily.gif" class="btn-gif" alt="Daily" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'🎁 Daily'}))"></button>
+      <img src="images/pick-song.gif" id="pick-song-gif" alt="Pick a Song">
+      <button id="my-cards-btn" class="gif-btn" aria-label="My Cards"><img src="images/my-cards.gif" class="btn-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'My Cards'}))"></button>
+    </div>
+    <div id="song-grid"></div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MY CARDS SCREEN -->
+  <!-- ============================================ -->
+  <div id="cards-screen" style="display:none">
+    <div class="cards-header">
+      <button id="cards-back-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <img src="images/my-cards.gif" id="cards-title-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'cards-title-text',textContent:'My Cards'}))">
+      <div id="cards-progress" class="cards-progress"></div>
+    </div>
+    <div id="cards-tabs"></div>
+    <div id="cards-sheet">
+      <div class="pin pin-tl"></div>
+      <div class="pin pin-tr"></div>
+      <div id="cards-members"></div>
+      <div id="cards-row"></div>
+    </div>
+  </div>
+  <div id="cards-toast"></div>
+
+  <!-- ============================================ -->
+  <!-- GAME SCREEN -->
+  <!-- ============================================ -->
+  <div id="game" style="display:none">
+    <div id="playfield">
+      <div class="lane" data-lane="0"><div class="lane-label">D</div><div class="judgement-line"></div></div>
+      <div class="lane" data-lane="1"><div class="lane-label">F</div><div class="judgement-line"></div></div>
+      <div class="lane" data-lane="2"><div class="lane-label">J</div><div class="judgement-line"></div></div>
+      <div class="lane" data-lane="3"><div class="lane-label">K</div><div class="judgement-line"></div></div>
+    </div>
+  </div>
+
+  <div id="score" style="display: none">Score: 0</div>
+  <div id="combo"></div>
+  <div id="judgement"></div>
+
+  <audio id="music"></audio>
+
+  <script src="songs.js"></script>
+  <script src="sfx.js"></script>
+  <script src="points.js"></script>
+  <script src="cards.js"></script>
+  <script src="packs.js"></script>
+  <script src="shop.js"></script>
+  <script src="daily.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
