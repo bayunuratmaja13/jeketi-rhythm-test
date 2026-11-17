@@ -402,6 +402,7 @@ function showGameScreen() {
 
 // ---------- MENU ----------
 function buildMenu() {
+  setTimeout(() => Store.warmCovers(), 600);
   songGrid.innerHTML = '';
   const songs = Array.isArray(window.SONGS) ? window.SONGS : [];
   selectedSong = null;
@@ -478,7 +479,7 @@ function updateCardBests() {
   });
 }
 
-function selectCard(card, song) {
+function selectCard(card, song, fast) {
   document.querySelectorAll('.song-card.selected').forEach(c => {
     if (c !== card) c.classList.remove('selected');
   });
@@ -495,10 +496,13 @@ function selectCard(card, song) {
   if (window.Shop && Shop.setSong) Shop.setSong(song);
   stopPreview();
   clearTimeout(previewDelay);
-  previewDelay = setTimeout(() => { if (selectedSong === song) startPreview(song); }, 260);   // no audio loading mid-scroll
+  previewDelay = setTimeout(() => { if (selectedSong === song) startPreview(song); }, fast ? 30 : 260);   // no audio loading mid-scroll
+  // the player is dwelling on this song: read its chart ahead and keep its audio on the device
+  clearTimeout(storeDelay);
+  storeDelay = setTimeout(() => { if (selectedSong === song) { Store.prefetchChart(song); Store.keepAudio(song); } }, 1800);
 }
 let selectRaf = 0, selectSoundAt = 0;
-let previewDelay = 0;
+let previewDelay = 0, storeDelay = 0;
 
 // ---------- SONG CAROUSEL (horizontal, snap-to-center) ----------
 let selectedCardEl = null;
@@ -585,7 +589,7 @@ function initCarousel() {
     const target = cards.find(c => c.dataset.songId === lastPlayedId) || cards[0];
     centerCard(target, false);
     updateCarouselFocus();
-    selectCard(target, target._song);
+    selectCard(target, target._song, true);
   }));
 }
 
@@ -623,16 +627,21 @@ function escapeHtml(s) {
 }
 
 // ---------- CHART LOADING ----------
+// Charts are loaded once per visit and kept in memory (and on disk through sw.js), so replaying a song or
+// coming back to it never downloads it again. A chart edited on the server shows up the next time the game is opened.
+const chartCache = new Map();      // url -> Promise<chart array>
 function loadChartFile(url) {
-  return new Promise((resolve, reject) => {
+  if (chartCache.has(url)) return chartCache.get(url);
+  const p = new Promise((resolve, reject) => {
     const prevData = window.CHART_DATA;
     window.CHART_DATA = undefined;
 
     const s = document.createElement('script');
-    s.src = location.protocol === 'file:' ? url : (url + '?v=' + Date.now());
+    s.src = url;
     s.onload = () => {
       const data = window.CHART_DATA;
       window.CHART_DATA = prevData;
+      s.remove();                                   // the data is kept in the cache, the tag is not needed any more
       if (!Array.isArray(data)) {
         reject(new Error('Chart did not set window.CHART_DATA. Open ' + url + ' and confirm line 1 is exactly:  window.CHART_DATA = ['));
         return;
@@ -641,16 +650,60 @@ function loadChartFile(url) {
     };
     s.onerror = () => {
       window.CHART_DATA = prevData;
+      s.remove();
       reject(new Error('Could not load ' + url + ' — check the file exists at that path'));
     };
     document.head.appendChild(s);
   });
+  chartCache.set(url, p);
+  p.catch(() => chartCache.delete(url));            // a failed load can be retried
+  return p;
 }
 
 async function loadChartFor(song) {
   if (Array.isArray(song.chart)) return song.chart;
   return loadChartFile(song.chart);
 }
+
+// ---------- DEVICE STORAGE (works together with sw.js) ----------
+// Charts are read ahead and song audio is saved on the device once the player lingers on a song.
+// Charts are loaded one at a time (they share window.CHART_DATA), and only while nothing else is going on.
+const Store = (() => {
+  let chartQueue = Promise.resolve();
+  const warmedAudio = new Set();
+  function prefetchChart(song) {
+    if (!song || Array.isArray(song.chart) || !song.chart || chartCache.has(song.chart)) return;
+    chartQueue = chartQueue.then(() => loadChartFile(song.chart).catch(() => {}));
+  }
+  function keepAudio(song) {
+    if (!song || !song.audio || warmedAudio.has(song.audio)) return;
+    warmedAudio.add(song.audio);
+    try {
+      const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
+      if (sw) sw.postMessage({ type: 'keep-audio', url: new URL(song.audio, document.baseURI).href });
+    } catch (e) { /* no service worker: the browser cache still helps */ }
+  }
+  // covers: keep decoded images around so the carousel never has to fetch / decode while scrolling
+  const coverKeep = [];
+  function warmCovers() {
+    const songs = Array.isArray(window.SONGS) ? window.SONGS : [];
+    const idle = window.requestIdleCallback || (fn => setTimeout(fn, 400));
+    let i = 0;
+    (function next() {
+      if (i >= songs.length) return;
+      const s = songs[i++];
+      if (s && s.cover) {
+        const im = new Image();
+        im.decoding = 'async';
+        im.src = s.cover;
+        if (im.decode) im.decode().catch(() => {});
+        coverKeep.push(im);
+      }
+      idle(next);
+    })();
+  }
+  return { prefetchChart, keepAudio, warmCovers };
+})();
 
 // ---------- SONG START ----------
 // the play button first opens the card lineup (if the player owns cards), then the song starts
@@ -1064,7 +1117,8 @@ function backToSongSelect() {
   document.querySelectorAll('.song-card.selected').forEach(c => c.classList.remove('selected'));
   selectedSong = null;
   music.pause();
-  music.currentTime = 0;
+  music.removeAttribute('src');     // let go of the finished song's audio; the next song sets its own src
+  try { music.load(); } catch (e) { /* ignore */ }
   mode = 'idle';
   clearNotes();
   queue = [];
