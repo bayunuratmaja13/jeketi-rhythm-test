@@ -48,16 +48,20 @@
   color: #3a2140; font-family: 'Fredoka', var(--font-game), sans-serif; touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
-#daily-screen { --dy-back-h: clamp(88px, 20dvh, 136px); }
+#daily-screen { --dy-back-h: clamp(52px, 10dvh, 84px); }
 #daily-screen > * { position: relative; }
+#daily-screen > .dy-toast { position: absolute; }   /* (the rule above has higher specificity than .dy-toast, so restate it here) */
 #daily-screen.show { display: flex; animation: dy-in .2s ease-out; }
 @keyframes dy-in { from { opacity: 0; } }
 
 /* header: title image in the middle, Points note taped top-right */
-.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(44px, 10dvh, 70px); padding: 0; }
+.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(44px, 9dvh, 64px); padding: 0; }
 .dy-title { display: flex; align-items: center; justify-content: center; }
-.dy-title img { height: clamp(32px, 8.5dvh, 60px); width: auto; display: block; }
-.dy-title-text { font: clamp(20px, 6dvh, 36px)/1 var(--font-ui); color: var(--paper); -webkit-text-stroke: 3px var(--black); paint-order: stroke fill; letter-spacing: 2px; }
+.dy-title img { height: clamp(32px, 8dvh, 56px); width: auto; display: block; }
+.dy-title-text {                                /* fat, heavy, outlined title */
+  font: 700 clamp(30px, 7.6dvh, 54px)/1 'Fredoka', var(--font-game), sans-serif; color: var(--paper); letter-spacing: 5px;
+  -webkit-text-stroke: 8px var(--black); paint-order: stroke fill; text-shadow: 0 4px 0 rgba(0, 0, 0, .4);
+}
 .dy-pts {
   position: absolute; right: 4px; top: 50%; margin-top: -22px; z-index: 2;
   background: var(--paper); border: 1px solid rgba(0, 0, 0, .12); box-shadow: 3px 5px 10px rgba(0, 0, 0, .35);
@@ -67,21 +71,18 @@
 .dy-pts:empty { display: none; }
 .dy-pts .points-chip { box-shadow: none; border: none; background: none; padding: 0; transform: none; position: static; color: #3a2140; }
 
-/* back: big image button, top-left (same place as BACK on the song select), so the sheets can use the whole screen */
-.dy-back {
-  position: fixed; bottom: max(6px, env(safe-area-inset-bottom, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); top: auto; left: auto;
-  z-index: 20; padding: 4px;
+/* back: sits in its own row under the sheets, bottom-right (in the flow, so it never covers anything) */
+#daily-screen > .dy-back {
+  flex: none; align-self: flex-end; position: relative; z-index: 20; margin: 6px 4px 0 0; padding: 2px 4px;
 }
-.dy-back .btn-gif { height: var(--dy-back-h); width: auto; }
-.dy-right { margin-bottom: calc(var(--dy-back-h) + 6px); }   /* keep the back button off the missions sheet */
+.dy-back .btn-gif { height: var(--dy-back-h); width: auto; display: block; }
 
-/* body: two paper sheets that fill the remaining screen */
+/* body: two paper sheets that fill the remaining screen (scrolls vertically only if the screen is really tiny) */
 .dy-body {
   flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 3vw, 30px);
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(min-content, 1fr);
   align-items: stretch;
-  padding: 20px 0 0; overflow: auto; -webkit-overflow-scrolling: touch;
-  padding-bottom: 2px;
+  padding: 30px 10px 6px; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 .dy-col {
   position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: clamp(8px, 2dvh, 16px);
@@ -112,7 +113,7 @@
 .dy-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #ff3b4e; border: 2px solid #fff; box-shadow: 0 0 6px rgba(255, 59, 78, .8); animation: dy-dot-pulse 1.2s ease-in-out infinite; }
 
 /* check-in calendar: sticky notes stuck on the sheet */
-.dy-days { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: clamp(8px, 1.6vw, 12px); }
+.dy-days { flex: 1 1 auto; min-height: 190px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: clamp(8px, 1.6vw, 12px); }
 .dy-day {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(1px, .6dvh, 4px); text-align: center;
   min-height: 70px; padding: 6px 2px 4px; border: 1px solid rgba(0, 0, 0, .16); border-radius: 2px; color: #3a2140;
@@ -172,9 +173,9 @@
   font: clamp(13px, 3.4dvh, 18px)/1.5 var(--font-ui); letter-spacing: .06em; font-style: normal; transform: rotate(-3deg); }
 
 /* missions: checklist strips */
-.dy-mlist { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(7px, 1.6dvh, 11px); }
+.dy-mlist { flex: 1 1 auto; display: flex; flex-direction: column; gap: clamp(7px, 1.6dvh, 11px); }   /* no min-height:0 here, so the strips can never be squashed on top of each other */
 .dy-m {
-  flex: 1 1 0; min-height: 72px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #fff; color: #3a2140;
+  flex: 1 1 auto; display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #fff; color: #3a2140;
   border: 1px solid rgba(0, 0, 0, .16); border-left: 9px solid var(--green); border-radius: 2px; box-shadow: 2px 3px 6px rgba(0, 0, 0, .22);
 }
 .dy-m.med { border-left-color: var(--yellow); }
@@ -205,18 +206,15 @@
 
 /* portrait phones / narrow: stack the two sheets and scroll */
 @media (max-width: 640px), (orientation: portrait) {
-  .dy-body { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: auto; align-content: start; gap: 34px; padding-bottom: calc(var(--dy-back-h) + 16px); }
-  .dy-right { margin-bottom: 0; }
+  .dy-body { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: auto; align-content: start; gap: 34px; padding-bottom: 10px; }
   .dy-col { min-height: auto; }
-  .dy-days { grid-template-rows: none; grid-auto-rows: minmax(92px, auto); }
+  .dy-days { grid-template-rows: none; grid-auto-rows: minmax(92px, auto); min-height: 0; }
   .dy-m { min-height: 70px; flex: none; }
 }
 /* short landscape phones */
 @media (max-height: 500px) {
-  .dy-body { padding-top: 18px; }
+  .dy-body { padding-top: 26px; }
   .dy-pts { margin-top: -16px; padding: 4px 10px; }
-  .dy-back { padding: 4px; }
-  #daily-screen { --dy-back-h: clamp(60px, 20vh, 84px); }
-  .dy-body { padding-bottom: 2px; }
+  #daily-screen { --dy-back-h: 48px; }
 }
 @media (prefers-reduced-motion: reduce) { #daily-screen.show, #daily-btn.has-new::after, .dy-dot { animation: none; } }
