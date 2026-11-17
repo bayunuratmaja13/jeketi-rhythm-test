@@ -218,7 +218,7 @@
       burstEl.style.left = (r.left + r.width / 2) + 'px';
       burstEl.style.top = (r.top + r.height / 2) + 'px';
       burstEl.innerHTML = '';
-      const cols = BURST[t.id], k = { C: 14, B: 16, A: 20, S: 28, SS: 40 }[t.id];
+      const cols = BURST[t.id], k = { C: 8, B: 9, A: 12, S: 16, SS: 22 }[t.id];
       for (let i = 0; i < k; i++) {
         const q = document.createElement('i');
         q.style.setProperty('--a', (Math.PI * 2 * i / k + Math.random() * .4) + 'rad');
@@ -256,7 +256,7 @@
         snd('tear', lastStep);
         buzz(5);
         const r = packEl.getBoundingClientRect();
-        confetti(r.left + lastStep * r.width, r.top + r.height * .15, 3, [pack.accent, '#ffffff'], .3);
+        if (Math.round(lastStep / .04) % 2 === 0) confetti(r.left + lastStep * r.width, r.top + r.height * .15, 1, [pack.accent, '#ffffff'], .3);
       }
       if (v < lastStep - .08) lastStep = Math.floor(v / .04) * .04;
     }
@@ -293,7 +293,7 @@
       flash();
       quake(true);
       const r = packEl.getBoundingClientRect();
-      confetti(r.left + r.width / 2, r.top + r.height * .15, 46, PARTY.concat([pack.accent]), 1.5);
+      confetti(r.left + r.width / 2, r.top + r.height * .15, 20, PARTY.concat([pack.accent]), 1.2);
       ring(r.left + r.width / 2, r.top + r.height * .15, pack.accent);
       await wait(230);
       snd('whoosh');
@@ -347,12 +347,12 @@
       const ti = tierIdx(d), cols = BURST[d.t.id].concat(PARTY.slice(0, 3));
       burst(c, d.t);
       ring(cx, cy, BURST[d.t.id][0]);
-      confetti(cx, cy, 16 + ti * 10 + idx * 4, cols, 1 + ti * .25 + idx * .1);
+      confetti(cx, cy, 8 + ti * 5 + idx * 2, cols, 1 + ti * .25 + idx * .1);
       snd('pull', idx, ti);
       buzz(ti >= 3 ? [20, 20, 60] : 14 + idx * 5);
       quake(ti >= 3 || last);
       if (d.isNew) setTimeout(() => snd('slam'), 150);
-      if (last) { flash(); confetti(cx, cy, 30, PARTY, 1.6); }
+      if (last) { flash(); confetti(cx, cy, 14, PARTY, 1.4); }
     }
 
     async function revealTop() {
@@ -426,8 +426,8 @@
       const W = window.innerWidth, H = window.innerHeight;
       [0, 180, 360].forEach((d, k) => setTimeout(() => {
         if (closed) return;
-        confetti(W * .08, H, 26, PARTY.concat([pack.accent]), 1.9, true);
-        confetti(W * .92, H, 26, PARTY.concat([pack.accent]), 1.9, true);
+        confetti(W * .08, H, 12, PARTY.concat([pack.accent]), 1.9, true);
+        confetti(W * .92, H, 12, PARTY.concat([pack.accent]), 1.9, true);
         snd('pop');
         buzz(12);
       }, d + 120));

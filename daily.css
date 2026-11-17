@@ -48,15 +48,16 @@
   color: #3a2140; font-family: 'Fredoka', var(--font-game), sans-serif; touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
+#daily-screen { --dy-back-h: clamp(88px, 20dvh, 136px); }
 #daily-screen > * { position: relative; }
 #daily-screen.show { display: flex; animation: dy-in .2s ease-out; }
 @keyframes dy-in { from { opacity: 0; } }
 
 /* header: title image in the middle, Points note taped top-right */
-.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(84px, 20dvh, 136px); padding: 0; }
+.dy-head { flex: none; display: flex; align-items: center; justify-content: center; min-height: clamp(44px, 10dvh, 70px); padding: 0; }
 .dy-title { display: flex; align-items: center; justify-content: center; }
-.dy-title img { height: clamp(64px, 17dvh, 120px); width: auto; display: block; }
-.dy-title-text { font: clamp(40px, 12dvh, 72px)/1 var(--font-ui); color: var(--paper); -webkit-text-stroke: 3px var(--black); paint-order: stroke fill; letter-spacing: 2px; }
+.dy-title img { height: clamp(32px, 8.5dvh, 60px); width: auto; display: block; }
+.dy-title-text { font: clamp(20px, 6dvh, 36px)/1 var(--font-ui); color: var(--paper); -webkit-text-stroke: 3px var(--black); paint-order: stroke fill; letter-spacing: 2px; }
 .dy-pts {
   position: absolute; right: 4px; top: 50%; margin-top: -22px; z-index: 2;
   background: var(--paper); border: 1px solid rgba(0, 0, 0, .12); box-shadow: 3px 5px 10px rgba(0, 0, 0, .35);
@@ -68,10 +69,11 @@
 
 /* back: big image button, top-left (same place as BACK on the song select), so the sheets can use the whole screen */
 .dy-back {
-  position: fixed; top: max(6px, env(safe-area-inset-top, 0px)); left: max(10px, env(safe-area-inset-left, 0px));
+  position: fixed; bottom: max(6px, env(safe-area-inset-bottom, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); top: auto; left: auto;
   z-index: 20; padding: 4px;
 }
-.dy-back .btn-gif { height: clamp(88px, 20dvh, 136px); width: auto; }
+.dy-back .btn-gif { height: var(--dy-back-h); width: auto; }
+.dy-right { margin-bottom: calc(var(--dy-back-h) + 6px); }   /* keep the back button off the missions sheet */
 
 /* body: two paper sheets that fill the remaining screen */
 .dy-body {
@@ -203,7 +205,8 @@
 
 /* portrait phones / narrow: stack the two sheets and scroll */
 @media (max-width: 640px), (orientation: portrait) {
-  .dy-body { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: auto; align-content: start; gap: 34px; padding-bottom: 24px; }
+  .dy-body { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: auto; align-content: start; gap: 34px; padding-bottom: calc(var(--dy-back-h) + 16px); }
+  .dy-right { margin-bottom: 0; }
   .dy-col { min-height: auto; }
   .dy-days { grid-template-rows: none; grid-auto-rows: minmax(92px, auto); }
   .dy-m { min-height: 70px; flex: none; }
@@ -213,7 +216,7 @@
   .dy-body { padding-top: 18px; }
   .dy-pts { margin-top: -16px; padding: 4px 10px; }
   .dy-back { padding: 4px; }
-  .dy-back .btn-gif { height: clamp(60px, 20vh, 84px); }
+  #daily-screen { --dy-back-h: clamp(60px, 20vh, 84px); }
   .dy-body { padding-bottom: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { #daily-screen.show, #daily-btn.has-new::after, .dy-dot { animation: none; } }

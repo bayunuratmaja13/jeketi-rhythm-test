@@ -542,3 +542,27 @@
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .35) 18%, rgba(0, 0, 0, .35) 82%, transparent);
   border-top: 1px solid rgba(255, 255, 255, .55); border-bottom: 1px solid rgba(255, 255, 255, .55); text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
 }
+
+/* ============================================================ */
+/*  PERFORMANCE PASS: no looping animations on the wrapper, no SVG lighting textures, no stacked filters / blend modes  */
+/*  (the wrapper is drawn 3x, body + two tear flaps, so every effect on it costs triple)                               */
+/* ============================================================ */
+.pk-pack { filter: none; }
+.pk-wrinkle {
+  mix-blend-mode: normal; opacity: .5;
+  background-image:
+    linear-gradient(104deg, transparent 18%, rgba(255, 255, 255, .22) 20%, transparent 24%, transparent 47%, rgba(0, 0, 0, .14) 49%, transparent 53%, transparent 72%, rgba(255, 255, 255, .18) 74%, transparent 78%),
+    linear-gradient(8deg, transparent 30%, rgba(255, 255, 255, .15) 32%, transparent 36%, transparent 62%, rgba(0, 0, 0, .12) 64%, transparent 68%);
+}
+.pk-wrinkle::after { display: none; }
+.pk-holo, .pk-foil { animation: none; mix-blend-mode: normal; opacity: .55; }
+.pk-art::before { mix-blend-mode: normal; opacity: .55; }
+.pk-art::after { display: none; }
+.pk-center::before { display: none; }
+.pk-center::after { filter: none; opacity: .4; }
+.pk-emblem { animation: none; filter: drop-shadow(0 .04em 0 rgba(0, 0, 0, .5)); }
+.pk-aura { animation: none; filter: none; opacity: .35; }
+.pk-aura.charging { filter: none; }
+.pk-rays { animation: none; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; }
+.pk-brand { text-shadow: 0 .07em 0 rgba(0, 0, 0, .4); }
+.sh-art .shp::before { mix-blend-mode: normal; opacity: .5; }
