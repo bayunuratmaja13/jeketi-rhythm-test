@@ -2148,3 +2148,34 @@ html.play-phone .judgement-line.hit-miss    { background: linear-gradient(180deg
 #score { animation: none !important; }
 #beat-pulse { will-change: opacity; transform: translateZ(0); }
 body[data-tier="4"] #tier-glow { animation: none; }
+
+
+/* ====================================================================== */
+/* ===== RESULTS CARD: fixed size, record + points live in the left column */
+/* ====================================================================== */
+.results-card { overflow: visible !important; }              /* stamps scale up while animating: never show a scrollbar */
+.results-layout { align-items: stretch; }
+.results-left { flex: 0 0 172px; justify-content: space-between; align-items: center; gap: 6px; }
+.results-left .rl-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.results-right { align-self: center; }
+
+/* the slots always take their space, so showing them never makes the card taller */
+.results-left .record-badge {
+  display: block; visibility: hidden; margin: 0 auto; transform: rotate(-4deg);
+  font-size: 15px; letter-spacing: 1px; white-space: nowrap; animation: none;
+}
+.results-left .record-badge.show { visibility: visible; animation: stamp-in 0.4s cubic-bezier(0.3, 1.8, 0.5, 1) both; }
+.results-left .points-earned { width: 100%; min-height: 2.8em; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; line-height: 1.15; }
+.results-left .points-earned .pt-daily { display: block; font-size: 0.8em; }
+
+@media (max-height: 500px) {
+  .results-left { flex-basis: 118px; gap: 2px; }
+  .results-left .rl-mid { gap: 4px; }
+  .results-left .results-cover { width: 56px; height: 56px; }
+  .results-left .grade-stamp { width: 52px; height: 52px; font-size: 32px; }
+  .results-left .record-badge { font-size: 11px; padding: 2px 8px; letter-spacing: 0.5px; margin-top: 0; }
+  .results-left .points-earned { font-size: 12px; min-height: 2.4em; }
+}
+@media (max-width: 560px) and (orientation: portrait) {
+  .results-left { flex-basis: auto; }
+}

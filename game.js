@@ -701,9 +701,13 @@ results.innerHTML = `
     <div class="tape-top"></div>
     <div class="results-layout">
       <div class="results-left">
-        <div class="results-cover" id="final-cover"></div>
-        <div class="results-song" id="final-song"></div>
-        <div class="grade-stamp" id="final-grade"></div>
+        <div class="record-badge" id="final-record">NEW RECORD!</div>
+        <div class="rl-mid">
+          <div class="results-cover" id="final-cover"></div>
+          <div class="results-song" id="final-song"></div>
+          <div class="grade-stamp" id="final-grade"></div>
+        </div>
+        <div class="points-earned" id="final-points"></div>
       </div>
       <div class="results-right">
         <div class="results-title"><img src="images/finish.gif" class="title-img" alt="FINISH!"></div>
@@ -729,8 +733,6 @@ results.innerHTML = `
           <div class="judge-cell jc-bad"><div class="judge-name">Bad</div><div class="judge-num" id="jc-bad">0</div></div>
           <div class="judge-cell jc-miss"><div class="judge-name">Miss</div><div class="judge-num" id="jc-miss">0</div></div>
         </div>
-        <div class="record-badge" id="final-record">NEW RECORD!</div>
-        <div class="points-earned" id="final-points"></div>
         <div class="results-buttons">
           <button id="btn-play-again" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Play Again"></button>
           <button id="btn-back" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Songs"></button>
@@ -1494,9 +1496,9 @@ function playSongSelectSound() {
 // ---------- CANVAS PLAYFIELD ----------
 // Pseudo-3D done by hand: a note's screen position and size come from one cheap formula,
 // so there is no CSS 3D transform, no per-note DOM element and no box-shadow repaint.
-const S_FAR = 0.30;                        // size of the lanes at the very top, relative to the hit line
+const S_FAR = 0.34;                        // size of the lanes at the very top, relative to the hit line
 const Z_FAR = 1 / S_FAR;
-const FIELD = { W: 0, H: 0, dpr: 1, cx: 0, left: 0, top: 0, hitY: 0, yH: 0, lw: 0, recH: 0, noteW: 0, noteH: 0 };
+const FIELD = { W: 0, H: 0, dpr: 1, cx: 0, left: 0, top: 0, topY: 0, hitY: 0, yH: 0, lw: 0, recH: 0, noteW: 0, noteH: 0 };
 const lanePressedState = [false, false, false, false];
 const laneFlashUntil = [0, 0, 0, 0];
 const laneHitUntil = [0, 0, 0, 0];
@@ -1548,6 +1550,14 @@ function timeToScale(t) {                                               // t: 0 
 }
 function tierVariant() { const t = getTier(combo); return t >= 4 ? 3 : t >= 3 ? 2 : t >= 2 ? 1 : 0; }
 
+// Bottom edge of the equipped-card strip (0 when no cards are shown). The track starts under it, like SuperStar.
+function cardStripBottom() {
+  const c = document.querySelector('.card-cheer .pos-c') || document.querySelector('.card-cheer .cc-card');
+  if (!c) return 0;
+  const r = c.getBoundingClientRect();
+  return r.height > 0 ? r.bottom - FIELD.top : 0;
+}
+
 function layoutField() {
   const W = playfieldEl.clientWidth, H = playfieldEl.clientHeight;
   if (!W || !H) return;
@@ -1555,13 +1565,16 @@ function layoutField() {
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   while (W * H * dpr * dpr > 1.7e6 && dpr > 1) dpr = Math.max(1, dpr - 0.25);   // never paint a huge bitmap
   const r = playfieldEl.getBoundingClientRect();
-  F.left = r.left; F.top = r.top;
+  const strip = cardStripBottom();
+  const topY = strip > 0 ? Math.min(Math.round(strip + 6), Math.round(H * 0.34)) : 0;
+  if (F.lw && W === F.W && H === F.H && dpr === F.dpr && Math.abs(topY - F.topY) < 2) return;   // nothing changed
+  F.left = r.left; F.top = r.top; F.topY = topY;
   F.W = W; F.H = H; F.dpr = dpr; F.cx = W / 2;
   // narrow, centred track: ~55% of a phone screen, never wider than 820px
   const fieldW = Math.min(W * 0.58, H * 1.15, 820);
   F.lw = fieldW / 4;
   F.hitY = Math.round(H * 0.78);
-  F.yH = -F.hitY * S_FAR / (1 - S_FAR);
+  F.yH = (F.topY - F.hitY * S_FAR) / (1 - S_FAR);   // vanishing point, so the lanes are S_FAR wide exactly at topY
   F.recH = F.lw * 0.42;
   F.noteW = F.lw * 0.88;
   F.noteH = F.lw * 0.34;
@@ -1605,21 +1618,23 @@ function drawStatic() {
   const F = FIELD, c = bgCtx;
   c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
   c.clearRect(0, 0, F.W, F.H);
-  const s0 = sAt(0), s1 = sAt(F.H);
+  const y0 = F.topY, s0 = sAt(y0), s1 = sAt(F.H);
   c.beginPath();
-  c.moveTo(edgeX(0, s0), 0); c.lineTo(edgeX(4, s0), 0);
+  c.moveTo(edgeX(0, s0), y0); c.lineTo(edgeX(4, s0), y0);
   c.lineTo(edgeX(4, s1), F.H); c.lineTo(edgeX(0, s1), F.H);
   c.closePath();
-  const g = c.createLinearGradient(0, 0, 0, F.H);
+  const g = c.createLinearGradient(0, y0, 0, F.H);
   g.addColorStop(0, 'rgba(20,8,40,0)');
   g.addColorStop(0.4, 'rgba(34,12,60,0.55)');
   g.addColorStop(1, 'rgba(70,18,80,0.78)');
   c.fillStyle = g; c.fill();
   c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,170,215,0.16)';
-  for (let k = 1; k <= 3; k++) { c.beginPath(); c.moveTo(edgeX(k, s0), 0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
-  c.lineWidth = 3; c.strokeStyle = 'rgba(255,196,228,0.9)';
+  for (let k = 1; k <= 3; k++) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
+  const rg = c.createLinearGradient(0, y0, 0, y0 + (F.H - y0) * 0.3);
+  rg.addColorStop(0, 'rgba(255,196,228,0)'); rg.addColorStop(1, 'rgba(255,196,228,0.9)');
+  c.lineWidth = 3; c.strokeStyle = rg;
   c.shadowColor = 'rgba(255,107,166,0.9)'; c.shadowBlur = 12;
-  for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), 0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
+  for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
   c.shadowBlur = 0;
 }
 
@@ -1682,6 +1697,7 @@ function drawField(now, dt) {
       if (n.judged) continue;
       const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
       if (tHead < 0) continue;
+      c.globalAlpha = tHead < 0.12 ? tHead / 0.12 : 1;      // fade in just under the card strip
       if (n.dur > 0) {
         const tTail = Math.max(0, (now - (n.time + n.dur - APPROACH_TIME)) / APPROACH_TIME);
         const th = n.holding ? Math.min(tHead, 1) : tHead;
@@ -1710,6 +1726,7 @@ function drawField(now, dt) {
         c.drawImage(spr.cv, laneX(n.lane, s) - w / 2, y - h / 2, w, h);
       }
     }
+    c.globalAlpha = 1;
   }
 
   // hit pops
@@ -2415,6 +2432,7 @@ function startPlayback() {
 
   pauseBtn.classList.add('show');
   setHudVisible(true);
+  [80, 400, 1000].forEach(ms => setTimeout(measureLane, ms));   // card strip finishes its entrance: place the track under it
 
   // Inputs stay off until the audio is really playing, so the clock and the music can never disagree
   mode = 'starting';
