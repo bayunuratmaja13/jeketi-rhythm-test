@@ -91,14 +91,18 @@ pauseOverlay.innerHTML = `
     <div class="pause-title">PAUSED</div>
     <div class="eq-strip"></div>
     <div class="pause-buttons">
-      <button id="btn-resume" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Resume"></button>
-      <button id="btn-quit" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Quit"></button>
+      <button id="btn-resume" class="pause-btn-text pb-resume">RESUME</button>
+      <div class="pause-row">
+        <button id="btn-restart" class="pause-btn-text pb-restart">RESTART</button>
+        <button id="btn-quit" class="pause-btn-text pb-exit">EXIT</button>
+      </div>
     </div>
   </div>
 `;
 document.body.appendChild(pauseOverlay);
 const btnResume = document.getElementById('btn-resume');
 const btnQuit = document.getElementById('btn-quit');
+const btnRestart = document.getElementById('btn-restart');
 
 // ---------- GAME OVER ----------
 const gameOver = document.createElement('div');
@@ -705,9 +709,11 @@ results.innerHTML = `
         <div class="rl-mid">
           <div class="results-cover" id="final-cover"></div>
           <div class="results-song" id="final-song"></div>
-          <div class="grade-stamp" id="final-grade"></div>
+          <div class="rl-grade-row">
+            <div class="grade-stamp" id="final-grade"></div>
+            <div class="rl-points" id="final-points"></div>
+          </div>
         </div>
-        <div class="points-earned" id="final-points"></div>
       </div>
       <div class="results-right">
         <div class="results-title"><img src="images/finish.gif" class="title-img" alt="FINISH!"></div>
@@ -734,8 +740,8 @@ results.innerHTML = `
           <div class="judge-cell jc-miss"><div class="judge-name">Miss</div><div class="judge-num" id="jc-miss">0</div></div>
         </div>
         <div class="results-buttons">
-          <button id="btn-play-again" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Play Again"></button>
-          <button id="btn-back" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Songs"></button>
+          <button id="btn-play-again" class="gif-btn"><img src="images/play-again.gif" class="btn-gif" alt="Play Again"></button>
+          <button id="btn-back" class="gif-btn"><img src="images/exit.gif" class="btn-gif" alt="Exit"></button>
         </div>
       </div>
     </div>
@@ -807,6 +813,12 @@ function gradeFor(acc, sc) {
   return 'C';
 }
 
+// Points logo shown next to the grade on the result card. Change the path if your P logo lives somewhere else;
+// if the image is missing it falls back to a gold "P" coin.
+const POINT_LOGO_SRC = 'images/point.png';
+const POINT_LOGO_HTML = '<img class="rl-pt-logo" src="' + POINT_LOGO_SRC + '" alt="" ' +
+  'onerror="this.outerHTML=\'<span class=&quot;rl-pt-logo rl-pt-coin&quot;>P</span>\'">';
+
 function showResults() {
   mode = 'idle';
   pauseBtn.classList.remove('show');
@@ -859,7 +871,8 @@ function showResults() {
   finalBannerEl.style.opacity = 0;
 
   finalRecordEl.classList.remove('show');
-  if (window.Points) Points.clearEarned(finalPointsEl);
+  finalPointsEl.innerHTML = '';
+  finalPointsEl.classList.remove('show');
 
   results.classList.remove('show');
   void results.offsetWidth;
@@ -921,10 +934,11 @@ function showResults() {
     let earned = Points.earnFor(grade, fullCombo, allPerfect);
     if (dailyBonus) earned = Math.round(earned * Daily.FEATURED_MULT);          // featured song: +50% Points
     Points.add(earned);
-    afterMs(2700, () => {
-      Points.showEarned(finalPointsEl, earned);
-      if (dailyBonus) finalPointsEl.insertAdjacentHTML('beforeend', '<span class="pt-daily">★ DAILY +50%</span>');
-    });
+    // no count-up, no pop-in: "(P logo) +xxxx" next to the grade, daily bonus under it
+    finalPointsEl.innerHTML =
+      '<div class="rl-pt-line">' + POINT_LOGO_HTML + '<span class="rl-pt-amt">+' + earned.toLocaleString('en-US') + '</span></div>' +
+      (dailyBonus ? '<div class="rl-pt-daily">\u2605 DAILY +50%</div>' : '');
+    afterMs(1450, () => finalPointsEl.classList.add('show'));
   }
 }
 
@@ -2516,6 +2530,11 @@ btnGoPlayAgain.addEventListener('click', () => { if (currentSong) startPlayback(
 btnGoBack.addEventListener('click', () => { backToSongSelect(); });
 btnResume.addEventListener('click', () => { resumeGame(); });
 btnQuit.addEventListener('click', () => { backToSongSelect(); });
+btnRestart.addEventListener('click', () => {
+  if (!currentSong) return;
+  if (window.Shop) Shop.setCheerPaused(false);
+  startPlayback();
+});
 pauseBtn.addEventListener('click', () => { pauseGame(); });
 
 // ---------- UI SOUND PACK ----------
@@ -2685,7 +2704,7 @@ const UI_MAP = [
   ['#pause-btn', 'pause'],
   ['#btn-resume', 'resume'],
   ['#btn-quit', 'quit'],
-  ['#btn-play-again, #btn-go-play-again', 'retry'],
+  ['#btn-play-again, #btn-go-play-again, #btn-restart', 'retry'],
   ['.cards-tab', 'tab'],
   ['.cards-chip', 'chip'],
   ['.cv-close, .sh-mx', 'close'],
