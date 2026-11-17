@@ -118,7 +118,9 @@
     // glossy mylar wrapper: artwork first, then the plastic layers (puff, crumples, hologram, glare) and the crimped seals on top
     const art =
       '<div class="pk-art">' +
+        '<div class="pk-brand">JEKETI RHYTHM</div>' +
         `<div class="pk-center"><div class="pk-emblem">${pack.emblem}</div><div class="pk-name">${pack.name}</div><div class="pk-count">${n} cards</div></div>` +
+        '<div class="pk-foot">BOOSTER PACK</div>' +
         '<i class="pk-puff"></i><i class="pk-wrinkle"></i><i class="pk-holo"></i><i class="pk-foil"></i>' +
         '<i class="pk-crimp"></i><i class="pk-crimp b"></i>' +
       '</div>';

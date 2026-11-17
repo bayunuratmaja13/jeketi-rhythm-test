@@ -437,3 +437,108 @@
   .pk-welcome { font-size: 13px; }
   #pack-overlay:has(.pk-logo) { --cw: clamp(90px, min(30vw, calc((100dvh - 235px) * .75)), 250px); }
 }
+/* ============================================================ */
+/*  FOIL BOOSTER LOOK (v2): glossy metallic wrapper, ridged heat-sealed fins, holo sparkle, starburst art  */
+/* ============================================================ */
+.pk-pack { filter: drop-shadow(0 1.1em 1.4em rgba(0, 0, 0, .6)) drop-shadow(0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent)); }
+.pk-art {
+  border-radius: 2.2%;
+  background:
+    linear-gradient(100deg, rgba(0, 0, 0, .32) 0%, transparent 9%, transparent 91%, rgba(0, 0, 0, .32) 100%),
+    linear-gradient(165deg, color-mix(in srgb, var(--p1) 70%, #fff) 0%, var(--p1) 22%, color-mix(in srgb, var(--p1) 45%, var(--p2)) 48%, var(--p2) 74%, color-mix(in srgb, var(--p2) 60%, #000) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), inset 0 0 0 3px rgba(0, 0, 0, .18), inset 3px 4px 9px rgba(255, 255, 255, .5), inset -4px -5px 11px rgba(0, 0, 0, .45);
+}
+/* diagonal metallic light bands + a soft top-to-bottom shine over everything */
+.pk-art::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: soft-light;
+  background:
+    linear-gradient(118deg, transparent 12%, rgba(255, 255, 255, .55) 22%, transparent 30%, transparent 52%, rgba(255, 255, 255, .45) 60%, transparent 68%),
+    linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 30%, transparent 70%, rgba(0, 0, 0, .3));
+}
+/* fine glitter specks */
+.pk-art::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: overlay; opacity: .55;
+  background-image:
+    radial-gradient(circle at 12% 22%, #fff 0 1px, transparent 1.5px), radial-gradient(circle at 78% 14%, #fff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 34% 68%, #fff 0 1px, transparent 1.5px), radial-gradient(circle at 88% 74%, #fff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 56% 40%, #fff 0 1px, transparent 1.5px), radial-gradient(circle at 20% 88%, #fff 0 1px, transparent 1.5px);
+  background-size: 90px 90px, 70px 70px, 110px 110px, 80px 80px, 120px 120px, 100px 100px;
+  animation: pk-glitter 3.2s ease-in-out infinite;
+}
+@keyframes pk-glitter { 0%, 100% { opacity: .25; } 50% { opacity: .75; } }
+.pk-holo { opacity: 1; background-size: 300% 300%; }
+
+/* heat-sealed fins: tight vertical ridges, metal shading, a crisp inner seam line */
+.pk-crimp {
+  height: 8.5%;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .42) 0 calc(var(--cw) * .0045), rgba(255, 255, 255, .62) calc(var(--cw) * .0045) calc(var(--cw) * .0095), rgba(255, 255, 255, .1) calc(var(--cw) * .0095) calc(var(--cw) * .0145)),
+    linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(0, 0, 0, .28)) !important;
+  border-bottom: 2px solid rgba(0, 0, 0, .35); box-shadow: 0 .14em .3em rgba(0, 0, 0, .4);
+}
+.pk-crimp.b { border-bottom: 0; border-top: 2px solid rgba(0, 0, 0, .35);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .42) 0 calc(var(--cw) * .0045), rgba(255, 255, 255, .62) calc(var(--cw) * .0045) calc(var(--cw) * .0095), rgba(255, 255, 255, .1) calc(var(--cw) * .0095) calc(var(--cw) * .0145)),
+    linear-gradient(0deg, rgba(255, 255, 255, .55), rgba(0, 0, 0, .28)) !important; }
+
+/* artwork: starburst behind the emblem, glowing emblem, bolder title plate */
+.pk-center::before {
+  content: ''; position: absolute; left: 50%; top: 42%; width: calc(var(--cw) * 1.25); aspect-ratio: 1; transform: translate(-50%, -50%); z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .38) 0 6deg, transparent 6deg 15deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 15%, transparent 72%); mask-image: radial-gradient(closest-side, #000 15%, transparent 72%);
+  animation: pk-spin 26s linear infinite;
+}
+.pk-center::after {
+  content: ''; position: absolute; left: 50%; top: 40%; width: calc(var(--cw) * .8); aspect-ratio: 1; transform: translate(-50%, -50%); z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .85), var(--accent) 45%, transparent 75%); opacity: .55; filter: blur(4px);
+}
+.pk-emblem { filter: drop-shadow(0 .035em 0 rgba(0, 0, 0, .55)) drop-shadow(0 0 .18em #fff) drop-shadow(0 0 .35em var(--accent)); }
+.pk-name {
+  padding: .2em .9em .24em; border: calc(var(--cw) * .012) solid #fff; border-radius: .2em;
+  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--accent) 55%, #fff) 45%, var(--accent) 100%);
+  box-shadow: 0 .14em 0 rgba(0, 0, 0, .45), 0 0 .5em color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.pk-count {
+  padding: .25em .9em; border-radius: 1em; background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .45);
+  letter-spacing: .16em; font-weight: 800;
+}
+
+/* mini packs in the shop get the same wrapper */
+.sh-art .shp {
+  border-radius: 4%;
+  background:
+    linear-gradient(100deg, rgba(0, 0, 0, .3), transparent 10%, transparent 90%, rgba(0, 0, 0, .3)),
+    linear-gradient(165deg, color-mix(in srgb, var(--p1) 70%, #fff), var(--p1) 22%, color-mix(in srgb, var(--p1) 45%, var(--p2)) 48%, var(--p2) 78%, color-mix(in srgb, var(--p2) 60%, #000));
+}
+.sh-art .shp::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(118deg, transparent 12%, rgba(255, 255, 255, .6) 22%, transparent 32%, transparent 54%, rgba(255, 255, 255, .45) 62%, transparent 70%);
+}
+.sh-art .shp-crimp {
+  height: 9%;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .42) 0 1.5px, rgba(255, 255, 255, .62) 1.5px 3px, rgba(255, 255, 255, .1) 3px 5px),
+    linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(0, 0, 0, .28));
+  border-bottom: 1px solid rgba(0, 0, 0, .35);
+}
+.sh-art .shp-crimp.b { border-bottom: 0; border-top: 1px solid rgba(0, 0, 0, .35);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .42) 0 1.5px, rgba(255, 255, 255, .62) 1.5px 3px, rgba(255, 255, 255, .1) 3px 5px),
+    linear-gradient(0deg, rgba(255, 255, 255, .55), rgba(0, 0, 0, .28)); }
+.sh-art .shp-emb { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .5)) drop-shadow(0 0 6px #fff); }
+@media (prefers-reduced-motion: reduce) { .pk-art::after, .pk-center::before { animation: none; } }
+
+/* ---------- booster details: game brand across the top, "BOOSTER PACK" strip along the bottom ---------- */
+.pk-art .pk-center { margin-top: 7%; }
+.pk-brand {
+  position: absolute; left: 0; right: 0; top: 11.5%; text-align: center; z-index: 1; pointer-events: none; white-space: nowrap;
+  font: 900 calc(var(--cw) * .092)/1 var(--font-impact); letter-spacing: .05em; color: #fff; transform: skewX(-6deg);
+  -webkit-text-stroke: calc(var(--cw) * .012) rgba(40, 0, 30, .6); paint-order: stroke fill;
+  text-shadow: 0 .07em 0 rgba(0, 0, 0, .4), 0 0 .5em var(--accent);
+}
+.pk-foot {
+  position: absolute; left: 7%; right: 7%; bottom: 11.5%; z-index: 1; pointer-events: none; text-align: center;
+  padding: .45em 0 .4em; font: 800 calc(var(--cw) * .048)/1 'Fredoka', var(--font-game), sans-serif; letter-spacing: .3em; color: #fff;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .35) 18%, rgba(0, 0, 0, .35) 82%, transparent);
+  border-top: 1px solid rgba(255, 255, 255, .55); border-bottom: 1px solid rgba(255, 255, 255, .55); text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
+}
