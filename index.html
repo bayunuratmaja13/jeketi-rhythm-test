@@ -32,11 +32,8 @@
   var PW = 1000;                        // while playing: virtual screen is only 1000px wide, so lanes and notes are big
   function fit() {
     var w = window.innerWidth, h = window.innerHeight;
-    if (w > h && playing && w < 1500) { // song on screen: nearly native size, fills the whole phone
-      var p = w / PW;
-      f.style.width = PW + 'px';
-      f.style.height = (h / p) + 'px';
-      f.style.transform = 'scale(' + p + ')';
+    if (w > h && playing) {             // song on screen: the game runs at the phone's real size (crisp, no scaling cost)
+      f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
     } else if (w > h && (w < VW || h < VH)) {  // menus: a virtual PC screen, scaled to fit and centered
       var s = Math.min(w / VW, h / VH);
       f.style.width = VW + 'px';

@@ -31,21 +31,13 @@ const scoreEl = document.getElementById('score');
 const comboEl = document.getElementById('combo');
 const judgementEl = document.getElementById('judgement');
 
-const laneEls = [
-  document.querySelector('.lane[data-lane="0"]'),
-  document.querySelector('.lane[data-lane="1"]'),
-  document.querySelector('.lane[data-lane="2"]'),
-  document.querySelector('.lane[data-lane="3"]'),
-];
-const laneLines = laneEls.map(l => l.querySelector('.judgement-line'));
-
-// Light beams that shoot up a lane while its key is held (one per lane, opacity-only)
-const laneBeams = laneEls.map(l => {
-  const b = document.createElement('div');
-  b.className = 'lane-beam';
-  l.appendChild(b);
-  return b;
-});
+// Playfield is ONE canvas now (was 4 tilted DOM lanes with glowing notes = very heavy on phones)
+const playfieldEl = document.getElementById('playfield');
+const fieldBgCv = document.getElementById('field-bg');   // static: lanes, rails (drawn only on resize)
+const fieldCv = document.getElementById('field');        // dynamic: notes, receptors, effects (every frame)
+const bgCtx = fieldBgCv.getContext('2d');
+const ctx = fieldCv.getContext('2d');
+const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
 const screenFlash = mk('div', 'screen-flash');
 const missFlash = mk('div', 'miss-flash');
@@ -150,10 +142,6 @@ const KEY_TO_LANE = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
 const HOLD_GRACE = 100;
 const HOLD_TICK_INTERVAL = 100;
 const HOLD_TICK_POINTS = 15;
-const NOTE_HEIGHT = 60;
-const RECEPTOR_HEIGHT = 60;
-const RECEPTOR_BOTTOM = 40;
-const BUTTON_CENTER_FROM_BOTTOM = RECEPTOR_BOTTOM + RECEPTOR_HEIGHT / 2;
 const SPAWN_LEAD = 150;               // ms before the approach starts that a note's element is created
 
 const TIER_STEPS = [50, 100, 200, 480]; // combo needed for tier 1..4 (also the milestone moments)
@@ -221,7 +209,6 @@ let anchorAudio = 0, anchorPerf = 0, lastAudioRaw = -1;
 let smoothT = 0, smoothPerf = 0;
 
 let countdownEnd = 0, lastCountdownNum = 0;
-let laneHeight = 0;
 let audioCtx = null;
 let loopRunning = false;
 let lastFrameT = 0;
@@ -279,11 +266,8 @@ function startUpdateLoop() {
   requestAnimationFrame(update);
 }
 
-function measureLane() {
-  const h = laneEls[0].clientHeight;
-  if (h > 0) laneHeight = h;
-}
-if ('ResizeObserver' in window) new ResizeObserver(measureLane).observe(laneEls[0]);
+function measureLane() { layoutField(); }
+if ('ResizeObserver' in window) new ResizeObserver(measureLane).observe(playfieldEl);
 window.addEventListener('resize', measureLane);
 
 // ---------- SAVED BESTS ----------
@@ -1507,88 +1491,306 @@ function playSongSelectSound() {
   });
 }
 
-// ---------- VISUAL EFFECTS ----------
-// Rings and particles use pooled elements + the Web Animations API:
-// no forced reflows, no per-hit element churn, and a hard cap on how many exist at once.
-const MAX_FX = 70;
-let liveFx = 0;
-const ringPool = [];
-const particlePool = [];
+// ---------- CANVAS PLAYFIELD ----------
+// Pseudo-3D done by hand: a note's screen position and size come from one cheap formula,
+// so there is no CSS 3D transform, no per-note DOM element and no box-shadow repaint.
+const S_FAR = 0.30;                        // size of the lanes at the very top, relative to the hit line
+const Z_FAR = 1 / S_FAR;
+const FIELD = { W: 0, H: 0, dpr: 1, cx: 0, left: 0, top: 0, hitY: 0, yH: 0, lw: 0, recH: 0, noteW: 0, noteH: 0 };
+const lanePressedState = [false, false, false, false];
+const laneFlashUntil = [0, 0, 0, 0];
+const laneHitUntil = [0, 0, 0, 0];
+const laneHitColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
+const beamA = [0, 0, 0, 0];
+const beamColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
+const fxRings = [];
+const fxParts = [];
+const fxPops = [];                         // quick "pop" of a note that was just hit
+const FX_COL = { perfect: '#ffcc33', great: '#4da8ff', good: '#66d9a8' };
+const NOTE_COLS = [
+  { top: '#ffd2e6', bot: '#ff6ba6', glow: 'rgba(255,107,166,0.9)', hi: 'rgba(255,255,255,0.85)', lo: 'rgba(140,20,70,0.5)', hex: '#ff6ba6' },
+  { top: '#d2eaff', bot: '#4da8ff', glow: 'rgba(77,168,255,0.9)',  hi: 'rgba(255,255,255,0.85)', lo: 'rgba(20,70,160,0.5)', hex: '#4da8ff' },
+  { top: '#fff2b0', bot: '#ffcc33', glow: 'rgba(255,204,51,0.9)',  hi: 'rgba(255,255,255,0.9)',  lo: 'rgba(160,100,0,0.5)', hex: '#ffcc33' },
+  { top: '#B84A9E', bot: '#4A0A3E', glow: 'rgba(190,60,170,0.95)', hi: 'rgba(255,180,240,0.6)',  lo: 'rgba(40,0,30,0.65)',  hex: '#c040a8' },
+];
+const NOTE_SPR = [];
+const _rgbCache = {};
+
+function rgbaOf(hex, a) {
+  let c = _rgbCache[hex];
+  if (!c) {
+    const h = hex.replace('#', '');
+    const f = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+    c = _rgbCache[hex] = [parseInt(f.slice(0, 2), 16), parseInt(f.slice(2, 4), 16), parseInt(f.slice(4, 6), 16)];
+  }
+  return `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+}
+
+function rr(c, x, y, w, h, r) {
+  c.beginPath();
+  if (c.roundRect) { c.roundRect(x, y, w, h, r); return; }
+  r = Math.min(r, w / 2, h / 2);
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+const sAt = (y) => (y - FIELD.yH) / (FIELD.hitY - FIELD.yH);          // lane scale at a screen y
+const yAt = (s) => FIELD.yH + (FIELD.hitY - FIELD.yH) * s;            // screen y for a lane scale
+const laneX = (lane, s) => FIELD.cx + (lane - 1.5) * FIELD.lw * s;     // centre of a lane at a scale
+const edgeX = (k, s) => FIELD.cx + (k - 2) * FIELD.lw * s;             // lane border k (0..4) at a scale
+function timeToScale(t) {                                               // t: 0 = just appeared, 1 = on the hit line
+  if (t > 1.3) t = 1.3;
+  return 1 / (Z_FAR - (Z_FAR - 1) * t);
+}
+function tierVariant() { const t = getTier(combo); return t >= 4 ? 3 : t >= 3 ? 2 : t >= 2 ? 1 : 0; }
+
+function layoutField() {
+  const W = playfieldEl.clientWidth, H = playfieldEl.clientHeight;
+  if (!W || !H) return;
+  const F = FIELD;
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  while (W * H * dpr * dpr > 1.7e6 && dpr > 1) dpr = Math.max(1, dpr - 0.25);   // never paint a huge bitmap
+  const r = playfieldEl.getBoundingClientRect();
+  F.left = r.left; F.top = r.top;
+  F.W = W; F.H = H; F.dpr = dpr; F.cx = W / 2;
+  // narrow, centred track: ~55% of a phone screen, never wider than 820px
+  const fieldW = Math.min(W * 0.58, H * 1.15, 820);
+  F.lw = fieldW / 4;
+  F.hitY = Math.round(H * 0.78);
+  F.yH = -F.hitY * S_FAR / (1 - S_FAR);
+  F.recH = F.lw * 0.42;
+  F.noteW = F.lw * 0.88;
+  F.noteH = F.lw * 0.34;
+  for (const cv of [fieldCv, fieldBgCv]) {
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+  }
+  buildSprites();
+  drawStatic();
+  drawField(getSongTime(), 16);
+}
+
+function buildSprites() {
+  const F = FIELD;
+  const pad = Math.ceil(F.lw * 0.14), w = F.noteW, h = F.noteH, k = F.dpr * 1.15;
+  NOTE_COLS.forEach((c, i) => {
+    const cv = (NOTE_SPR[i] && NOTE_SPR[i].cv) || document.createElement('canvas');
+    cv.width = Math.ceil((w + 2 * pad) * k);
+    cv.height = Math.ceil((h + 2 * pad) * k);
+    const g = cv.getContext('2d');
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.clearRect(0, 0, w + 2 * pad, h + 2 * pad);
+    const rad = h * 0.42;
+    g.shadowColor = c.glow; g.shadowBlur = pad * 0.9;       // the glow is painted ONCE here, never per frame
+    g.fillStyle = c.bot; rr(g, pad, pad, w, h, rad); g.fill();
+    g.shadowBlur = 0;
+    const gr = g.createLinearGradient(0, pad, 0, pad + h);
+    gr.addColorStop(0, c.top); gr.addColorStop(1, c.bot);
+    g.fillStyle = gr; rr(g, pad, pad, w, h, rad); g.fill();
+    g.save(); rr(g, pad, pad, w, h, rad); g.clip();
+    g.fillStyle = c.lo; g.fillRect(pad, pad + h * 0.86, w, h * 0.14);
+    g.restore();
+    g.fillStyle = c.hi; g.globalAlpha = 0.9;
+    rr(g, pad + h * 0.3, pad + h * 0.1, w - h * 0.6, h * 0.15, h * 0.075); g.fill();
+    g.globalAlpha = 1;
+    NOTE_SPR[i] = { cv, w: w + 2 * pad, h: h + 2 * pad };
+  });
+}
+
+function drawStatic() {
+  const F = FIELD, c = bgCtx;
+  c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
+  c.clearRect(0, 0, F.W, F.H);
+  const s0 = sAt(0), s1 = sAt(F.H);
+  c.beginPath();
+  c.moveTo(edgeX(0, s0), 0); c.lineTo(edgeX(4, s0), 0);
+  c.lineTo(edgeX(4, s1), F.H); c.lineTo(edgeX(0, s1), F.H);
+  c.closePath();
+  const g = c.createLinearGradient(0, 0, 0, F.H);
+  g.addColorStop(0, 'rgba(20,8,40,0)');
+  g.addColorStop(0.4, 'rgba(34,12,60,0.55)');
+  g.addColorStop(1, 'rgba(70,18,80,0.78)');
+  c.fillStyle = g; c.fill();
+  c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,170,215,0.16)';
+  for (let k = 1; k <= 3; k++) { c.beginPath(); c.moveTo(edgeX(k, s0), 0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
+  c.lineWidth = 3; c.strokeStyle = 'rgba(255,196,228,0.9)';
+  c.shadowColor = 'rgba(255,107,166,0.9)'; c.shadowBlur = 12;
+  for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), 0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
+  c.shadowBlur = 0;
+}
+
+function drawField(now, dt) {
+  const F = FIELD;
+  if (!F.W) return;
+  const c = ctx, wall = performance.now();
+  c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
+  c.clearRect(0, 0, F.W, F.H);
+
+  const padTop = F.hitY - F.recH / 2;
+  const sA = sAt(padTop), sB = sAt(F.H);
+
+  // light beams + tap pads (the big zone each thumb rests on)
+  for (let i = 0; i < 4; i++) {
+    const down = lanePressedState[i];
+    const target = down ? 0.32 : 0;
+    if (beamA[i] > target) beamA[i] = Math.max(target, beamA[i] - dt * 0.004);
+    else if (beamA[i] < target) beamA[i] = target;
+    if (beamA[i] > 0.02) {
+      const yTop = yAt(0.5);
+      const gr = c.createLinearGradient(0, F.hitY, 0, yTop);
+      gr.addColorStop(0, rgbaOf(beamColor[i], 0.85));
+      gr.addColorStop(1, rgbaOf(beamColor[i], 0));
+      c.globalAlpha = Math.min(1, beamA[i]);
+      c.fillStyle = gr;
+      c.beginPath();
+      c.moveTo(edgeX(i, 1), F.hitY); c.lineTo(edgeX(i + 1, 1), F.hitY);
+      c.lineTo(edgeX(i + 1, 0.5), yTop); c.lineTo(edgeX(i, 0.5), yTop);
+      c.closePath(); c.fill();
+    }
+    let col = '#ff6ba6', a = 0.10;
+    if (wall < laneHitUntil[i]) { col = laneHitColor[i]; a = 0.5; }
+    else if (down) a = 0.38;
+    else if (wall < laneFlashUntil[i]) a = 0.22;
+    c.globalAlpha = a; c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop);
+    c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
+    c.closePath(); c.fill();
+    c.globalAlpha = 1;
+    c.strokeStyle = down ? '#ffffff' : 'rgba(255,205,230,0.85)';
+    c.lineWidth = 3;
+    c.beginPath(); c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop); c.stroke();
+    // receptor outline that the notes land on
+    c.strokeStyle = down ? '#ffffff' : 'rgba(255,107,166,0.65)';
+    c.lineWidth = 2.5;
+    rr(c, laneX(i, 1) - F.noteW * 0.52, F.hitY - F.recH / 2, F.noteW * 1.04, F.recH, F.recH * 0.4);
+    c.stroke();
+  }
+  c.globalAlpha = 1;
+
+  // notes
+  const v = tierVariant();
+  const spr = NOTE_SPR[v];
+  if (spr) {
+    const colr = NOTE_COLS[v];
+    for (let i = 0; i < active.length; i++) {
+      const n = active[i];
+      if (n.judged) continue;
+      const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
+      if (tHead < 0) continue;
+      if (n.dur > 0) {
+        const tTail = Math.max(0, (now - (n.time + n.dur - APPROACH_TIME)) / APPROACH_TIME);
+        const th = n.holding ? Math.min(tHead, 1) : tHead;
+        const sH = timeToScale(th), sT = timeToScale(tTail);
+        const yH = yAt(sH), yT = yAt(sT);
+        if (yH > yT) {
+          const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
+          const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
+          const gr = c.createLinearGradient(0, yT, 0, yH);
+          gr.addColorStop(0, rgbaOf(colr.hex, 0.25));
+          gr.addColorStop(1, rgbaOf(colr.hex, n.holding ? 0.9 : 0.7));
+          c.fillStyle = gr;
+          c.beginPath();
+          c.moveTo(cxT - bwT / 2, yT); c.lineTo(cxT + bwT / 2, yT);
+          c.lineTo(cxH + bwH / 2, yH); c.lineTo(cxH - bwH / 2, yH);
+          c.closePath(); c.fill();
+          c.strokeStyle = rgbaOf(colr.hex, 0.95); c.lineWidth = 2;
+          c.stroke();
+        }
+        const w = spr.w * sH, h = spr.h * sH;
+        c.drawImage(spr.cv, laneX(n.lane, sH) - w / 2, yH - h / 2, w, h);
+      } else {
+        const s = timeToScale(tHead), y = yAt(s);
+        if (y - 40 > F.H) continue;
+        const w = spr.w * s, h = spr.h * s;
+        c.drawImage(spr.cv, laneX(n.lane, s) - w / 2, y - h / 2, w, h);
+      }
+    }
+  }
+
+  // hit pops
+  for (let i = fxPops.length - 1; i >= 0; i--) {
+    const p = fxPops[i], age = (wall - p.t0) / 280;
+    if (age >= 1) { fxPops[i] = fxPops[fxPops.length - 1]; fxPops.pop(); continue; }
+    const sp = NOTE_SPR[p.v];
+    if (!sp) continue;
+    const k = 1 + 0.8 * age, w = sp.w * k, h = sp.h * k;
+    c.globalAlpha = 1 - age;
+    c.drawImage(sp.cv, laneX(p.lane, 1) - w / 2, F.hitY - h / 2, w, h);
+  }
+  c.globalAlpha = 1;
+
+  // rings
+  for (let i = fxRings.length - 1; i >= 0; i--) {
+    const r = fxRings[i], age = (wall - r.t0) / 500;
+    if (age >= 1) { fxRings[i] = fxRings[fxRings.length - 1]; fxRings.pop(); continue; }
+    if (age < 0) continue;
+    const k = 1 + 1.4 * age;
+    const w = F.noteW * 1.04 * k, h = F.recH * k;
+    c.globalAlpha = age < 0.4 ? 1 - age * 0.75 : 0.7 * (1 - (age - 0.4) / 0.6);
+    c.strokeStyle = r.col; c.lineWidth = 2.5;
+    rr(c, laneX(r.lane, 1) - w / 2, F.hitY - h / 2, w, h, h * 0.4);
+    c.stroke();
+  }
+  // particles
+  for (let i = fxParts.length - 1; i >= 0; i--) {
+    const p = fxParts[i], age = (wall - p.t0) / 550;
+    if (age >= 1) { fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
+    const e = 1 - (1 - age) * (1 - age);
+    c.globalAlpha = 1 - age;
+    c.fillStyle = p.col;
+    c.beginPath();
+    c.arc(p.x + Math.cos(p.a) * p.d * e, p.y + Math.sin(p.a) * p.d * e, p.r * (1 - 0.7 * age), 0, 6.2832);
+    c.fill();
+  }
+  c.globalAlpha = 1;
+}
+
+function fxColor(j) { return FX_COL[String(j).toLowerCase()] || '#ff6ba6'; }
 
 function spawnShockwave(laneIndex, judgement, count) {
-  const n = Math.min(lowFx ? 1 : count, MAX_FX - liveFx);
+  const n = lowFx ? 1 : Math.min(count, 3);
+  const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
-    const ring = ringPool.pop() || document.createElement('div');
-    ring.className = `hit-ring ${judgement.toLowerCase()}`;
-    laneEls[laneIndex].appendChild(ring);
-    liveFx++;
-    const anim = ring.animate([
-      { transform: 'scale(1)', opacity: 1 },
-      { transform: 'scale(1.6)', opacity: 0.7, offset: 0.4 },
-      { transform: 'scale(2.4)', opacity: 0 },
-    ], { duration: 500, delay: i * 70, easing: 'cubic-bezier(0.15, 0.6, 0.4, 1)', fill: 'both' });
-    anim.onfinish = () => { ring.remove(); liveFx--; ringPool.push(ring); };
+    if (fxRings.length >= 14) fxRings.shift();
+    fxRings.push({ lane: laneIndex, col, t0: t + i * 70 });
   }
 }
 
 function spawnParticles(laneIndex, judgement, count) {
-  const n = Math.min(Math.round(count * (lowFx ? 0.4 : 1)), MAX_FX - liveFx);
-  for (let i = 0; i < n; i++) {
-    const p = particlePool.pop() || document.createElement('div');
-    p.className = `particle ${judgement.toLowerCase()}`;
-    const angle = (Math.PI * 2 * i / n) + Math.random() * 0.4;
-    const dist = 60 + Math.random() * 70;
-    laneEls[laneIndex].appendChild(p);
-    liveFx++;
-    const anim = p.animate([
-      { transform: `rotate(${angle}rad) translate(0px, 0px) scale(1)`, opacity: 1 },
-      { transform: `rotate(${angle}rad) translate(${dist}px, 0px) scale(0.3)`, opacity: 0 },
-    ], { duration: 550, easing: 'ease-out', fill: 'both' });
-    anim.onfinish = () => { p.remove(); liveFx--; particlePool.push(p); };
+  const n = Math.round(count * (lowFx ? 0.4 : 1) * (COARSE ? 0.6 : 1));
+  const col = fxColor(judgement), t = performance.now();
+  const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
+  for (let i = 0; i < n && fxParts.length < 48; i++) {
+    fxParts.push({
+      x, y, col, t0: t,
+      a: (Math.PI * 2 * i / n) + Math.random() * 0.4,
+      d: (60 + Math.random() * 70) * sc,
+      r: 4.5,
+    });
   }
 }
 
-function flashLane(i) {
-  const el = laneEls[i];
-  el.classList.add('key-flash');
-  clearTimeout(laneFlashTimers[i]);
-  laneFlashTimers[i] = setTimeout(() => el.classList.remove('key-flash'), 160);
-}
+function flashLane(i) { laneFlashUntil[i] = performance.now() + 160; }
 
 function flashJudgementLine(laneIndex, judgement) {
-  const line = laneLines[laneIndex];
-  if (!line) return;
-  line.classList.remove('hit-perfect', 'hit-great', 'hit-good', 'hit-miss');
-  line.classList.add('hit-' + judgement.toLowerCase());
-  clearTimeout(hitBarTimers[laneIndex]);
-  hitBarTimers[laneIndex] = setTimeout(() => {
-    line.classList.remove('hit-perfect', 'hit-great', 'hit-good', 'hit-miss');
-  }, 180);
-  if (judgement === 'miss' && !reduceMotion) {
-    line.animate([
-      { translate: '0 0' }, { translate: '-4px 0', offset: 0.3 },
-      { translate: '4px 0', offset: 0.7 }, { translate: '0 0' },
-    ], { duration: 200, easing: 'ease-out' });
-  }
+  const j = String(judgement).toLowerCase();
+  laneHitColor[laneIndex] = j === 'miss' ? '#e53935' : fxColor(j);
+  laneHitUntil[laneIndex] = performance.now() + 180;
 }
 
 function beamHit(laneIndex, judgementName) {
-  const beam = laneBeams[laneIndex];
   const j = JUDGE[judgementName];
-  laneEls[laneIndex].style.setProperty('--beam', j ? j.beam : '#ff5252');
+  beamColor[laneIndex] = j ? j.beam : '#ff5252';
   if (lowFx) return;
-  beam.animate([
-    { opacity: judgementName === 'PERFECT' ? 1 : 0.85 },
-    { opacity: pressedLanes.has(laneIndex) ? 0.5 : 0 },
-  ], { duration: 220, easing: 'ease-out' });
+  beamA[laneIndex] = judgementName === 'PERFECT' ? 1 : 0.85;
 }
 
-function setLanePressed(laneIndex, pressed) {
-  const line = laneLines[laneIndex];
-  const lane = laneEls[laneIndex];
-  if (line) line.classList.toggle('pressed', pressed);
-  if (lane) lane.classList.toggle('lane-pressed', pressed);
-}
+function setLanePressed(laneIndex, pressed) { lanePressedState[laneIndex] = pressed; }
 
 function triggerScreenFlash() {
   screenFlash.classList.add('active');
@@ -1621,7 +1823,7 @@ const petals = (() => {
   const cv = mk('canvas', 'petals');
   const ctx = cv.getContext ? cv.getContext('2d') : null;
   const COLORS = ['#ffb3d1', '#ffb3d1', '#9fd0ff', '#ffe08a', '#d98cff'];
-  const TARGETS = [8, 14, 22, 32, 44];
+  const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
   const sprites = [];
   const list = [];
   let w = 0, h = 0, dpr = 1, tier = 0, quality = 1, dirty = false;
@@ -1651,7 +1853,7 @@ const petals = (() => {
   function resize() {
     w = window.innerWidth;
     h = window.innerHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    dpr = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     cv.width = Math.floor(w * dpr);
     cv.height = Math.floor(h * dpr);
   }
@@ -1901,56 +2103,19 @@ function handleComboIncrement() {
   shakeScreen(1.6 + getTier(combo) * 0.4);
 }
 
-// ---------- NOTE FACTORY (pooled) ----------
-function makeNote() {
-  const el = document.createElement('div');
-  el.className = 'note';
-  const pink = document.createElement('div');
-  pink.className = 'layer layer-pink';
-  const blue = document.createElement('div');
-  blue.className = 'layer layer-blue';
-  const gold = document.createElement('div');
-  gold.className = 'layer layer-gold';
-  el.appendChild(pink);
-  el.appendChild(blue);
-  el.appendChild(gold);
-  return el;
-}
-
-const notePool = [];
-
-function setNoteY(el, y) {
-  // `translate` leaves `transform` free for the hit-pop animation
-  if (HAS_TRANSLATE) el.style.translate = `0 ${y.toFixed(1)}px`;
-  else el.style.top = `${y.toFixed(1)}px`;
-}
-
-function acquireNoteEl(n) {
-  const el = notePool.pop() || makeNote();
-  el.className = n.dur > 0 ? 'note hold' : 'note';
-  setNoteY(el, -300);
-  el.style.height = '';
-  laneEls[n.lane].appendChild(el);
-  n.h = -1;
-  return el;
-}
-
-function releaseNoteEl(el) {
-  el.remove();
-  el.className = 'note';
-  el.style.translate = '';
-  el.style.top = '';
-  el.style.height = '';
-  if (notePool.length < 80) notePool.push(el);
-}
+// ---------- NOTE TOKEN ----------
+// Notes are drawn on the canvas; `n.el` is only a flag meaning "this note is on screen".
+const NOTE_TOKEN = { classList: { add() {}, remove() {} } };
+function acquireNoteEl(n) { n.h = -1; return NOTE_TOKEN; }
 
 // ---------- NOTES ----------
 function clearNotes() {
   for (let i = 0; i < active.length; i++) {
     const n = active[i];
-    if (n.el) { releaseNoteEl(n.el); n.el = null; }
+    n.el = null;
   }
   active = [];
+  fxPops.length = 0; fxRings.length = 0; fxParts.length = 0;
 }
 
 function buildQueue(chart) {
@@ -1979,17 +2144,15 @@ function buildQueue(chart) {
 
 function removeNoteAnimated(n) {
   n.judged = true;
-  const el = n.el;
-  n.el = null;
-  if (el) {
-    el.classList.add('hit-pop');
-    setTimeout(() => releaseNoteEl(el), 300);
+  if (n.el) {
+    n.el = null;
+    if (fxPops.length < 12) fxPops.push({ lane: n.lane, t0: performance.now(), v: tierVariant() });
   }
 }
 
 function removeNote(n) {
   n.judged = true;
-  if (n.el) { releaseNoteEl(n.el); n.el = null; }
+  n.el = null;
 }
 
 // ---------- LANE DOWN/UP ----------
@@ -2004,7 +2167,7 @@ function laneDown(lane) {
 
   pressedLanes.add(lane);
   setLanePressed(lane, true);
-  laneEls[lane].style.setProperty('--beam', '#ff6ba6');
+  beamColor[lane] = '#ff6ba6';
 
   const now = getSongTime();
   const q = laneQueues[lane];
@@ -2224,7 +2387,7 @@ function resetRunState() {
   perfBad = perfGood = 0;
   lastFrameT = 0;
   shownCombo = -1;
-  laneBeams.forEach(b => b.getAnimations().forEach(a => a.cancel()));
+  beamA.fill(0); lanePressedState.fill(false);
   updateLife();
 }
 
@@ -2278,20 +2441,15 @@ function startPlayback() {
 }
 
 // ---------- TOUCH INPUT ----------
-const playfieldEl = document.getElementById('playfield');
-
+// Lane from finger position. Uses the SAME perspective as the drawing, so what you see is what you hit,
+// and every touch counts: the left thumb owns the left lanes, the right thumb the right lanes.
 function findLaneFromPoint(x, y) {
-  const el = document.elementFromPoint(x, y);
-  const lane = el && el.closest ? el.closest('.lane') : null;
-  if (lane) {
-    const idx = Number(lane.dataset.lane);
-    if (!Number.isNaN(idx)) return idx;
-  }
-  // forgiving fallback: a thumb that lands just outside the lanes still counts, mapped by x across the field's bottom edge
-  const r = playfieldEl.getBoundingClientRect();
-  const laneW = r.width / 4, margin = laneW * 0.9;
-  if (x < r.left - margin || x > r.right + margin) return null;
-  return Math.max(0, Math.min(3, Math.floor((x - r.left) / laneW)));
+  const F = FIELD;
+  if (!F.W) return null;
+  let s = (y - F.top - F.yH) / (F.hitY - F.yH);
+  if (s < 0.9) s = 0.9; else if (s > 1.6) s = 1.6;
+  const k = Math.floor((x - F.left - F.cx) / (F.lw * s) + 2);
+  return k < 0 ? 0 : k > 3 ? 3 : k;
 }
 
 playfieldEl.addEventListener('touchstart', (e) => {
@@ -2650,31 +2808,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------- LOOP ----------
-function renderNote(n, now, hitY) {
-  const T = n.time;
-  const progressHead = (now - (T - APPROACH_TIME)) / APPROACH_TIME;
-
-  if (n.dur <= 0) {
-    setNoteY(n.el, -NOTE_HEIGHT + progressHead * hitY);
-    return;
-  }
-
-  const progressTail = (now - (T + n.dur - APPROACH_TIME)) / APPROACH_TIME;
-  let headBottom = progressHead * hitY;
-  const tailBottom = progressTail * hitY;
-  if (n.holding) headBottom = Math.min(headBottom, hitY);
-  const renderTailBottom = Math.max(tailBottom, -NOTE_HEIGHT);
-  const renderHeadBottom = Math.max(headBottom, renderTailBottom);
-  const top = renderTailBottom - NOTE_HEIGHT;
-  const height = Math.max(4, renderHeadBottom - top);
-
-  setNoteY(n.el, top);
-  if (Math.abs(height - n.h) > 0.5) {
-    n.el.style.height = `${height.toFixed(1)}px`;
-    n.h = height;
-  }
-}
-
 function updateBeat(now, dt) {
   if (lowFx) return;
   let v = kick;
@@ -2707,12 +2840,11 @@ function update(ts) {
   const dt = lastFrameT ? Math.min(ts - lastFrameT, 100) : 16.7;
   lastFrameT = ts;
 
-  if (mode === 'countdown') { tickCountdown(); return; }
+  if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); return; }
   if (mode !== 'playing') return;      // starting / paused / resuming: nothing moves
 
   trackPerformance(dt);
   const now = getSongTime();
-  const hitY = laneHeight - BUTTON_CENTER_FROM_BOTTOM;
 
   // 1) create elements for notes that are about to come into view
   while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= now) {
@@ -2754,7 +2886,6 @@ function update(ts) {
       }
     }
 
-    renderNote(n, now, hitY);
   }
 
   // 3) HUD: score counts up smoothly instead of jumping
@@ -2763,6 +2894,9 @@ function update(ts) {
     displayScore = Math.abs(diff) < 1 ? score : displayScore + diff * 0.3;
     scoreEl.textContent = `Score: ${Math.round(displayScore).toLocaleString()}`;
   }
+
+  // 3b) draw the whole playfield in one go
+  drawField(now, dt);
 
   // 4) ambience
   updateBeat(now, dt);
