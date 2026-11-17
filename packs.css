@@ -566,3 +566,9 @@
 .pk-rays { animation: none; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; }
 .pk-brand { text-shadow: 0 .07em 0 rgba(0, 0, 0, .4); }
 .sh-art .shp::before { mix-blend-mode: normal; opacity: .5; }
+
+/* ---------- torn strip (the two flaps): keep it a plain, flat layer so no phone GPU smears it ---------- */
+.pk-flap .pk-wrinkle, .pk-flap .pk-holo, .pk-flap .pk-puff, .pk-flap .pk-foil { display: none; }
+.pk-flap .pk-art::before, .pk-flap .pk-art::after { display: none; }
+.pk-flap .pk-art { box-shadow: none; }
+.pk-flap, .pk-body { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
