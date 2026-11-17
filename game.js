@@ -1975,11 +1975,10 @@ function popCombo() {
   comboEl.animate(
     [
       { transform: 'translateX(-50%) scale(1)' },
-      { transform: 'translateX(-50%) scale(1.25)', offset: 0.35 },
-      { transform: 'translateX(-50%) scale(0.97)', offset: 0.7 },
+      { transform: 'translateX(-50%) scale(1.1)', offset: 0.4 },
       { transform: 'translateX(-50%) scale(1)' }
     ],
-    { duration: 260, easing: 'ease-out' }
+    { duration: 130, easing: 'ease-out' }
   );
 }
 
@@ -2053,22 +2052,13 @@ function showJudgement(text, color) {
   judgementEl.style.color = color;
   const miss = text === 'MISS' || text === 'BAD';
   judgementEl.getAnimations().forEach(a => a.cancel());
-  if (miss) {
-    judgementEl.animate([
-      { transform: 'translateX(-50%) scale(0.4) rotate(4deg)', opacity: 0 },
-      { transform: 'translateX(-50%) scale(1.3) rotate(-6deg)', opacity: 1, offset: 0.2 },
-      { transform: 'translateX(-50%) scale(1.05) rotate(3deg)', opacity: 1, offset: 0.4 },
-      { transform: 'translateX(-50%) scale(1.15) rotate(-2deg)', opacity: 1, offset: 0.6 },
-      { transform: 'translateX(-50%) scale(1) rotate(0deg)', opacity: 0 },
-    ], { duration: 600, easing: 'cubic-bezier(0.3, 1.6, 0.5, 1)' });
-  } else {
-    judgementEl.animate([
-      { transform: 'translateX(-50%) scale(0.4) rotate(-4deg)', opacity: 0 },
-      { transform: 'translateX(-50%) scale(1.12) rotate(-4deg)', opacity: 1, offset: 0.25 },
-      { transform: 'translateX(-50%) scale(1) rotate(-4deg)', opacity: 1, offset: 0.6 },
-      { transform: 'translateX(-50%) scale(1) rotate(-4deg)', opacity: 0 },
-    ], { duration: 450, easing: 'cubic-bezier(0.3, 1.6, 0.5, 1)' });
-  }
+  // no tilt, no travel: it appears in place, holds for a beat, fades out
+  judgementEl.animate([
+    { transform: 'translateX(-50%) scale(1.12)', opacity: 0 },
+    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.15 },
+    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.6 },
+    { transform: 'translateX(-50%) scale(1)', opacity: 0 },
+  ], { duration: miss ? 480 : 400, easing: 'ease-out' });
 }
 
 // Shows EARLY / LATE for anything that is not PERFECT, so players can see how to improve
@@ -2079,26 +2069,25 @@ function showTiming(name, signedDiff) {
   timingEl.style.color = early ? '#7fc4ff' : '#ffab66';
   timingEl.getAnimations().forEach(a => a.cancel());
   timingEl.animate([
-    { transform: `translateX(-50%) translateX(${early ? -10 : 10}px)`, opacity: 0 },
-    { transform: 'translateX(-50%) translateX(0px)', opacity: 0.95, offset: 0.2 },
-    { transform: 'translateX(-50%) translateX(0px)', opacity: 0.95, offset: 0.65 },
-    { transform: 'translateX(-50%) translateX(0px)', opacity: 0 },
-  ], { duration: 420, easing: 'ease-out' });
+    { transform: 'translateX(-50%)', opacity: 0 },
+    { transform: 'translateX(-50%)', opacity: 0.85, offset: 0.15 },
+    { transform: 'translateX(-50%)', opacity: 0.85, offset: 0.6 },
+    { transform: 'translateX(-50%)', opacity: 0 },
+  ], { duration: 400, easing: 'ease-out' });
 }
 
-const TIER_NAMES = { 1: 'KIRA KIRA!', 2: 'SUPER!', 3: 'FEVER!', 4: 'OVERDRIVE!' };
+const TIER_NAMES = { 1: 'COOL!', 2: 'SUPER!', 3: 'MANTAP!', 4: 'ANJIR!' };
 function showTierBanner(tier, c, isTierUp) {
   tbTitle.textContent = isTierUp ? TIER_NAMES[tier] : `${c} COMBO!`;
   tbSub.textContent = isTierUp ? `${c} COMBO` : '';
   tierBanner.className = 't' + Math.max(1, tier);
   tierBanner.getAnimations().forEach(a => a.cancel());
   tierBanner.animate([
-    { transform: 'translateX(-50%) scale(0.5)', opacity: 0 },
-    { transform: 'translateX(-50%) scale(1.18)', opacity: 1, offset: 0.14 },
-    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.28 },
-    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.78 },
-    { transform: 'translateX(-50%) scale(1.06)', opacity: 0 },
-  ], { duration: 1100, easing: 'cubic-bezier(0.2, 1.2, 0.4, 1)' });
+    { transform: 'translateX(-50%)', opacity: 0 },
+    { transform: 'translateX(-50%)', opacity: 0.95, offset: 0.12 },
+    { transform: 'translateX(-50%)', opacity: 0.95, offset: 0.7 },
+    { transform: 'translateX(-50%)', opacity: 0 },
+  ], { duration: 900, easing: 'ease-out' });
 }
 
 function handleComboIncrement() {
