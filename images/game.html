@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <script>
+  (function(){
+    var VIEW_W = 1920;
+    var vp = document.querySelector('meta[name="viewport"]');
+    function apply(){
+      var coarse = matchMedia('(pointer: coarse)').matches;
+      var land = window.innerWidth > window.innerHeight;
+      vp.content = (coarse && land)
+        ? 'width=' + VIEW_W + ', maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
+        : 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    }
+    window.__applyViewport = apply;
+    apply();
+    addEventListener('orientationchange', function(){ setTimeout(apply, 100); });
+  })();
+  </script>
+  <title>JEKETI RHYTHM</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="packs.css">
+  <link rel="stylesheet" href="shop.css">
+  <link rel="stylesheet" href="daily.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2f5a40">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+
+  <!-- ============================================ -->
+  <!-- PORTRAIT ORIENTATION HINT (mobile only)      -->
+  <!-- ============================================ -->
+  <div id="rotate-hint">
+    <div class="rot-icon">⟳</div>
+    <div>TAP FOR FULLSCREEN<br>AND LANDSCAPE</div>
+    <small>(iPhone: Share → Add to Home Screen for fullscreen)</small>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MAIN MENU / TITLE SCREEN -->
+  <!-- ============================================ -->
+  <div id="main-menu-screen">
+    <div class="desk-paper">
+      <div class="pin pin-tl"></div>
+      <div class="pin pin-tr"></div>
+
+      <div class="title-content">
+        <img src="images/title.gif" id="title-gif" alt="JEKETI RHYTHM">
+        <button id="play-btn" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Play"></button>
+      </div>
+
+      <p class="credit">created by @bnuratmaja</p>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SONG SELECT SCREEN -->
+  <!-- ============================================ -->
+  <div id="menu-screen" style="display:none">
+    <div class="menu-header">
+      <button id="shop-btn" class="gif-btn" aria-label="Card Shop"><img src="images/shop.gif" class="btn-gif" alt="Shop" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'Shop'}))"></button>
+      <button id="back-to-main-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <button id="daily-btn" class="gif-btn" aria-label="Daily"><span class="btn-fallback">🎁 DAILY</span></button>
+      <img src="images/pick-song.gif" id="pick-song-gif" alt="Pick a Song">
+      <button id="my-cards-btn" class="gif-btn" aria-label="My Cards"><img src="images/my-cards.gif" class="btn-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'My Cards'}))"></button>
+    </div>
+    <div id="song-grid"></div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MY CARDS SCREEN -->
+  <!-- ============================================ -->
+  <div id="cards-screen" style="display:none">
+    <div class="cards-header">
+      <button id="cards-back-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <img src="images/my-cards.gif" id="cards-title-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'cards-title-text',textContent:'My Cards'}))">
+      <div id="cards-progress" class="cards-progress"></div>
+    </div>
+    <div id="cards-tabs"></div>
+    <div id="cards-sheet">
+      <div class="pin pin-tl"></div>
+      <div class="pin pin-tr"></div>
+      <div id="cards-members"></div>
+      <div id="cards-row"></div>
+    </div>
+  </div>
+  <div id="cards-toast"></div>
+
+  <!-- ============================================ -->
+  <!-- GAME SCREEN -->
+  <!-- ============================================ -->
+  <div id="game" style="display:none">
+    <div id="playfield">
+      <canvas id="field-bg"></canvas>
+      <canvas id="field"></canvas>
+    </div>
+  </div>
+
+  <div id="score" style="display: none">Score: 0</div>
+  <div id="combo"></div>
+  <div id="judgement"></div>
+
+  <audio id="music"></audio>
+
+  <script>
+  // Saves images, sounds, charts and song audio on the player's device (see sw.js).
+  // Emergency switch: open the game with ?nosw in the address to remove it and everything it saved.
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    if (/[?&]nosw/.test(location.search)) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
+      if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (k.indexOf('jeketi-') === 0) caches.delete(k); }); }).catch(function () {});
+    } else {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
+  }
+  </script>
+  <script src="songs.js"></script>
+  <script src="sfx.js"></script>
+  <script src="points.js"></script>
+  <script src="cards.js"></script>
+  <script src="packs.js"></script>
+  <script src="shop.js"></script>
+  <script src="daily.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
