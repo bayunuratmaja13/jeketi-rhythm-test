@@ -1091,6 +1091,8 @@ function tryLandscapeLock() {
 }
 
 async function tryFullscreen() {
+  // inside the scaled launcher frame, fullscreen must be done by the parent page
+  if (window.parent !== window) { try { window.parent.postMessage({ jeketi: 'fullscreen' }, '*'); } catch (e) {} return; }
   const el = document.documentElement;
   try {
     if (el.requestFullscreen) await el.requestFullscreen();
