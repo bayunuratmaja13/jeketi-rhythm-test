@@ -419,13 +419,13 @@
   const ownedIds = () => MEMBERS.filter(m => bestOf(m.id) >= 0).map(m => m.id);
   const canCombineAny = () => MEMBERS.some(m => TIERS.some((t, i) => canCombine(m.id, i)));
 
-  // combine animation: the cards orbit faster and faster, get sucked into one glowing core, then BOOM.
-  // The higher the new tier, the longer the build-up and the bigger the explosion.
+  // combine animation (light version): the cards slide together into one glowing core, then a short pop.
+  // Everything uses the Web Animations API on transform / opacity only (no per-frame JS, no filters, no shaking),
+  // so it stays smooth on phones. The higher the new tier, the slightly longer build-up and the slightly bigger pop.
   function playCombine(m, ti, done) {
     const T = ti + 1, n = combineNeed(ti), cols = BURST_COLORS[TIERS[T].id];
     const PARTY = ['#ffd23f', '#ff7ab3', '#7fe0ff', '#ffffff', '#c9a0ff', '#8dff9c'];
-    const gather = [0, 1100, 1450, 1900, 2500][T];
-    const clamp = (v) => Math.max(0, Math.min(1, v));
+    const gather = [0, 650, 750, 850, 950][T];
     const ov = document.createElement('div');
     ov.className = 'cmb t' + T;
     ov.style.setProperty('--ca', cols[0]);
@@ -448,128 +448,90 @@
     ov.style.setProperty('--cx', cx + 'px');
     ov.style.setProperty('--cy', cy + 'px');
     const cw = wraps[0].offsetWidth || 120;
-    const Rx = Math.min(cw * (1.0 + n * .12), window.innerWidth * .4), Ry = cw * .5;
     const sz = n >= 5 ? .78 : n >= 4 ? .86 : n === 3 ? .95 : 1;
-    const spinTotal = Math.PI * 2 * (1.6 + T * 1.1);
-    let hit = false;
+    const gap = Math.min(cw * .85, (window.innerWidth * .8) / n);
 
     snd('mergeCharge', gather / 1000, T);
 
-    function spark() {
+    // 1) the cards start side by side and glide into the middle (one animation each, runs on the GPU)
+    wraps.forEach((w, i) => {
+      const r = w.getBoundingClientRect();
+      const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);      // from where the card sits to the centre
+      const sx = (i - (n - 1) / 2) * gap;
+      w.animate([
+        { transform: `translate(${ox + sx}px,${oy}px) scale(${sz})`, opacity: 1 },
+        { transform: `translate(${ox + sx * 1.06}px,${oy}px) scale(${sz * 1.04})`, opacity: 1, offset: .25 },     // tiny wind-up
+        { transform: `translate(${ox}px,${oy}px) scale(${sz * .6})`, opacity: .9 },
+      ], { duration: gather, easing: 'cubic-bezier(.55,0,.9,.45)', fill: 'forwards' });
+      w.style.zIndex = i;
+    });
+
+    // 2) the core glows up and a few sparks are pulled in
+    core.animate([
+      { transform: 'translate(-50%,-50%) scale(.3)', opacity: .15 },
+      { transform: `translate(-50%,-50%) scale(${1 + T * .12})`, opacity: 1 },
+    ], { duration: gather, easing: 'ease-in', fill: 'forwards' });
+    rays.animate([{ opacity: 0 }, { opacity: .7 }], { duration: gather, easing: 'ease-in', fill: 'forwards' });
+    for (let i = 0; i < 4 + T * 2; i++) {
       const el = document.createElement('i');
-      const ang = Math.random() * Math.PI * 2, d = cw * (1.2 + Math.random() * 1.6), s2 = 3 + Math.random() * 5;
-      el.style.cssText = `left:${cx}px;top:${cy}px;width:${s2}px;height:${s2}px;background:${cols[Math.floor(Math.random() * cols.length)]};box-shadow:0 0 8px ${cols[0]}`;
+      const ang = Math.random() * Math.PI * 2, d = cw * (1.1 + Math.random() * 1.2), s2 = 4 + Math.random() * 4;
+      el.style.cssText = `left:${cx}px;top:${cy}px;width:${s2}px;height:${s2}px;background:${cols[i % cols.length]}`;
       fx.appendChild(el);
       el.animate([
         { transform: `translate(${Math.cos(ang) * d}px,${Math.sin(ang) * d}px) scale(1)`, opacity: 0 },
-        { opacity: 1, offset: .25 },
+        { opacity: 1, offset: .3 },
         { transform: 'translate(0,0) scale(.2)', opacity: 0 },
-      ], { duration: 380 + Math.random() * 220, easing: 'ease-in' }).onfinish = () => el.remove();
+      ], { duration: 360, delay: (i / (4 + T * 2)) * (gather - 360), easing: 'ease-in', fill: 'both' }).onfinish = () => el.remove();
     }
 
-    const t0 = performance.now();
-    const sparkTimer = setInterval(() => {
-      if (!ov.isConnected || hit) { clearInterval(sparkTimer); return; }
-      const k = clamp((performance.now() - t0) / gather);
-      const cnt = 1 + Math.round(k * (2 + T));
-      for (let i = 0; i < cnt; i++) spark();
-      try { if (navigator.vibrate && k > .5) navigator.vibrate(8); } catch (e) { /* no haptics */ }
-    }, 75);
+    setTimeout(impact, gather);
 
-    function frame(now) {
-      if (!ov.isConnected || hit) return;
-      const k = clamp((now - t0) / gather);
-      const spin = spinTotal * Math.pow(k, 2.1);
-      const s2 = clamp((k - .6) / .4), pull = s2 * s2 * s2;
-      const breathe = 1 + Math.sin(k * 26) * .04 * (1 - s2);
-      wraps.forEach((w, i) => {
-        const a = spin + i * Math.PI * 2 / n;
-        const depth = (Math.sin(a) + 1) / 2;
-        const r = (1 - pull * .985) * breathe;
-        const x = Math.cos(a) * Rx * r + (Math.random() - .5) * k * k * 5;
-        const y = Math.sin(a) * Ry * r + (Math.random() - .5) * k * k * 5;
-        const sc = sz * (.82 + depth * .22) * (1 - pull * .3);
-        const rot = Math.cos(a) * 9 * (1 - pull) + Math.sin(k * 40 + i) * k * 3;
-        w.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
-        w.style.zIndex = Math.round(depth * 10);
-        w.style.filter = `brightness(${(1 + k * k * 1.6).toFixed(2)}) drop-shadow(0 0 ${(k * 26).toFixed(0)}px ${cols[0]})`;
-      });
-      core.style.opacity = (.15 + .85 * k).toFixed(2);
-      core.style.transform = `translate(-50%,-50%) scale(${(.25 + k * k * (1.3 + T * .45)).toFixed(2)})`;
-      rays.style.opacity = (k * .9).toFixed(2);
-      rays.style.transform = `rotate(${((now - t0) * .06 * (1 + k * 3)).toFixed(1)}deg)`;
-      const amp = k * k * k * (1.5 + T * 1.6);
-      ov.style.transform = `translate(${((Math.random() - .5) * amp).toFixed(1)}px,${((Math.random() - .5) * amp).toFixed(1)}px)`;
-      if (k >= 1) { impact(); return; }
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-
+    // 3) one short pop: a flash, a ring and a handful of sparkles. No screen shake.
     function impact() {
-      hit = true;
-      clearInterval(sparkTimer);
-      ov.style.transform = '';
+      if (!ov.isConnected) return;
       row.innerHTML = '';
-      rays.style.opacity = 1;
-      rays.style.animation = `pk-spin ${30 - T * 4}s linear infinite`;
       snd('mergeBoom', T);
-      try { if (navigator.vibrate) navigator.vibrate([[0], [40, 20, 60], [50, 20, 80, 20, 60], [60, 20, 100, 20, 80, 20, 60], [80, 30, 140, 30, 100, 30, 80, 30, 200]][T]); } catch (e) { /* no haptics */ }
+      try { if (navigator.vibrate) navigator.vibrate(T >= 3 ? 40 : 20); } catch (e) { /* no haptics */ }
 
-      const sh = [0, 6, 10, 16, 24][T];
-      ov.animate([
-        { transform: 'none' },
-        { transform: `translate(${-sh}px,${sh * .5}px) rotate(${-sh * .03}deg)`, offset: .12 },
-        { transform: `translate(${sh * .9}px,${-sh * .6}px) rotate(${sh * .03}deg)`, offset: .27 },
-        { transform: `translate(${-sh * .6}px,${-sh * .4}px)`, offset: .45 },
-        { transform: `translate(${sh * .4}px,${sh * .3}px)`, offset: .65 },
-        { transform: 'none' },
-      ], { duration: 380 + T * 130, easing: 'linear' });
-
-      const flash = () => fl.animate([{ opacity: 0 }, { opacity: 1, offset: .12 }, { opacity: 0 }], { duration: 600 + T * 150, easing: 'ease-out' });
-      flash();
-      if (T >= 4) setTimeout(flash, 230);
-
+      fl.animate([{ opacity: 0 }, { opacity: .8, offset: .15 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
       core.animate([
-        { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 1 },
-        { transform: `translate(-50%,-50%) scale(${5 + T * 2})`, opacity: 0 },
-      ], { duration: 700 + T * 100, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'forwards' });
-      rays.animate([{ filter: 'brightness(3)' }, { filter: 'brightness(1)' }], { duration: 800 });
-      if (pillar) pillar.animate([
-        { opacity: 1, transform: 'scaleX(.2)' }, { opacity: 1, transform: 'scaleX(1)', offset: .25 }, { opacity: 0, transform: 'scaleX(.1)' },
-      ], { duration: 900 + T * 100, easing: 'ease-out', fill: 'forwards' });
+        { transform: 'translate(-50%,-50%) scale(1.2)', opacity: 1 },
+        { transform: `translate(-50%,-50%) scale(${2.4 + T * .4})`, opacity: 0 },
+      ], { duration: 520, easing: 'ease-out', fill: 'forwards' });
+      rays.animate([{ opacity: .9 }, { opacity: 0 }], { duration: 650, easing: 'ease-out', fill: 'forwards' });
+      if (pillar) pillar.animate([{ opacity: .9, transform: 'scaleX(.6)' }, { opacity: 0, transform: 'scaleX(.1)' }],
+        { duration: 600, easing: 'ease-out', fill: 'forwards' });
 
-      for (let i = 0; i < T; i++) {
+      for (let i = 0; i < (T >= 3 ? 2 : 1); i++) {
         const r = document.createElement('i');
         r.className = 'cmb-ring';
         r.style.cssText = `left:${cx}px;top:${cy}px;border-color:${cols[i % cols.length]};color:${cols[0]}`;
         fx.appendChild(r);
         r.animate([
           { transform: 'translate(-50%,-50%) scale(.1)', opacity: 1 },
-          { transform: `translate(-50%,-50%) scale(${2.6 + T * .5})`, opacity: 0 },
-        ], { duration: 700 + i * 120, delay: i * 110, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'both' }).onfinish = () => r.remove();
+          { transform: `translate(-50%,-50%) scale(${2.2 + T * .3})`, opacity: 0 },
+        ], { duration: 600, delay: i * 120, easing: 'ease-out', fill: 'both' }).onfinish = () => r.remove();
       }
 
-      const cnt = [0, 24, 40, 64, 100][T], pal = T >= 2 ? cols.concat(PARTY) : cols;
+      const cnt = [0, 8, 12, 16, 20][T], pal = T >= 2 ? cols.concat(PARTY) : cols;
       for (let i = 0; i < cnt; i++) {
         const el = document.createElement('i');
-        const s2 = 5 + Math.random() * 8;
-        el.style.cssText = `left:${cx}px;top:${cy}px;width:${s2.toFixed(1)}px;height:${(s2 * (1 + Math.random())).toFixed(1)}px;background:${pal[i % pal.length]};border-radius:${Math.random() < .5 ? '50%' : '2px'};box-shadow:0 0 8px ${pal[i % pal.length]}`;
+        const s2 = 5 + Math.random() * 5;
+        el.style.cssText = `left:${cx}px;top:${cy}px;width:${s2.toFixed(1)}px;height:${s2.toFixed(1)}px;background:${pal[i % pal.length]};border-radius:50%`;
         fx.appendChild(el);
-        const ang = Math.random() * Math.PI * 2, sp = (160 + Math.random() * 340) * (.8 + T * .25);
-        const dx = Math.cos(ang) * sp, dy = Math.sin(ang) * sp - 80, fall = 160 + Math.random() * 320, rot = (Math.random() - .5) * 900;
+        const ang = (i / cnt) * Math.PI * 2 + Math.random() * .4, sp = 110 + Math.random() * 130;
         el.animate([
-          { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
-          { transform: `translate(${dx}px,${dy}px) rotate(${rot * .5}deg)`, opacity: 1, offset: .45 },
-          { transform: `translate(${dx * 1.12}px,${dy + fall}px) rotate(${rot}deg)`, opacity: 0 },
-        ], { duration: 900 + Math.random() * 900, easing: 'cubic-bezier(.2,.65,.4,1)', fill: 'forwards' }).onfinish = () => el.remove();
+          { transform: 'translate(0,0)', opacity: 1 },
+          { transform: `translate(${Math.cos(ang) * sp}px,${Math.sin(ang) * sp + 30}px)`, opacity: 0 },
+        ], { duration: 550 + Math.random() * 250, easing: 'cubic-bezier(.2,.65,.4,1)', fill: 'forwards' }).onfinish = () => el.remove();
       }
 
       titleEl.innerHTML = `<span>${TIERS[ti].id} → ${TIERS[T].id}</span><small>${TIERS[T].name}</small>`;
       ov.classList.add('hit');
 
-      const doneAt = 450 + T * 120;
+      const doneAt = 250 + T * 60;
       setTimeout(done, doneAt);
-      setTimeout(() => { ov.classList.add('out'); setTimeout(() => ov.remove(), 280); }, doneAt + 620);
+      setTimeout(() => { ov.classList.add('out'); setTimeout(() => ov.remove(), 280); }, doneAt + 500);
     }
   }
 

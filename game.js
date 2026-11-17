@@ -1156,8 +1156,23 @@ async function tryFullscreen() {
 }
 
 // ---------- SOUND ----------
+// SFX VOLUME: 1 = as before, 2 = twice as loud, 3 = three times... (songs are not affected, they play through <audio>)
+const SFX_VOLUME = 2.0;
 function ensureAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // every sound effect connects to audioCtx.destination: point that at one volume knob + a limiter (stops loud peaks from crackling)
+    try {
+      const realOut = audioCtx.destination;
+      const bus = audioCtx.createGain();
+      bus.gain.value = SFX_VOLUME;
+      const limiter = audioCtx.createDynamicsCompressor();
+      limiter.threshold.value = -6; limiter.knee.value = 6; limiter.ratio.value = 12;
+      limiter.attack.value = 0.003; limiter.release.value = 0.15;
+      bus.connect(limiter).connect(realOut);
+      Object.defineProperty(audioCtx, 'destination', { value: bus, configurable: true });
+    } catch (e) { /* keep the normal output */ }
+  }
   if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
 }
 
