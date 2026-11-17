@@ -39,7 +39,7 @@
   <!-- ============================================ -->
   <div id="rotate-hint">
     <div class="rot-icon">⟳</div>
-    <div>Tap twice to go fullscreen</div>
+    <div>TAP FOR FULLSCREEN<br>AND LANDSCAPE</div>
     <small>(iPhone: Share → Add to Home Screen for fullscreen)</small>
   </div>
 
@@ -110,10 +110,15 @@
   <audio id="music"></audio>
 
   <script>
-  // offline saving is switched off for now: remove any copy of it a phone already has, together with its saved files
+  // Saves images, sounds, charts and song audio on the player's device (see sw.js).
+  // Emergency switch: open the game with ?nosw in the address to remove it and everything it saved.
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
-    if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (k.indexOf('jeketi-') === 0) caches.delete(k); }); }).catch(function () {});
+    if (/[?&]nosw/.test(location.search)) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
+      if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (k.indexOf('jeketi-') === 0) caches.delete(k); }); }).catch(function () {});
+    } else {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
   }
   </script>
   <script src="songs.js"></script>
