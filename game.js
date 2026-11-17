@@ -4,15 +4,7 @@
 // ============================================================
 
 // ---------- VIEWPORT ----------
-(function ensureViewport() {
-  let vp = document.querySelector('meta[name="viewport"]');
-  if (!vp) {
-    vp = document.createElement('meta');
-    vp.name = 'viewport';
-    document.head.appendChild(vp);
-  }
-  vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-})();
+if (window.__applyViewport) window.__applyViewport();
 
 // ---------- SMALL HELPERS ----------
 const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);

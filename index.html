@@ -3,6 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <script>
+  (function(){
+    var VIEW_W = 1920;
+    var vp = document.querySelector('meta[name="viewport"]');
+    function apply(){
+      var coarse = matchMedia('(pointer: coarse)').matches;
+      var land = window.innerWidth > window.innerHeight;
+      vp.content = (coarse && land)
+        ? 'width=' + VIEW_W + ', maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
+        : 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    }
+    window.__applyViewport = apply;
+    apply();
+    addEventListener('orientationchange', function(){ setTimeout(apply, 100); });
+  })();
+  </script>
   <title>JEKETI RHYTHM</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="cards.css">

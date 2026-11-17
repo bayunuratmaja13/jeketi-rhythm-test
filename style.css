@@ -1235,7 +1235,7 @@ body[data-tier="4"] #score {
 /* ============================================ */
 /* ============ MOBILE (portrait + general) ==== */
 /* ============================================ */
-@media (max-width: 768px), (pointer: coarse) {
+@media (max-width: 768px) {
   #playfield { width: 98vw; max-width: 98vw; bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); }
 
   #score { font-size: 16px; padding: 4px 14px; }
