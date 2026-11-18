@@ -158,17 +158,19 @@ const JUDGE = {
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
 };
 const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.8, GOOD: 0.5, BAD: 0, MISS: 0 };
-const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4 };
+const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
 // ---------- SCORE SCALE & GRADES ----------
 // Every song is scaled so a PERFECT run with no cards = BASE_MAX_SCORE, so long and short songs are equally fair.
 // Cards then multiply it (see TIER_BONUS in shop.js), so reaching S (1,000,000) takes roughly 10 S cards plus a clean full combo.
+// NOTE: the best possible run (12 SS cards, oshi, every member in the song, perfect) is about 1,475,000; SS needs 1,400,000.
 const BASE_MAX_SCORE = 500000;
 // a grade needs BOTH its minimum score and its minimum accuracy (checked from the top down)
 const GRADE_RULES = [
-  { g: 'S', score: 1000000, acc: 0.92 },
-  { g: 'A', score: 450000,  acc: 0.80 },
-  { g: 'B', score: 225000,  acc: 0.65 },
+  { g: 'SS', score: 1400000, acc: 0.93 },
+  { g: 'S',  score: 1000000, acc: 0.90 },
+  { g: 'A',  score: 750000,  acc: 0.85 },
+  { g: 'B',  score: 450000,  acc: 0.75 },
 ];
 
 const SHAKE_SCALE = reduceMotion ? 0 : 0.5;  // overall shake strength (subtle)
@@ -1070,7 +1072,7 @@ function showResults() {
       { transform: 'scale(1) rotate(-8deg)', opacity: 1 },
     ], { duration: 520, easing: 'cubic-bezier(.3,.9,.4,1)', fill: 'both' });
     playStampSound(grade);
-    if (grade === 'S') triggerScreenFlash();
+    if (grade === 'S' || grade === 'SS') triggerScreenFlash();
     shakeScreen(2);
   });
 
@@ -1564,7 +1566,8 @@ function playStampSound(grade) {
   noise.connect(nFilter).connect(nGain).connect(audioCtx.destination);
   noise.start(now);
 
-  const notes = grade === 'S' ? [784, 988, 1175, 1568]
+  const notes = grade === 'SS' ? [784, 988, 1175, 1568, 1976]
+              : grade === 'S' ? [784, 988, 1175, 1568]
               : grade === 'A' ? [659, 784, 988]
               : grade === 'B' ? [523, 659]
               : [];

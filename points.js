@@ -5,7 +5,7 @@
   'use strict';
 
   // Points earned per finished song, by result grade
-  const BASE = { C: 25, B: 50, A: 100, S: 300 };
+  const BASE = { C: 25, B: 50, A: 100, S: 300, SS: 500 };
   const FULL_COMBO_MULT = 1.5;
   const ALL_PERFECT_MULT = 2;
 

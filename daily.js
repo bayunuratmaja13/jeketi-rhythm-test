@@ -10,7 +10,7 @@
   const MISSION_REWARD = { easy: 40, med: 80, hard: 120 };   // Points per mission
   const ALL_BONUS = 100;                                       // Points for finishing all three
   const FEATURED_MULT = 1.5;                                   // Points multiplier on the featured song
-  const RANK = { C: 1, B: 2, A: 3, S: 4 };
+  const RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
   // 7-day calendar. 'low' / 'high' packs are picked at runtime: cheapest / most expensive paid pack that doesn't need an oshi.
   const DAYS = [

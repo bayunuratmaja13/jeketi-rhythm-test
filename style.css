@@ -1567,6 +1567,9 @@ body[data-tier="4"] #score {
 .grade-stamp.g-A { color: var(--green); }
 .grade-stamp.g-B { color: var(--blue); }
 .grade-stamp.g-C { color: #777; }
+.grade-stamp.g-SS { color: #d9980a; font-size: 42px; letter-spacing: -2px; text-shadow: 0 0 10px rgba(255, 204, 51, 0.7); box-shadow: 0 0 14px rgba(255, 204, 51, 0.6); }
+@media (max-width: 900px), (max-height: 500px) { .grade-stamp.g-SS { font-size: 26px; } }
+.results-left .grade-stamp.g-SS { font-size: 24px; }
 @keyframes stamp-in { 0% { transform: scale(2.6) rotate(-30deg); opacity: 0; } 100% { transform: scale(1) rotate(-10deg); opacity: 0.92; } }
 
 .results-banner { font-family: var(--font-ui); font-size: 24px; letter-spacing: 2px; margin: 2px 0 4px; min-height: 0; }
