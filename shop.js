@@ -69,6 +69,7 @@
   const GUEST_LABEL = 'R';
   const GUESTS = {
     bernadya: { id: 'bernadya', name: 'Bernadya', team: 'Special', color: '#ff6ad5', front: 'images/cards/bernadya.webp', back: 'images/cards/love_back.webp', guest: true },
+    pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
@@ -209,7 +210,7 @@
     const titleHTML = name === 'shop'
       ? '<div class="sh-title has-img"><img class="sh-title-img" src="images/shop.gif" alt="' + title + '" onerror="this.replaceWith(document.createTextNode(this.alt))"></div>'
       : '<div class="sh-title">' + title + '</div>';
-    el.innerHTML = '<div class="sh-head"><button class="sh-back gif-btn" type="button" aria-label="Back"><img src="images/back.webp" class="btn-gif" alt="Back"></button>' + titleHTML + '<div class="sh-pts"></div></div><div class="sh-body"></div>';
+    el.innerHTML = '<div class="sh-head"><button class="sh-back gif-btn" type="button" aria-label="Back"><span class="back-pill">BACK</span></button>' + titleHTML + '<div class="sh-pts"></div></div><div class="sh-body"></div>';
     root.appendChild(el);
     el.querySelector('.sh-back').addEventListener('click', () => { hide(); if (typeof showSongSelect === 'function') showSongSelect(); });
     return { el, body: el.querySelector('.sh-body'), pts: el.querySelector('.sh-pts') };
@@ -281,7 +282,7 @@
       const b = h('button', 'sh-btn');
       const info = h('div', 'sh-timer');
       if (st.needsOshi) { b.textContent = 'PICK OSHI'; b.classList.add('alt'); }
-      else if (st.left > 0) { b.textContent = 'LOCKED'; b.disabled = true; info.textContent = 'Back in ' + mmss(st.left); }
+      else if (st.left > 0) { b.textContent = 'LOCKED'; b.disabled = true; info.textContent = mmss(st.left); }
       else if (st.free) { b.textContent = 'OPEN · FREE'; b.classList.add('gold'); }
       else if (st.ok) { b.innerHTML = 'OPEN · ' + fmt(P.price) + ' <small>Point</small>'; }
       else { b.innerHTML = fmt(P.price) + ' <small>Point</small>'; b.disabled = true; info.textContent = 'Need ' + fmt(P.price - Points.get()) + ' more'; }
@@ -304,7 +305,7 @@
     let again = false;
     row.querySelectorAll('.sh-tile.locked').forEach(t => {
       const left = cooldownLeft(t.dataset.kind);
-      if (left <= 0) again = true; else t.querySelector('.sh-timer').textContent = 'Back in ' + mmss(left);
+      if (left <= 0) again = true; else t.querySelector('.sh-timer').textContent = mmss(left);
     });
     if (again) renderShop();
   }
@@ -472,7 +473,7 @@
   }
   function renderSquad() {
     if (!window.Cards || !C().MEMBERS) return;
-    const ids = autoLineup(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => GUESTS[g].name.toUpperCase()), bo = calc(ids, curSong);
+    const ids = autoLineup(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => (GUESTS[g].caption || GUESTS[g].name).toUpperCase()), bo = calc(ids, curSong);
     // identical loadout + markers to what is already on screen? then do not touch the cards at all
     const sig = [ids.map(id => id + ':' + bestT(id)).join(','), oshi || '', ids.filter(id => set.has(id)).join(','), tm || '', on ? 'only' : ''].join('|');
     if (sig !== sqSig || !sqGrid.firstChild) {
@@ -634,6 +635,22 @@
       el.appendChild(row);
     });
   }
+  // same card strip, but from a saved run (used by the "view high score" card)
+  function fillStripFrom(el, cards, bonus) {
+    if (!el) return;
+    el.textContent = '';
+    if (!cards || !cards.length || !window.Cards) return;
+    const row = h('div', 'eq-row');
+    cards.forEach(cd => {
+      try {
+        const card = mkCard(cd.id, cd.tier >= 0 ? cd.tier : bestT(cd.id));
+        card.style.pointerEvents = 'none';
+        row.appendChild(card);
+      } catch (e) { /* unknown card id: skip */ }
+    });
+    el.appendChild(h('div', 'eq-label', 'EQUIPPED CARDS <b>+' + (bonus || 0) + '%</b>'));
+    el.appendChild(row);
+  }
   // called on every PERFECT: the centre card bounces (the side cards just a little)
   function pulse() {
     if (!hud || !cheer) return;
@@ -666,7 +683,7 @@
 
   window.Shop = {
     open: openShop, openLineup, setSong, songTeam, renderSquad, hide, openPack, packStatus, cooldownLeft,
-    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips,
+    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom,
     onChange(fn) { listeners.push(fn); },
     TIER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
     isOpen: () => !!openName,

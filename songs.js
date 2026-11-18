@@ -132,5 +132,54 @@ window.SONGS = [
     audio: 'music/laptime_masa_remaja.mp3',
     chart: 'charts/laptime_masa_remaja.js',
     cover: 'images/laptime_masa_remaja.webp'
+  },
+    {
+    id: 'belalang_yang_membangkang',
+    title: 'Belalang yang Membangkang',
+    artist: 'JKT48',
+    team: null,
+    only: ['michie', 'anindya', 'elin', 'cynthia', 'danella', 'daisy', 'aralie', 'lana', 'erine', 'fritzy', 'lily', 'trisha', 'levi', 'nayla', 'nachia', 'oline', 'nala', 'ribka', 'kimmy'],
+    audio: 'music/belalang_yang_membangkang.mp3',
+    chart: 'charts/belalang_yang_membangkang.js',
+    cover: 'images/belalang_yang_membangkang.webp'
+  },
+    {
+    id: 'magic_hour',
+    title: 'Magic Hour',
+    artist: 'JKT48',
+    team: null,
+    only: ['marsha', 'christy', 'feni', 'fiony', 'freya', 'gita', 'jessi', 'kathrina', 'muthe'],
+    audio: 'music/magic_hour.mp3',
+    chart: 'charts/magic_hour.js',
+    cover: 'images/magic_hour.webp'
+  },
+    {
+    id: 'langit_biru_cinta_searah',
+    title: 'Langit Biru Cinta Searah',
+    artist: 'JKT48',
+    team: null,
+    only: ['ella', 'lulu', 'oniel', 'eli', 'greesel', 'freya'],
+    guest: 'pia',
+    audio: 'music/langit_biru_cinta_searah.mp3',
+    chart: 'charts/langit_biru_cinta_searah.js',
+    cover: 'images/langit_biru_cinta_searah.webp'
+  },
+    {
+    id: 'must_be_now',
+    title: 'Must Be Now',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/must_be_now.mp3',
+    chart: 'charts/must_be_now.js',
+    cover: 'images/must_be_now.webp'
+  },
+    {
+    id: 'apa_yang_sang_gadis_perbuat_di_musim_panas',
+    title: 'Apa yang Sang Gadis Perbuat di Musim Panas',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.mp3',
+    chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
+    cover: 'images/must_be_now.webp'
   }
 ];

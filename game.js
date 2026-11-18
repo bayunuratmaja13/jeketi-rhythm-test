@@ -207,6 +207,7 @@ function perfectRunTotal() {
 let useAudio = false, wallStart = 0, wallOffset = 0, pauseStartWall = 0;
 let frozenTime = 0;
 let playToken = 0;
+let introShow = false;                // true during the 3-2-1 before a song: draw the notes without moving them
 
 // interpolated audio clock
 let anchorAudio = 0, anchorPerf = 0, lastAudioRaw = -1;
@@ -278,7 +279,9 @@ window.addEventListener('resize', measureLane);
 function loadBest(id) {
   try {
     const raw = localStorage.getItem(STORE_PREFIX + id);
-    return raw ? JSON.parse(raw) : null;
+    const o = raw ? JSON.parse(raw) : null;
+    if (o && o.run) { o.score = o.run.score; o.combo = o.run.combo; o.acc = o.run.acc; o.grade = o.run.grade; o.fc = !!o.run.fc; }   // older saves mixed bests from different runs
+    return o;
   } catch (e) { return null; }
 }
 function saveBest(id, obj) {
@@ -302,25 +305,78 @@ function setPreviewHold(v) {
   if (!v && mode === 'idle' && selectedSong && menuScreen.style.display !== 'none' && !document.getElementById('pack-overlay')) startPreview(selectedSong);
 }
 
+// A song can have a short dedicated preview clip:   previewAudio: 'music/previews/ayo_senyumlah.mp3'
+// (about 15 s, mono, 64-96 kbps = roughly 100-200 KB). Without it the preview uses the full song as before.
+const previewUrlOf = (song) => song.previewAudio || song.audio;
+const absUrl = (u) => new URL(u, document.baseURI).href;
+
+function ensurePreviewAudio() {
+  if (!previewAudio) { previewAudio = new Audio(); previewAudio.preload = 'auto'; }
+  return previewAudio;
+}
+
+// Start downloading a song's preview BEFORE the player gets to the carousel (title screen, oshi picker, starter pack).
+// - the preview element is pointed at the file, so Android / desktop browsers already have the start of it buffered
+// - a short clip is also fetched completely into the browser cache (iPhones ignore preload, this is what helps them)
+const warmedPreviews = new Set();
+function warmPreview(song) {
+  if (!song || !song.audio || song.preview === false) return;
+  const url = previewUrlOf(song);
+  if (warmedPreviews.has(url)) return;
+  warmedPreviews.add(url);
+  try {
+    const a = ensurePreviewAudio();
+    if (!a.src) a.src = url;
+    if (song.previewAudio) fetch(absUrl(url)).then(r => r.arrayBuffer()).catch(() => {});
+  } catch (e) { /* ignore */ }
+}
+
+// iPhone / Safari only lets an audio element play by itself after it has been played once from a tap.
+// Called from the PLAY tap: plays the preview element silently for a moment so later previews are allowed.
+let previewUnlocked = false;
+function unlockPreview() {
+  if (previewUnlocked) return;
+  const song = window.SONGS && window.SONGS[0];
+  if (!song || !song.audio) return;
+  previewUnlocked = true;
+  try {
+    const a = ensurePreviewAudio();
+    const tok = previewToken;
+    const url = previewUrlOf(song);
+    if (a.src !== absUrl(url)) a.src = url;
+    a.muted = true;
+    // if a real preview started meanwhile (token changed) leave it playing, only un-mute
+    const done = () => { a.muted = false; if (tok === previewToken) { try { a.pause(); } catch (e) { /* ignore */ } } };
+    const p = a.play();
+    if (p && p.then) p.then(done, () => { a.muted = false; previewUnlocked = false; });
+    else done();
+  } catch (e) { /* ignore */ }
+}
+
 function startPreview(song) {
   stopPreview();
   if (holdPreview) return;
   if (!song || !song.audio || song.preview === false) return;
-  if (!previewAudio) { previewAudio = new Audio(); previewAudio.preload = 'auto'; }
+  const a = ensurePreviewAudio();
   const token = previewToken;
-  const start = typeof song.previewStart === 'number' ? song.previewStart : 15;
-  const TARGET_VOL = 0.55, FADE_MS = 700, LEN_MS = 14000;
+  const isClip = !!song.previewAudio;
+  const url = previewUrlOf(song);
+  const start = typeof song.previewStart === 'number' ? song.previewStart : (isClip ? 0 : 15);
+  const TARGET_VOL = 0.55, FADE_MS = 700;
+  let LEN_MS = 14000;
 
-  previewAudio.volume = 0;
-  const abs = new URL(song.audio, document.baseURI).href;
-  if (previewAudio.src !== abs) previewAudio.src = song.audio;
+  a.muted = false;
+  a.volume = 0;
+  if (a.src !== absUrl(url)) a.src = url;
 
   const seekAndFade = () => {
     if (token !== previewToken) return;
+    const d = a.duration;
     try {
-      const d = previewAudio.duration;
-      previewAudio.currentTime = (isFinite(d) && start > d - 20) ? Math.max(0, d * 0.3) : start;
+      if (isClip) a.currentTime = start;          // a clip plays from its own start: no big jump into the file
+      else a.currentTime = (isFinite(d) && start > d - 20) ? Math.max(0, d * 0.3) : start;
     } catch (e) { /* ignore */ }
+    if (isClip && isFinite(d)) LEN_MS = Math.min(LEN_MS, Math.max(2000, (d - start) * 1000 - 200));   // fade out before the clip ends
     const t0 = performance.now();
     clearInterval(previewTimer);
     previewTimer = setInterval(() => {
@@ -328,17 +384,25 @@ function startPreview(song) {
       const el = performance.now() - t0;
       let v = Math.min(1, el / FADE_MS) * TARGET_VOL;
       if (el > LEN_MS - FADE_MS) v = Math.max(0, (LEN_MS - el) / FADE_MS) * TARGET_VOL;
-      previewAudio.volume = Math.max(0, Math.min(1, v));
+      a.volume = Math.max(0, Math.min(1, v));
       if (el >= LEN_MS) stopPreview();
     }, 60);
   };
 
-  if (previewAudio.readyState >= 1) seekAndFade();
-  else previewAudio.addEventListener('loadedmetadata', seekAndFade, { once: true });
+  if (a.readyState >= 1) seekAndFade();
+  else a.addEventListener('loadedmetadata', seekAndFade, { once: true });
 
-  const p = previewAudio.play();
-  if (p && p.catch) p.catch(() => {});
+  const p = a.play();
+  if (p && p.catch) p.catch(() => {
+    // blocked by the browser's autoplay rule: try again on the player's next tap instead of staying silent
+    const retry = () => { if (token === previewToken) { const q = a.play(); if (q && q.catch) q.catch(() => {}); } };
+    window.addEventListener('pointerdown', retry, { once: true, capture: true });
+  });
 }
+
+// start downloading the first song's preview shortly after the page has loaded (new players spend a while on the
+// title screen and the oshi picker, which is free download time)
+window.addEventListener('load', () => setTimeout(() => warmPreview(window.SONGS && window.SONGS[0]), 800));
 
 // ---------- SCREENS ----------
 function setHudVisible(visible) {
@@ -565,6 +629,7 @@ function markScrolling() {
 }
 
 function settleCarousel() {
+  if (wheelBrowsing) return;                              // PC wheel: the song is picked when the wheel stops (finishWheelBrowse)
   const near = updateCarouselFocus();
   if (near && near !== selectedCardEl && near._song) selectCard(near, near._song);
 }
@@ -601,12 +666,60 @@ songGrid.addEventListener('scroll', () => {
   carouselSettle = setTimeout(settleCarousel, 110);
 }, { passive: true });
 
-// mouse wheel: step one song at a time instead of scrolling vertically
+// mouse wheel / touchpad.
+//  - PC browsers: the carousel glides smoothly under the wheel and songs only "hover" (focus effect) while it moves;
+//    the song under the middle is selected (highlight, sound, preview, squad bar) once the wheel has stopped.
+//  - touch devices keep the old behaviour: one song per wheel step.
+const isPCBrowser = () => !(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const WHEEL_SPEED = 1.4;          // carousel pixels per wheel pixel (one mouse-wheel notch is about one song)
+const WHEEL_IDLE_MS = 150;        // how long the wheel must be still before the song is selected
+let wheelBrowsing = false, wheelTarget = 0, wheelRaf = 0, wheelTimer = 0;
+
+function wheelGlide() {
+  wheelRaf = 0;
+  const cur = songGrid.scrollLeft, diff = wheelTarget - cur;
+  if (Math.abs(diff) < 0.5) { songGrid.scrollLeft = wheelTarget; return; }
+  let step = diff * 0.2;
+  if (Math.abs(step) < 1) step = Math.sign(diff) * Math.min(1, Math.abs(diff));
+  songGrid.scrollLeft = cur + step;
+  wheelRaf = requestAnimationFrame(wheelGlide);
+}
+
+function beginWheelBrowse() {
+  wheelBrowsing = true;
+  wheelTarget = songGrid.scrollLeft;
+  songGrid.style.scrollSnapType = 'none';                  // snapping would fight the glide
+  document.querySelectorAll('.song-card.selected').forEach(c => c.classList.remove('selected'));
+  clearTimeout(previewDelay);
+  stopPreview();
+}
+
+function finishWheelBrowse() {
+  wheelTimer = 0;
+  if (wheelRaf) { wheelTimer = setTimeout(finishWheelBrowse, 60); return; }   // still gliding: wait for it
+  wheelBrowsing = false;
+  songGrid.style.scrollSnapType = '';
+  const near = updateCarouselFocus();
+  if (near && near._song) { selectCard(near, near._song); centerCard(near, true); }
+}
+
 songGrid.addEventListener('wheel', (e) => {
-  const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  let d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
   if (!d) return;
   e.preventDefault();
   markScrolling();
+
+  if (isPCBrowser()) {
+    if (e.deltaMode === 1) d *= 16; else if (e.deltaMode === 2) d *= songGrid.clientWidth;
+    if (!wheelBrowsing) beginWheelBrowse();
+    const max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);
+    wheelTarget = Math.max(0, Math.min(max, wheelTarget + d * WHEEL_SPEED));
+    if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelGlide);
+    clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(finishWheelBrowse, WHEEL_IDLE_MS);
+    return;
+  }
+
   const t = performance.now();
   if (t - lastWheelStep < 160) return;
   lastWheelStep = t;
@@ -873,6 +986,7 @@ const POINT_LOGO_HTML = '<img class="rl-pt-logo" src="' + POINT_LOGO_SRC + '" al
   'onerror="this.outerHTML=\'<span class=&quot;rl-pt-logo rl-pt-coin&quot;>P</span>\'">';
 
 function showResults() {
+  exitHighScoreView();
   mode = 'idle';
   pauseBtn.classList.remove('show');
   setHudVisible(false);
@@ -894,18 +1008,24 @@ function showResults() {
   if (currentSong) {
     const prev = loadBest(currentSong.id);
     isRecord = !prev || score > (prev.score || 0);
-    const bestGrade = prev && GRADE_RANK[prev.grade] > GRADE_RANK[grade] ? prev.grade : grade;
-    saveBest(currentSong.id, {
-      score: Math.max(score, prev ? prev.score || 0 : 0),
-      combo: Math.max(maxCombo, prev ? prev.combo || 0 : 0),
-      acc: Math.max(acc, prev ? prev.acc || 0 : 0),
-      grade: bestGrade,
-      fc: !!((prev && prev.fc) || fullCombo),
-    });
+    // only the total score counts: a run that does not beat the high score is not stored at all (the old record stays untouched),
+    // and a new record replaces the whole saved entry with that one run (no mixing of best combo / accuracy from other runs)
+    if (isRecord) {
+      const sr = (window.Shop && Shop.getRun) ? Shop.getRun() : null;
+      saveBest(currentSong.id, {
+        score, combo: maxCombo, acc, grade, fc: fullCombo,
+        run: {
+          score, combo: maxCombo, acc, grade, fc: fullCombo, ap: allPerfect,
+          stats: { PERFECT: stats.PERFECT, GREAT: stats.GREAT, GOOD: stats.GOOD, BAD: stats.BAD, MISS: stats.MISS },
+          bonus: sr ? sr.bonus : 0,
+          cards: sr && sr.cards ? sr.cards.map(cd => ({ id: cd.id, tier: cd.tier })) : []
+        }
+      });
+    }
   }
 
   clearResultTimers();
-  if (finalSongEl) finalSongEl.textContent = songLabel();
+  if (finalSongEl) finalSongEl.textContent = currentSong ? currentSong.title : '';   // title only, no artist
   setCoverImage(finalCoverEl, currentSong);
 
   finalScoreEl.textContent = '0';
@@ -1111,6 +1231,8 @@ function releaseAllInputs() {
 // ---------- BACK TO SONG SELECT ----------
 function backToSongSelect() {
   playToken++;                       // cancel a pending start
+  introShow = false;
+  countdownEl.classList.remove('show');
   hideResults();
   hideGameOverScreen();
   pauseOverlay.classList.remove('show');
@@ -1194,7 +1316,7 @@ function getNoiseBuffer(seconds, decay) {
 }
 
 // NOTE-TAP VOLUME: 1 = as before, 0.5 = half as loud (only the sound of hitting a note; other sfx are not affected)
-const HIT_VOLUME = 0.5;
+const HIT_VOLUME = 0.25;
 function playHitSound(judgement, comboValue) {
   ensureAudio();
   const now = audioCtx.currentTime;
@@ -2482,6 +2604,27 @@ function resetRunState() {
   updateLife();
 }
 
+// 3-2-1 before a song starts. Stops quietly if the player leaves or restarts meanwhile (the token changes).
+const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
+function runStartCountdown(token, done) {
+  let n = 3;
+  const step = () => {
+    if (token !== playToken || mode !== 'starting') return;
+    if (n <= 0) { countdownEl.classList.remove('show'); done(); return; }
+    countdownEl.classList.add('show');
+    countdownEl.textContent = n;
+    countdownEl.animate([
+      { transform: 'scale(1.7)', opacity: 0 },
+      { transform: 'scale(1)', opacity: 1, offset: 0.25 },
+      { transform: 'scale(0.9)', opacity: 0.85 },
+    ], { duration: START_COUNTDOWN_STEP - 40, easing: 'ease-out' });
+    try { playCountdownBeep(n); } catch (e) { /* audio unavailable */ }
+    n--;
+    setTimeout(step, START_COUNTDOWN_STEP);
+  };
+  step();
+}
+
 function startPlayback() {
   hideResults();
   hideGameOverScreen();
@@ -2516,6 +2659,7 @@ function startPlayback() {
 
   const begin = (audioOk) => {
     if (token !== playToken || mode !== 'starting') return;
+    introShow = false;
     useAudio = audioOk;
     if (!audioOk) wallStart = performance.now();
     wallOffset = 0;
@@ -2525,9 +2669,17 @@ function startPlayback() {
     startUpdateLoop();
   };
 
-  const p = music.play();
-  if (p && p.then) p.then(() => begin(true), () => begin(false));
-  else begin(true);
+  introShow = true;
+  startUpdateLoop();
+  // 3-2-1 first (same look and beeps as the resume countdown), then the song and the notes start together
+  runStartCountdown(token, () => {
+    if (token !== playToken || mode !== 'starting') return;
+    music.currentTime = 0;
+    wallStart = performance.now();
+    const p = music.play();
+    if (p && p.then) p.then(() => begin(true), () => begin(false));
+    else begin(true);
+  });
 
   setStatus(`▶ ${currentSong.title} | ${currentChart.length} notes | miss limit ${missLimit}`);
 }
@@ -2588,6 +2740,8 @@ playBtn.addEventListener('click', () => {
   try { ensureAudio(); } catch (e) { /* audio unavailable */ }   // unlock sound for the pack opening
   if (window.Packs && Packs.needsStarter()) holdPreview = true;      // no preview music during the oshi picker
   showSongSelect();
+  warmPreview(window.SONGS && window.SONGS[0]);                   // no-op if the page-load warm-up already started it
+  unlockPreview();                                                // lets iPhones play previews later without a fresh tap
   if (window.Packs) Packs.onFirstPlay();                          // new players get a free Starter Pack
 });
 backToMainBtn.addEventListener('click', () => showMainMenu());
@@ -2832,14 +2986,17 @@ confirmEl.innerHTML = `
       <button type="button" class="cp-yes">YES</button>
       <button type="button" class="cp-no">NO</button>
     </div>
+    <button type="button" class="cp-hs">VIEW HIGH SCORE</button>
   </div>`;
 document.body.appendChild(confirmEl);
 const cpSong = confirmEl.querySelector('.cp-song'), cpArtist = confirmEl.querySelector('.cp-artist');
 const cpImg = confirmEl.querySelector('.cp-cover img'), cpYes = confirmEl.querySelector('.cp-yes'), cpNo = confirmEl.querySelector('.cp-no');
+const cpHs = confirmEl.querySelector('.cp-hs');
 let confirmSong = null;
 
 function askPlay(song) {
   confirmSong = song;
+  cpHs.textContent = 'VIEW HIGH SCORE';
   cpSong.textContent = song.title || song.id || '';
   cpArtist.textContent = song.artist || '';
   cpImg.style.display = 'none';
@@ -2856,11 +3013,78 @@ function closeConfirm() { confirmEl.classList.remove('show'); confirmSong = null
 function denyPlay() { try { ensureAudio(); UI_SND.no(); } catch (e) { /* ignore */ } closeConfirm(); }
 cpYes.addEventListener('click', () => { const s = confirmSong; closeConfirm(); if (s) proceedSong(s); });
 cpNo.addEventListener('click', () => closeConfirm());          // the NO sound is played by the global click handler
-confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) denyPlay(); });   // tapping outside the box = NO
+confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) denyPlay(); });
+cpHs.addEventListener('click', () => {
+  if (!confirmSong) return;
+  if (!openHighScoreView(confirmSong)) {                 // never played this song yet
+    cpHs.textContent = 'NO HIGH SCORE YET';
+    setTimeout(() => { if (cpHs.textContent === 'NO HIGH SCORE YET') cpHs.textContent = 'VIEW HIGH SCORE'; }, 1400);
+  }
+});
+
+// ---------- HIGH SCORE VIEW: the result card of the best run, as a pop-up (click outside the card to close) ----------
+let hsView = false, hsSavedTitle = '';
+function openHighScoreView(song) {
+  const best = song && loadBest(song.id);
+  if (!best || !(best.score > 0)) return false;
+  const r = best.run || { score: best.score, combo: best.combo, acc: best.acc, grade: best.grade, fc: best.fc, ap: false, stats: null, cards: [], bonus: 0 };
+  hsView = true;
+  clearResultTimers();
+  results.classList.add('hs-view');
+  const titleEl = results.querySelector('.results-title');
+  if (titleEl) {
+    if (!hsSavedTitle) hsSavedTitle = titleEl.innerHTML;
+    titleEl.innerHTML = '<span class="hs-title">HIGH SCORE</span>';
+  }
+  finalSongEl.textContent = song.title || '';
+  setCoverImage(finalCoverEl, song);
+  [finalScoreEl, finalComboEl, finalAccEl].concat(Object.keys(judgeNumEls).map(k => judgeNumEls[k])).forEach(el => { el._numTok = (el._numTok || 0) + 1; });
+  finalScoreEl.textContent = Math.round(r.score || 0).toLocaleString();
+  finalComboEl.textContent = Math.round(r.combo || 0).toLocaleString();
+  finalAccEl.textContent = ((r.acc || 0) * 100).toFixed(1) + '%';
+  for (const k in judgeNumEls) judgeNumEls[k].textContent = r.stats ? String(r.stats[k] || 0) : '–';
+  finalGradeEl.getAnimations().forEach(a => a.cancel());
+  const g = r.grade || 'C';
+  finalGradeEl.textContent = g;
+  finalGradeEl.className = 'grade-stamp g-' + g;
+  finalGradeEl.style.opacity = 1;
+  finalGradeEl.style.transform = 'rotate(-8deg)';
+  finalBannerEl.getAnimations().forEach(a => a.cancel());
+  finalBannerEl.textContent = r.ap ? '★ ALL PERFECT ★' : (r.fc ? 'FULL COMBO' : '');
+  finalBannerEl.className = 'results-banner' + (r.ap ? ' ap' : r.fc ? ' fc' : '');
+  finalBannerEl.style.opacity = 1;
+  finalRecordEl.classList.remove('show');
+  finalPointsEl.innerHTML = '';
+  finalPointsEl.classList.remove('show');
+  if (window.Shop && Shop.fillStripFrom) Shop.fillStripFrom(results.querySelector('.eq-strip'), r.cards, r.bonus);
+  results.classList.remove('show');
+  void results.offsetWidth;
+  results.classList.add('show');
+  return true;
+}
+function exitHighScoreView() {
+  if (!hsView) return;
+  hsView = false;
+  results.classList.remove('hs-view');
+  const titleEl = results.querySelector('.results-title');
+  if (titleEl && hsSavedTitle) titleEl.innerHTML = hsSavedTitle;
+  finalGradeEl.style.transform = '';
+}
+function closeHighScoreView() {
+  if (!hsView) return;
+  exitHighScoreView();
+  results.classList.remove('show');
+}
+results.addEventListener('click', (e) => { if (hsView && e.target === results) closeHighScoreView(); });   // tapping outside the box = NO
 
 // ---------- KEYBOARD ----------
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+
+  if (hsView) {                                        // high score card is open: Esc closes it, nothing else reacts
+    if (e.code === 'Escape') { e.preventDefault(); closeHighScoreView(); }
+    return;
+  }
 
   if (confirmEl.classList.contains('show')) {          // "PLAY THIS SONG?" is open: Esc = NO, Enter on a button = its own click
     if (e.code === 'Escape') { e.preventDefault(); denyPlay(); }
@@ -2938,6 +3162,16 @@ function update(ts) {
   lastFrameT = ts;
 
   if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); return; }
+  if (mode === 'starting' && introShow) {   // 3-2-1 before the song: the first notes are on the track, standing still at song time 0
+    while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= 0) {
+      const n = queue[spawnIdx++];
+      if (n.judged) continue;
+      n.el = acquireNoteEl(n);
+      active.push(n);
+    }
+    drawField(0, dt);
+    return;
+  }
   if (mode !== 'playing') return;      // starting / paused / resuming: nothing moves
 
   trackPerformance(dt);

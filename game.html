@@ -20,11 +20,11 @@
   })();
   </script>
   <title>JEKETI RHYTHM</title>
-  <link rel="stylesheet" href="style.css?v=6">
-  <link rel="stylesheet" href="cards.css?v=6">
-  <link rel="stylesheet" href="packs.css?v=6">
-  <link rel="stylesheet" href="shop.css?v=6">
-  <link rel="stylesheet" href="daily.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="cards.css?v=7">
+  <link rel="stylesheet" href="packs.css?v=7">
+  <link rel="stylesheet" href="shop.css?v=7">
+  <link rel="stylesheet" href="daily.css?v=7">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#2f5a40">
   <meta name="mobile-web-app-capable" content="yes">
@@ -66,7 +66,7 @@
   <div id="menu-screen" style="display:none">
     <div class="menu-header">
       <button id="shop-btn" class="gif-btn" aria-label="Card Shop"><img src="images/shop.gif" class="btn-gif" alt="Shop" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'Shop'}))"></button>
-      <button id="back-to-main-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <button id="back-to-main-btn" class="gif-btn" aria-label="Back"><span class="back-pill">BACK</span></button>
       <button id="daily-btn" class="gif-btn" aria-label="Daily"><span class="btn-fallback">🎁 DAILY</span></button>
       <img src="images/pick-song.gif" id="pick-song-gif" alt="Pick a Song">
       <button id="my-cards-btn" class="gif-btn" aria-label="My Cards"><img src="images/my-cards.gif" class="btn-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'My Cards'}))"></button>
@@ -79,7 +79,7 @@
   <!-- ============================================ -->
   <div id="cards-screen" style="display:none">
     <div class="cards-header">
-      <button id="cards-back-btn" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Back"></button>
+      <button id="cards-back-btn" class="gif-btn" aria-label="Back"><span class="back-pill">BACK</span></button>
       <img src="images/my-cards.gif" id="cards-title-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'cards-title-text',textContent:'My Cards'}))">
       <div id="cards-progress" class="cards-progress"></div>
     </div>

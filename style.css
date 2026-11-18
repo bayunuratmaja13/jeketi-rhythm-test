@@ -748,6 +748,23 @@ body[data-tier="4"] #score {
   width: auto;
   display: block;
 }
+
+/* BACK button: white text in a pastel red pill (same family as the Points chip and the Daily button).
+   Used by song select, My Cards, Card Shop and Daily. Static glow on purpose: no endless animation to repaint. */
+.back-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .42em 1.25em;
+  font: 800 clamp(16px, 3.2vh, 24px)/1 'Fredoka', var(--font-game), sans-serif;
+  letter-spacing: .08em;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(160, 40, 60, .35);
+  background: linear-gradient(180deg, #ffa3ab, #f47c8b);
+  border: 1px solid rgba(120, 20, 40, .2);
+  border-radius: 999px;
+  box-shadow: 3px 5px 10px rgba(0, 0, 0, .35), inset 0 2px 0 rgba(255, 255, 255, .4);
+  white-space: nowrap;
+  line-height: 1;
+}
 .card-btn-gif {
   height: 35px;
   width: auto;
@@ -1009,12 +1026,6 @@ body[data-tier="4"] #score {
   flex-shrink: 0 !important;
   display: block;
 }
-#back-to-main-btn .btn-gif {
-  height: 100px !important;
-  width: auto !important;
-  flex-shrink: 0 !important;
-  display: block;
-}
 
 .credit {
   position: absolute;
@@ -1044,10 +1055,10 @@ body[data-tier="4"] #score {
   align-items: center;
   gap: 0;
 }
-#back-to-main-btn {
+#back-to-main-btn {                       /* top-left, same top edge as the Points chip on the right */
   position: absolute;
-  top: max(10px, calc(env(safe-area-inset-top, 0px) + 5px));
-  left: max(10px, calc(env(safe-area-inset-left, 0px) + 5px));
+  top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
+  left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
   z-index: 10;
 }
 #pick-song-gif {
@@ -1254,7 +1265,6 @@ body[data-tier="4"] #score {
   #title-gif { max-width: 85vw !important; }
   #play-btn { margin-top: -30px; }
   #play-btn .btn-gif { height: 140px !important; }
-  #back-to-main-btn .btn-gif { height: 80px !important; }
   #pick-song-gif { max-width: 65vw !important; margin-top: -6px; }
 
   #song-grid { padding: 20px 16px 30px; gap: 16px; }
@@ -1357,11 +1367,6 @@ body[data-tier="4"] #score {
   .pin-tl, .pin-tr { display: none; }
   .credit { bottom: 6px; font-size: 10px; }
 
-  #back-to-main-btn {
-    top: max(6px, calc(env(safe-area-inset-top, 0px) + 2px));
-    left: max(6px, calc(env(safe-area-inset-left, 0px) + 2px));
-  }
-  #back-to-main-btn .btn-gif { height: 56px !important; }
   #pick-song-gif {
     width: auto !important;
     max-width: 260px !important;
@@ -2303,3 +2308,53 @@ body[data-tier="4"] #tier-glow { animation: none; }
   #results .eq-row { gap: 4px; max-width: calc(6 * var(--eqw) + 5 * 4px); }
   #results .eq-label { font-size: 9px; margin-bottom: 2px; }
 }
+
+/* ====================================================================== */
+/* ===== RESULTS: cover + song title 2x bigger, "screenshot this" note ==== */
+/* ====================================================================== */
+#results .results-left { flex: 0 0 260px; }
+#results .results-left .results-cover { width: 208px; height: 208px; }
+#results .results-left .results-song { font-size: 26px; line-height: 1.15; }
+@media (max-height: 700px) and (min-height: 501px) {
+  #results .results-left { flex-basis: 220px; }
+  #results .results-left .results-cover { width: 160px; height: 160px; }
+  #results .results-left .results-song { font-size: 21px; }
+}
+@media (max-height: 500px) {
+  #results .results-left { flex-basis: 190px; }
+  #results .results-left .results-cover { width: 104px; height: 104px; }
+  #results .results-left .results-song { font-size: 20px; }
+}
+
+/* ====================================================================== */
+/* ===== RESULTS: bigger equipped cards (6 per row, 12 cards = 2 rows) ==== */
+/* ====================================================================== */
+#results .eq-strip { --eqw: clamp(40px, 12vh, 92px); margin: 8px auto 0; }
+#results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(34px, 8.6vh, 68px); }
+#results .eq-label { font-size: 13px; }
+@media (max-height: 700px) and (min-height: 501px) {
+  #results .eq-strip { --eqw: clamp(36px, 11vh, 76px); }
+  #results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(30px, 7.6vh, 54px); }
+}
+@media (max-height: 500px) {
+  #results .eq-strip { --eqw: clamp(26px, 9.5vh, 40px); margin-top: 4px; }
+  #results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(22px, 6.2vh, 30px); }
+  #results .eq-label { font-size: 10px; }
+}
+
+/* ====================================================================== */
+/* ===== "VIEW HIGH SCORE": yellow button in the play confirmation, and ==== */
+/* ===== the result card shown as a pop-up (no buttons, click outside) ==== */
+/* ====================================================================== */
+.cp-hs {
+  display: block; width: 100%; margin-top: clamp(10px, 2.4dvh, 16px); min-height: clamp(38px, 8dvh, 48px);
+  border-radius: 999px; border: 3px solid #fff; cursor: pointer; letter-spacing: 1px;
+  font: 900 clamp(15px, 4dvh, 20px)/1 var(--font-impact, 'Fredoka', sans-serif);
+  background: linear-gradient(180deg, #ffe27a, #f0a800); box-shadow: 0 4px 0 #a86f00; color: #4a2e00;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .5); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.cp-hs:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.cp-hs:focus-visible { outline: 3px solid #ffd23f; outline-offset: 2px; }
+#results.hs-view { z-index: 2700; }
+#results.hs-view .results-buttons { display: none; }
+.hs-title { font-family: var(--font-ui); color: #e0488a; letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0, 0, 0, .12); }
