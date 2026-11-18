@@ -362,7 +362,8 @@ function startPreview(song) {
   const isClip = !!song.previewAudio;
   const url = previewUrlOf(song);
   const start = typeof song.previewStart === 'number' ? song.previewStart : (isClip ? 0 : 15);
-  const TARGET_VOL = 0.55, FADE_MS = 700;
+  const SONG_VOL = song.volume > 0 ? Number(song.volume) : 1;   // per-song loudness (preview base is 0.8, capped at 1, so no gain node needed)
+  const TARGET_VOL = Math.min(1, 0.8 * SONG_VOL), FADE_MS = 700;
   let LEN_MS = 14000;
 
   a.muted = false;
@@ -1291,6 +1292,7 @@ function ensureAudio() {
       const limiter = audioCtx.createDynamicsCompressor();
       limiter.threshold.value = -6; limiter.knee.value = 6; limiter.ratio.value = 12;
       limiter.attack.value = 0.003; limiter.release.value = 0.15;
+      audioCtx.rawDestination = realOut;
       bus.connect(limiter).connect(realOut);
       Object.defineProperty(audioCtx, 'destination', { value: bus, configurable: true });
     } catch (e) { /* keep the normal output */ }
@@ -2625,12 +2627,32 @@ function runStartCountdown(token, done) {
   step();
 }
 
+// per-song music loudness (song.volume): >1 boosts through a gain node that bypasses the SFX bus
+let musicGain = null;
+function applySongVolume(song) {
+  const vol = song && Number(song.volume) > 0 ? Number(song.volume) : 1;
+  ensureAudio();
+  if (vol > 1 && !musicGain) {
+    try {
+      const src = audioCtx.createMediaElementSource(music);
+      musicGain = audioCtx.createGain();
+      const lim = audioCtx.createDynamicsCompressor();
+      lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20;
+      lim.attack.value = 0.003; lim.release.value = 0.1;
+      src.connect(musicGain).connect(lim).connect(audioCtx.rawDestination || audioCtx.destination);
+    } catch (e) { musicGain = null; }
+  }
+  if (musicGain) { musicGain.gain.value = vol; music.volume = 1; }
+  else music.volume = Math.min(1, vol);
+}
+
 function startPlayback() {
   hideResults();
   hideGameOverScreen();
   pauseOverlay.classList.remove('show');
   hideTransientHud();
   stopPreview();
+  applySongVolume(currentSong);
   releaseAllInputs();
 
   resetRunState();

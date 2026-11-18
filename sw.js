@@ -7,12 +7,15 @@
  *  - song audio: saved in full once the player lingers on a song (the game asks for it), then served from the device,
  *    including the range requests <audio> makes. The oldest songs are dropped after MAX_SONGS.
  *
- * If you replace a song's audio file with a different one under the SAME name, bump VERSION.
+ * If you replace a song's audio file with a different one under the SAME name, bump AUDIO_VERSION.
  * Emergency off switch: open the game with ?nosw
  */
-const VERSION = 'v2';
-const MEDIA = 'jeketi-media-' + VERSION;
-const AUDIO = 'jeketi-audio-' + VERSION;
+// the game registers this file as sw.js?v=<GAME_VERSION> (version.js): every game update installs a fresh worker and
+// clears the saved images / charts (they re-download once). Song audio is big, so it is NOT cleared by game updates.
+const GAME_V = new URL(self.location.href).searchParams.get('v') || '0';
+const AUDIO_VERSION = 'v2';        // bump ONLY if you replace a song's audio file under the same name
+const MEDIA = 'jeketi-media-' + GAME_V;
+const AUDIO = 'jeketi-audio-' + AUDIO_VERSION;
 const MAX_SONGS = 30;
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -24,7 +27,7 @@ self.addEventListener('activate', (e) => {
 });
 
 // the game's own scripts: never handled here
-const CODE_JS = /\/(game|songs|sfx|points|cards|packs|shop|daily|sw)\.js$/i;
+const CODE_JS = /\/(game|songs|sfx|points|cards|packs|shop|daily|sw|version|updater)\.js$/i;
 const isAudio = (u) => /\.(mp3|ogg|m4a|aac|wav|opus|flac)$/i.test(u.pathname);
 const isMedia = (u) => /\.(png|jpe?g|gif|webp|avif|svg|ico|otf|ttf|woff2?)$/i.test(u.pathname) || (/\.js$/i.test(u.pathname) && !CODE_JS.test(u.pathname));   // last one = chart files
 const keyOf = (u) => new Request(u.origin + u.pathname);       // cache key without ?query

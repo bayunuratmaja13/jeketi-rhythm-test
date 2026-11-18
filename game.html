@@ -20,11 +20,14 @@
   })();
   </script>
   <title>JEKETI RHYTHM</title>
-  <link rel="stylesheet" href="style.css?v=7">
-  <link rel="stylesheet" href="cards.css?v=7">
-  <link rel="stylesheet" href="packs.css?v=7">
-  <link rel="stylesheet" href="shop.css?v=7">
-  <link rel="stylesheet" href="daily.css?v=7">
+  <script src="version.js"></script>
+  <script>
+  // every file gets ?v=<GAME_VERSION> (set once in version.js)
+  (function () {
+    var v = window.GAME_VERSION || 0;
+    ["style","cards","packs","shop","daily"].forEach(function (n) { document.write('<link rel="stylesheet" href="' + n + '.css?v=' + v + '">'); });
+  })();
+  </script>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#2f5a40">
   <meta name="mobile-web-app-capable" content="yes">
@@ -117,17 +120,15 @@
       navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
       if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (k.indexOf('jeketi-') === 0) caches.delete(k); }); }).catch(function () {});
     } else {
-      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=' + (window.GAME_VERSION || 0)).catch(function () {}); });
     }
   }
   </script>
-  <script src="songs.js?v=6"></script>
-  <script src="sfx.js?v=6"></script>
-  <script src="points.js?v=6"></script>
-  <script src="cards.js?v=6"></script>
-  <script src="packs.js?v=6"></script>
-  <script src="shop.js?v=6"></script>
-  <script src="daily.js?v=6"></script>
-  <script src="game.js?v=6"></script>
+  <script>
+  (function () {
+    var v = window.GAME_VERSION || 0;
+    ["songs","sfx","points","cards","packs","shop","daily","game","updater"].forEach(function (n) { document.write('<script src="' + n + '.js?v=' + v + '"><\/script>'); });
+  })();
+  </script>
 </body>
 </html>
