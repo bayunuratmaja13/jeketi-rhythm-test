@@ -14,7 +14,7 @@ window.SONGS = [
     title: 'Ayo Senyumlah',
     artist: 'JKT48',
     team: null,
-    audio: 'music/ayo_senyumlah.mp3',
+    audio: 'music/ayo_senyumlah.ogg',
     chart: 'charts/ayo_senyumlah.js',
     cover: 'images/ayo_senyumlah.webp'
   },
@@ -23,7 +23,7 @@ window.SONGS = [
     title: 'WAKAKA People',
     artist: 'JKT48 Team Dream',
     team: 'dream',
-    audio: 'music/wakaka_people.mp3',
+    audio: 'music/wakaka_people.ogg',
     chart: 'charts/wakaka_people.js',
     cover: 'images/wakaka_people.webp'
   },
@@ -32,7 +32,7 @@ window.SONGS = [
     title: '12 Seconds',
     artist: 'JKT48 Team Love',
     team: 'love',
-    audio: 'music/12_seconds.mp3',
+    audio: 'music/12_seconds.ogg',
     chart: 'charts/12_seconds.js',
     cover: 'images/12_seconds.webp'
   },
@@ -41,7 +41,7 @@ window.SONGS = [
     title: 'Dekat Namun Jauh',
     artist: 'JKT48 Team Passion',
     team: 'passion',
-    audio: 'music/dekat_namun_jauh.mp3',
+    audio: 'music/dekat_namun_jauh.ogg',
     chart: 'charts/dekat_namun_jauh.js',
     cover: 'images/dekat_namun_jauh.webp'
   },
@@ -51,7 +51,7 @@ window.SONGS = [
   artist: 'JKT48',
   team: null,
   only: ['fiony', 'christy', 'olla', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'kathrina', 'marsha', 'michie', 'muthe'],
-  audio: 'music/andai_ku_bukan_idola.mp3',
+  audio: 'music/andai_ku_bukan_idola.ogg',
   chart: 'charts/andai_ku_bukan_idola.js',
   cover: 'images/andai_ku_bukan_idola.webp'
   },
@@ -61,7 +61,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['christy', 'lia', 'fiony', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'marsha', 'michie', 'muthe', 'kathrina'],
-    audio: 'music/beginners_gamble.mp3',
+    audio: 'music/beginners_gamble.ogg',
     chart: 'charts/beginners_gamble.js',
     cover: 'images/pertaruhan_cinta.webp'
   },
@@ -71,7 +71,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['christy', 'lia', 'fiony', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'marsha', 'michie', 'muthe', 'kathrina'],
-    audio: 'music/raja_hati.mp3',
+    audio: 'music/raja_hati.ogg',
     chart: 'charts/raja_hati.js',
     cover: 'images/pertaruhan_cinta.webp'
   },
@@ -82,7 +82,7 @@ window.SONGS = [
     team: null,
     only: ['freya', 'gita', 'christy', 'jessi', 'muthe', 'fiony', 'kathrina', 'marsha', 'ella', 'michie', 'greesel'],
     guest: 'bernadya',
-    audio: 'music/percik_kecil.mp3',
+    audio: 'music/percik_kecil.ogg',
     chart: 'charts/percik_kecil.js',
     cover: 'images/percik_kecil.webp'
   },
@@ -91,7 +91,7 @@ window.SONGS = [
     title: 'Oh my pumpkin!',
     artist: 'JKT48',
     team: null,
-    audio: 'music/oh_my_pumpkin.mp3',
+    audio: 'music/oh_my_pumpkin.ogg',
     chart: 'charts/oh_my_pumpkin.js',
     cover: 'images/oh_my_pumpkin.webp'
   },
@@ -101,7 +101,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['michie', 'lia', 'lana', 'elin', 'fritzy', 'ella', 'gracie', 'greesel', 'lyn', 'christy', 'fiony', 'freya'],
-    audio: 'music/go_and_fight.mp3',
+    audio: 'music/go_and_fight.ogg',
     chart: 'charts/go_and_fight.js',
     cover: 'images/go_and_fight.webp'
   },
@@ -111,7 +111,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['indah', 'olla', 'lana', 'gracie', 'erine', 'kathrina', 'greesel', 'eli', 'ella', 'delynn'],
-    audio: 'music/bibir_yang_telah_dicuri.mp3',
+    audio: 'music/bibir_yang_telah_dicuri.ogg',
     chart: 'charts/bibir_yang_telah_dicuri.js',
     cover: 'images/bibir_yang_telah_dicuri.webp'
   },
@@ -121,7 +121,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['feni', 'christy', 'jessi', 'fiony', 'muthe', 'freya', 'gita', 'marsha', 'lia', 'lulu', 'oniel'],
-    audio: 'music/kusangatsuka.mp3',
+    audio: 'music/kusangatsuka.ogg',
     chart: 'charts/kusangatsuka.js',
     cover: 'images/bibir_yang_telah_dicuri.webp'
   },
@@ -130,7 +130,7 @@ window.SONGS = [
     title: 'LapTime Masa Remaja',
     artist: 'JKT48',
     team: null,
-    audio: 'music/laptime_masa_remaja.mp3',
+    audio: 'music/laptime_masa_remaja.ogg',
     chart: 'charts/laptime_masa_remaja.js',
     cover: 'images/laptime_masa_remaja.webp',
     volume: 1.2
@@ -141,7 +141,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['michie', 'anindya', 'elin', 'cynthia', 'danella', 'daisy', 'aralie', 'lana', 'erine', 'fritzy', 'lily', 'trisha', 'levi', 'nayla', 'nachia', 'oline', 'nala', 'ribka', 'kimmy'],
-    audio: 'music/belalang_yang_membangkang.mp3',
+    audio: 'music/belalang_yang_membangkang.ogg',
     chart: 'charts/belalang_yang_membangkang.js',
     cover: 'images/belalang_yang_membangkang.webp',
     volume: 1.2
@@ -152,7 +152,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     only: ['marsha', 'christy', 'feni', 'fiony', 'freya', 'gita', 'jessi', 'kathrina', 'muthe'],
-    audio: 'music/magic_hour.mp3',
+    audio: 'music/magic_hour.ogg',
     chart: 'charts/magic_hour.js',
     cover: 'images/magic_hour.webp',
     volume: 1.5
@@ -164,7 +164,7 @@ window.SONGS = [
     team: null,
     only: ['ella', 'lulu', 'oniel', 'eli', 'greesel', 'freya'],
     guest: 'pia',
-    audio: 'music/langit_biru_cinta_searah.mp3',
+    audio: 'music/langit_biru_cinta_searah.ogg',
     chart: 'charts/langit_biru_cinta_searah.js',
     cover: 'images/langit_biru_cinta_searah.webp',
     volume: 1.2
@@ -174,7 +174,7 @@ window.SONGS = [
     title: 'Must Be Now',
     artist: 'JKT48',
     team: null,
-    audio: 'music/must_be_now.mp3',
+    audio: 'music/must_be_now.ogg',
     chart: 'charts/must_be_now.js',
     cover: 'images/must_be_now.webp'
   },
@@ -183,7 +183,7 @@ window.SONGS = [
     title: 'Apa yang Sang Gadis Perbuat di Musim Panas',
     artist: 'JKT48',
     team: null,
-    audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.mp3',
+    audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.ogg',
     chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
     cover: 'images/must_be_now.webp'
   },
@@ -192,7 +192,7 @@ window.SONGS = [
     title: 'Jiwaru Days',
     artist: 'JKT48',
     team: null,
-    audio: 'music/jiwaru_days.mp3',
+    audio: 'music/jiwaru_days.ogg',
     chart: 'charts/jiwaru_days.js',
     cover: 'images/jiwaru_days.webp'
   },
@@ -201,7 +201,7 @@ window.SONGS = [
     title: 'Green Flash',
     artist: 'JKT48',
     team: null,
-    audio: 'music/green_flash.mp3',
+    audio: 'music/green_flash.ogg',
     chart: 'charts/green_flash.js',
     cover: 'images/jiwaru_days.webp'
   },
@@ -210,7 +210,7 @@ window.SONGS = [
     title: 'Better',
     artist: 'JKT48',
     team: null,
-    audio: 'music/better.mp3',
+    audio: 'music/better.ogg',
     chart: 'charts/better.js',
     cover: 'images/jiwaru_days.webp'
   },
@@ -219,7 +219,7 @@ window.SONGS = [
     title: 'Seventeen',
     artist: 'JKT48',
     team: null,
-    audio: 'music/seventeen.mp3',
+    audio: 'music/seventeen.ogg',
     chart: 'charts/seventeen.js',
     cover: 'images/jiwaru_days.webp'
   }
