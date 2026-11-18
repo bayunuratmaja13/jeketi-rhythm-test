@@ -74,7 +74,7 @@
       '#dl-btns button{font:inherit;font-weight:700;font-size:clamp(15px,1.9vw,26px);padding:.55em 1.3em;border-radius:99px;',
       'border:2px solid #f3ecd8;background:transparent;color:#f3ecd8;cursor:pointer}',
       '#dl-btns button.dl-main{background:#f3ecd8;color:#1d3a2a}',
-      '#dl-pill{position:fixed;top:8px;right:8px;z-index:2147482000;max-width:70%;padding:5px 12px;border-radius:99px;',
+      '#dl-pill{position:fixed;bottom:calc(8px + env(safe-area-inset-bottom,0px));right:8px;z-index:2147482000;max-width:70%;padding:5px 12px;border-radius:99px;',
       'background:rgba(22,38,28,.82);color:#f3ecd8;font:600 13px/1.3 system-ui,sans-serif;pointer-events:none;',
       'opacity:0;transition:opacity .4s}',
       '#dl-pill.dl-on{opacity:1}'
