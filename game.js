@@ -1005,6 +1005,7 @@ function showResults() {
   const grade = gradeFor(acc, score);
   const fullCombo = stats.MISS === 0 && stats.BAD === 0 && judgedCount > 0;
   const allPerfect = fullCombo && stats.GREAT === 0 && stats.GOOD === 0;
+  if (window.Leaderboard) { try { Leaderboard.onResults(currentSong, score, acc); } catch (e) { /* never block the results screen */ } }
 
   // personal best
   let isRecord = false;
