@@ -133,7 +133,7 @@ window.SONGS = [
     audio: 'music/laptime_masa_remaja.mp3',
     chart: 'charts/laptime_masa_remaja.js',
     cover: 'images/laptime_masa_remaja.webp',
-    volume: 1.1
+    volume: 1.2
   },
     {
     id: 'belalang_yang_membangkang',
@@ -144,7 +144,7 @@ window.SONGS = [
     audio: 'music/belalang_yang_membangkang.mp3',
     chart: 'charts/belalang_yang_membangkang.js',
     cover: 'images/belalang_yang_membangkang.webp',
-    volume: 1.1
+    volume: 1.2
   },
     {
     id: 'magic_hour',
@@ -155,7 +155,7 @@ window.SONGS = [
     audio: 'music/magic_hour.mp3',
     chart: 'charts/magic_hour.js',
     cover: 'images/magic_hour.webp',
-    volume: 1.3
+    volume: 1.5
   },
     {
     id: 'langit_biru_cinta_searah',
@@ -167,7 +167,7 @@ window.SONGS = [
     audio: 'music/langit_biru_cinta_searah.mp3',
     chart: 'charts/langit_biru_cinta_searah.js',
     cover: 'images/langit_biru_cinta_searah.webp',
-    volume: 1.1
+    volume: 1.2
   },
     {
     id: 'must_be_now',
@@ -186,5 +186,41 @@ window.SONGS = [
     audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.mp3',
     chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
     cover: 'images/must_be_now.webp'
+  },
+    {
+    id: 'jiwaru_days',
+    title: 'Jiwaru Days',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/jiwaru_days.mp3',
+    chart: 'charts/jiwaru_days.js',
+    cover: 'images/jiwaru_days.webp'
+  },
+    {
+    id: 'green_flash',
+    title: 'Green Flash',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/green_flash.mp3',
+    chart: 'charts/green_flash.js',
+    cover: 'images/jiwaru_days.webp'
+  },
+    {
+    id: 'better',
+    title: 'Better',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/better.mp3',
+    chart: 'charts/better.js',
+    cover: 'images/jiwaru_days.webp'
+  },
+    {
+    id: 'seventeen',
+    title: 'Seventeen',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/seventeen.mp3',
+    chart: 'charts/seventeen.js',
+    cover: 'images/jiwaru_days.webp'
   }
 ];

@@ -113,29 +113,43 @@
 
 /* ---------- squad bar: bottom of song select (12 equipped cards) ---------- */
 #squad-bar {
-  --sq-s: .8;   /* overall scale of the equip cards tab (1 = original size) */
-  --sq-cols: 12; --sq-rows: 1; --sq-gap: clamp(3px, .6vw, 8px); --sq-pad: 10px; --sq-maxh: 30dvh; --sq-cap: 16px;
+  --sq-s: 1;   /* overall scale of the equip cards tab (1 = original size) */
+  --sq-cols: 12; --sq-rows: 1; --sq-gap: clamp(3px, .6vw, 8px); --sq-pad: 10px; --sq-maxh: 32dvh; --sq-cap: 16px; --sq-bw: clamp(160px, 18vw, 340px); --sq-colgap: clamp(10px, 1.2vw, 24px);
   --sq-cw: calc(var(--sq-s) * min(
-    calc((100vw - 2 * var(--sq-pad) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - (var(--sq-cols) - 1) * var(--sq-gap)) / var(--sq-cols)),
+    calc((100vw - 2 * var(--sq-pad) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--sq-bw) - var(--sq-colgap) - (var(--sq-cols) - 1) * var(--sq-gap)) / var(--sq-cols)),
     calc((var(--sq-maxh) - 2 * var(--sq-pad) - var(--sq-cap) - (var(--sq-rows) - 1) * var(--sq-gap)) / var(--sq-rows) * .75),
-    104px));
+    170px));
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: none; box-sizing: border-box;
   padding: calc((var(--sq-pad) + 4px) * var(--sq-s)) calc(var(--sq-pad) + env(safe-area-inset-right, 0px)) max(calc(var(--sq-pad) * var(--sq-s)), env(safe-area-inset-bottom, 0px)) calc(var(--sq-pad) + env(safe-area-inset-left, 0px));
   background: linear-gradient(180deg, #3a1556, #170824); border-top: 3px solid var(--gold, #ffd23f); box-shadow: 0 -10px 26px rgba(0, 0, 0, .55);
   font-family: 'Fredoka', var(--font-game), sans-serif; color: #fff; pointer-events: none;
   user-select: none; -webkit-user-select: none;
 }
-#squad-bar.show { display: block; animation: sq-up .35s cubic-bezier(.2, 1.2, .4, 1); }
+#squad-bar.show { display: grid; grid-template-columns: var(--sq-bw) minmax(0, 1fr); column-gap: var(--sq-colgap); align-items: center; animation: sq-up .35s cubic-bezier(.2, 1.2, .4, 1); }
 @keyframes sq-up { from { transform: translateY(100%); } }
 @media (orientation: portrait) { #squad-bar { --sq-cols: 6; --sq-rows: 2; --sq-maxh: 34dvh; } }
+.sq-main { min-width: 0; }
+.sq-best {
+  align-self: stretch; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 3px;
+  padding: 6px 8px; border-radius: 14px; border: 2px solid rgba(255, 226, 122, .55);
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 226, 122, .22), rgba(0, 0, 0, .28) 70%);
+  overflow: hidden; container-type: size;   /* size containment: this panel never changes the bar's height; its text scales to the panel instead */
+}
+.sb-label { font: 700 min(11cqh, 13cqw)/1 'Fredoka', sans-serif; letter-spacing: .16em; color: #ffe27a; text-shadow: 0 1px 0 rgba(0,0,0,.6); }
+.sb-grade { font: 900 min(44cqh, 50cqw)/.9 var(--font-impact, 'Fredoka', sans-serif); color: #fff; text-shadow: 0 3px 0 #a86f00, 0 0 18px rgba(255, 210, 63, .55); }
+.sb-score { font: 800 min(23cqh, 12cqw)/1 'Fredoka', sans-serif; color: #fff; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
+.sb-fc { font: 800 min(10cqh, 10cqw)/1 'Fredoka', sans-serif; letter-spacing: .12em; color: #4a2e00; background: linear-gradient(180deg, #ffe27a, #f0a800); padding: 3px 9px; border-radius: 999px; }
+.sb-none { font: 700 min(15cqh, 17cqw)/1.15 'Fredoka', sans-serif; color: #fff; opacity: .6; letter-spacing: .06em; padding: 6px 0; }
 .sq-cap {
+  position: relative; z-index: 8; translate: calc((var(--sq-bw) + var(--sq-colgap)) / -2) 0;   /* centred on the whole screen (not just the card area), drawn above the cards */
   height: calc(var(--sq-cap) * var(--sq-s)); margin-bottom: 3px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font: 700 calc(clamp(9px, 2.3dvh, 12px) * var(--sq-s))/calc(var(--sq-cap) * var(--sq-s)) 'Fredoka', sans-serif; letter-spacing: .14em; color: #ffe27a; text-shadow: 0 1px 0 rgba(0,0,0,.6);
 }
 .sq-cap em { font-style: normal; color: #fff; opacity: .85; }
-.sq-grid { display: grid; grid-template-columns: repeat(var(--sq-cols), var(--sq-cw)); gap: var(--sq-gap); justify-content: center; }
+.sq-grid { display: flex; flex-wrap: wrap; gap: var(--sq-gap); justify-content: center; }   /* flex, not grid: fewer than 12 cells stay centered */
 .sq-cell { position: relative; width: var(--sq-cw); aspect-ratio: 3 / 4; }
 .sq-cell .tcard { pointer-events: none; }
+#squad-bar .tc-badge { scale: .9; }                      /* tier letters 10% smaller so they stop covering the caption */
 .sq-blank {
   width: 100%; height: 100%; box-sizing: border-box; border-radius: 8%; border: 2px dashed rgba(255, 255, 255, .26);
   background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .04) 0 6px, rgba(255, 255, 255, .09) 6px 12px), rgba(0, 0, 0, .38);
@@ -146,7 +160,7 @@
 .sq-fl u { text-decoration: none; display: grid; place-items: center; width: clamp(11px, calc(var(--sq-cw) * .22), 16px); aspect-ratio: 1; border-radius: 50%; background: #5dbcf2; color: #fff; border: 1.5px solid #fff; font: 700 clamp(7px, calc(var(--sq-cw) * .13), 10px)/1 sans-serif; }
 .sq-fl u.h { background: #ff3d71; }
 .sq-tag {
-  position: absolute; left: 50%; top: 0; z-index: 7; transform: translate(-50%, -58%); white-space: nowrap; padding: 2px 11px; border-radius: 999px;
+  position: absolute; left: 50%; top: 0; z-index: 9; transform: translate(-50%, -58%); white-space: nowrap; padding: 2px 11px; border-radius: 999px;
   background: linear-gradient(180deg, #ffe27a, #f0a800); color: #4a2e00; border: 2px solid #fff; box-shadow: 0 2px 0 #a86f00;
   font: 800 calc(clamp(10px, 2.6dvh, 13px) * var(--sq-s))/1.2 'Fredoka', sans-serif; letter-spacing: .06em;
 }

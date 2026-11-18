@@ -37,6 +37,15 @@
     });
     return set.size ? set : null;
   }
+  // how many card slots a song shows: every member the song lists (its `only` list plus its `guest`), max MAX_LINEUP.
+  // Songs with no `only` list keep the full MAX_LINEUP slots. Nothing extra to set per song.
+  function slotCount(song) {
+    const only = songOnly(song);
+    if (!only) return MAX_LINEUP;
+    const ids = new Set(only);
+    songGuests(song).forEach(g => ids.add(g));
+    return Math.max(1, Math.min(MAX_LINEUP, ids.size));
+  }
   const PITY_A = 15;                           // a shop pack without an A+ card this many times in a row -> next has one
   const SHOP_ORDER = ['daily', 'standard', 'premium', 'oshi'];
 
@@ -76,7 +85,7 @@
   const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));          // tier index a card counts as
   function mkCard(id, ti) {                      // a card element for a member or a guest (guests get the R badge)
     const m = member(id), el = C().makeCard(m, C().TIERS[ti], true);
-    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) b.textContent = GUEST_LABEL; }
+    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { b.textContent = GUEST_LABEL; b.dataset.t = GUEST_LABEL; } }     // data-t is what the big letter is drawn from
     return el;
   }
   function songGuests(song) {                    // guest ids this song features
@@ -177,7 +186,7 @@
     const owned = Array.from(new Set(C().ownedIds()))
       .filter(id => C().memberOf(id) && C().best(id) >= 0 && (!team || member(id).team.toLowerCase() === team) && (!only || only.has(id)))
       .sort((a, b) => (C().best(b) - C().best(a)) || ((b === oshi) - (a === oshi)) || (order.get(a) - order.get(b)))
-      .slice(0, MAX_LINEUP - guests.length);
+      .slice(0, slotCount(song) - guests.length);
     return guests.concat(owned);
   }
 
@@ -436,9 +445,9 @@
   let curSong = null;
   const sqBar = h('div', 'sq-bar');
   sqBar.id = 'squad-bar';
-  sqBar.innerHTML = '<div class="sq-tag"></div><div class="sq-cap"></div><div class="sq-grid"></div>';
+  sqBar.innerHTML = '<div class="sq-best"></div><div class="sq-main"><div class="sq-cap"></div><div class="sq-grid"></div></div><div class="sq-tag"></div>';
   document.body.appendChild(sqBar);
-  const sqGrid = sqBar.querySelector('.sq-grid'), sqTag = sqBar.querySelector('.sq-tag'), sqCap = sqBar.querySelector('.sq-cap');
+  const sqBest = sqBar.querySelector('.sq-best'), sqGrid = sqBar.querySelector('.sq-grid'), sqTag = sqBar.querySelector('.sq-tag'), sqCap = sqBar.querySelector('.sq-cap');
 
   // Card elements are built once per member+tier and then reused, so scrolling to another song never has to
   // rebuild or re-decode the card art. (This was the cause of the carousel lag.)
@@ -473,13 +482,13 @@
   }
   function renderSquad() {
     if (!window.Cards || !C().MEMBERS) return;
-    const ids = autoLineup(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => (GUESTS[g].caption || GUESTS[g].name).toUpperCase()), bo = calc(ids, curSong);
+    const ids = autoLineup(curSong), slots = slotCount(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => (GUESTS[g].caption || GUESTS[g].name).toUpperCase()), bo = calc(ids, curSong);
     // identical loadout + markers to what is already on screen? then do not touch the cards at all
-    const sig = [ids.map(id => id + ':' + bestT(id)).join(','), oshi || '', ids.filter(id => set.has(id)).join(','), tm || '', on ? 'only' : ''].join('|');
+    const sig = [ids.map(id => id + ':' + bestT(id)).join(','), oshi || '', ids.filter(id => set.has(id)).join(','), tm || '', on ? 'only' : '', slots].join('|');
     if (sig !== sqSig || !sqGrid.firstChild) {
       sqSig = sig;
       const frag = document.createDocumentFragment();
-      for (let i = 0; i < MAX_LINEUP; i++) {
+      for (let i = 0; i < slots; i++) {
         const id = ids[i];
         const cell = h('div', 'sq-cell');
         let ok = false;
@@ -497,11 +506,23 @@
     }
     const tmName = tm ? tm.toUpperCase() : '';
     const capHTML = 'HIGHEST CARDS EQUIPPED' + (on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS</em>');
-    const tagHTML = ids.length ? 'TEAM <b>+' + bo.total + '%</b> <small>' + ids.length + '/' + MAX_LINEUP + '</small>' : (on ? 'NO CARDS OF THE CHOSEN MEMBERS YET · OPEN A PACK IN THE SHOP' : tm ? 'NO ' + esc(tmName) + ' CARDS YET · OPEN A PACK IN THE SHOP' : 'NO CARDS YET · OPEN A PACK IN THE SHOP');
+    const tagHTML = ids.length ? 'TEAM <b>+' + bo.total + '%</b> <small>' + ids.length + '/' + slots + '</small>' : (on ? 'NO CARDS OF THE CHOSEN MEMBERS YET · OPEN A PACK IN THE SHOP' : tm ? 'NO ' + esc(tmName) + ' CARDS YET · OPEN A PACK IN THE SHOP' : 'NO CARDS YET · OPEN A PACK IN THE SHOP');
     if (capHTML !== sqCapHTML) { sqCapHTML = capHTML; sqCap.innerHTML = capHTML; }
     if (tagHTML !== sqTagHTML) { sqTagHTML = tagHTML; sqTag.innerHTML = tagHTML; }
     sqTag.classList.toggle('none', !ids.length);
+    renderBest();
     measureSquad();
+  }
+  // the selected song's saved best score, in the left part of the bar (loadBest() lives in game.js)
+  let sqBestHTML = '';
+  function renderBest() {
+    let b = null;
+    try { b = curSong && typeof loadBest === 'function' ? loadBest(curSong.id) : null; } catch (e) { b = null; }
+    const has = b && Number(b.score) > 0;
+    const html = has
+      ? '<div class="sb-label">BEST SCORE</div><div class="sb-grade">' + esc(b.grade || '-') + '</div><div class="sb-score">' + fmt(b.score) + '</div>' + (b.fc ? '<div class="sb-fc">FULL COMBO</div>' : '')
+      : '<div class="sb-label">BEST SCORE</div><div class="sb-none">NOT PLAYED YET</div>';
+    if (html !== sqBestHTML) { sqBestHTML = html; sqBest.innerHTML = html; }
   }
   function measureSquad() {
     const hgt = sqBar.classList.contains('show') ? sqBar.offsetHeight : 0;
@@ -683,7 +704,7 @@
 
   window.Shop = {
     open: openShop, openLineup, setSong, songTeam, renderSquad, hide, openPack, packStatus, cooldownLeft,
-    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom,
+    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, slotCount, renderBest, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom,
     onChange(fn) { listeners.push(fn); },
     TIER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
     isOpen: () => !!openName,

@@ -1747,18 +1747,18 @@ body[data-tier="4"] #score {
 }
 #song-grid .song-cover-fallback { font-size: calc(var(--cw) * 0.3); }
 
-#song-grid .song-info { flex: none; }
+#song-grid .song-info { flex: none; margin-top: -8px; }          /* text sits closer to the cover */
 #song-grid .song-card-title {
   font-family: 'Fredoka', 'Baloo 2', 'Arial Rounded MT Bold', sans-serif;
   font-weight: 700;
   letter-spacing: 0.5px;
-  font-size: clamp(19px, calc(var(--cw) * 0.1), 34px);
+  font-size: clamp(22px, calc(var(--cw) * 0.118), 40px);
   line-height: 1.15;
   color: #3a2140;
   margin-bottom: 2px;
 }
 #song-grid .song-card.selected .song-card-title { color: #e0488a; text-shadow: 0 2px 0 rgba(255, 179, 209, 0.6); }
-#song-grid .song-card-artist { font-size: clamp(10px, calc(var(--cw) * 0.04), 14px); }
+#song-grid .song-card-artist { font-size: clamp(12px, calc(var(--cw) * 0.052), 19px); }
 #song-grid .song-best { font-size: clamp(10px, calc(var(--cw) * 0.036), 13px); }
 
 /* play button floats over the cover's bottom-right corner so the card never changes height */
@@ -1867,7 +1867,8 @@ body[data-tier="4"] #score {
   }
   #song-grid .song-card { padding: 8px 8px 10px; gap: 8px; }
   #song-grid .song-card::before { width: 56px; height: 16px; margin-left: -28px; top: -8px; }
-  #song-grid .song-card-title { font-size: clamp(14px, calc(var(--cw) * 0.1), 20px); }
+  #song-grid .song-card-title { font-size: clamp(16px, calc(var(--cw) * 0.118), 24px); }
+  #song-grid .song-card-artist { font-size: clamp(11px, calc(var(--cw) * 0.052), 14px); }
   #song-grid .song-cover { width: 100%; height: auto; flex: none; }
   #song-grid { --pb: clamp(34px, calc(var(--cw) * 0.26), 52px); }
   #song-grid .card-play-btn { right: 8px; top: calc(var(--cw) - 8px - 8px - var(--pb)); border-width: 2px; }

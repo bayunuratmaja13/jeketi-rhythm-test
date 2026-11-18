@@ -235,9 +235,9 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   border-radius: calc(var(--cw) * .075);
-  padding: calc(var(--cw) * .035);
+  padding: calc(var(--cw) * .04);
   background: var(--metal);
-  box-shadow: 0 .45em .9em rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 255, 255, .4);
+  box-shadow: 0 .45em .9em rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 255, 255, .55), inset 0 0 0 .22em var(--rim, transparent);
 }
 .tc-back { transform: rotateY(180deg); }
 .tc-art {
@@ -246,6 +246,16 @@
   border-radius: calc(var(--cw) * .05);
   overflow: hidden;
   background: #231526;
+  box-shadow: 0 0 0 .09em rgba(10, 4, 16, .75);        /* thin dark line between the frame and the art, like the reference */
+}
+/* soft light along the inside of the frame + a dark corner so the big letter stays readable */
+.tc-art::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 0 0, rgba(0, 0, 0, .5), transparent 42%);
+  box-shadow: inset 0 0 .7em .05em var(--inner, rgba(255, 255, 255, .25));
 }
 .tc-art img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; }
 
@@ -263,20 +273,34 @@
 .tcard:not(.locked):hover .tc-sweep { animation: sweep .9s ease-out; }
 @keyframes sweep { 0%, 55% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
 
+/* the big beveled tier letter, top left (gradient fill + dark outline + glow, no pill behind it) */
 .tc-badge {
   position: absolute;
-  left: -.5em; top: -.5em;
+  left: -.35em; top: -.3em;                /* hangs off the corner of the card (em here = the letter's own size) */
   z-index: 3;
-  min-width: 2.6em; height: 2.6em;
-  padding: 0 .55em;
-  display: grid; place-items: center;
-  border-radius: 1.4em;
-  font: 900 1.35em/1 var(--font-impact);
-  color: var(--tier-ink);
-  background: var(--metal);
-  box-shadow: 0 .2em .5em rgba(0, 0, 0, .55), inset 0 0 0 .1em rgba(255, 255, 255, .6);
-  transform: rotate(-8deg);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .55);
+  padding: 0 .1em;
+  font: normal 900 4.1em/1 var(--font-impact);
+  letter-spacing: -.02em;
+  color: transparent;                    /* the real text only reserves the space; the two layers below draw it */
+  filter: drop-shadow(0 .025em 0 rgba(0, 0, 0, .6)) drop-shadow(0 0 .05em var(--lg, rgba(255, 255, 255, .5)));
+  pointer-events: none;
+  user-select: none;
+}
+.tc-badge::before, .tc-badge::after {
+  content: attr(data-t);
+  position: absolute; left: 0; top: 0;
+  padding: inherit;
+  white-space: nowrap;
+}
+.tc-badge::before {                      /* dark outline layer */
+  color: var(--ol, #2a1600);
+  -webkit-text-stroke: .05em var(--ol, #2a1600);
+}
+.tc-badge::after {                       /* gradient letter layer + thin bright rim so the edges stay crisp */
+  color: transparent;
+  background: var(--ltr);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-stroke: .012em rgba(255, 255, 255, .75);
 }
 .tc-new, .tc-count {
   position: absolute;
@@ -306,13 +330,33 @@
 .tc-lock b { font: 900 2.6em/1 var(--font-impact); text-shadow: 0 .06em .3em rgba(0, 0, 0, .7); }
 
 /* ---------- tiers ---------- */
-.t-c  { --tier-ink: #3f1f07; --metal: linear-gradient(145deg, #5b3011 0%, #c8864a 26%, #f6c897 44%, #a15f2b 66%, #5b3011 100%); }
-.t-b  { --tier-ink: #27303d; --metal: linear-gradient(145deg, #5f6877 0%, #d9e0ea 26%, #ffffff 44%, #a3adbb 66%, #5f6877 100%); }
-.t-a  { --tier-ink: #4a3000; --metal: linear-gradient(145deg, #7a5200 0%, #e3ae1c 26%, #fff0a0 44%, #c48a0e 66%, #7a5200 100%); --gc: rgba(255, 200, 50, .6); }
-.t-s  { --tier-ink: #4a3000; --metal: linear-gradient(145deg, #9a6400 0%, #ffd23f 24%, #fffbd2 44%, #ffc21a 66%, #a86c00 100%); --gc: rgba(255, 205, 60, .95); }
-.t-ss { --tier-ink: #5a3600; --metal: linear-gradient(135deg, #b8860b, #ffe680 18%, #ffffff 32%, #ffd54a 48%, #ff9fd0 62%, #ffe680 78%, #b8860b); --gc: rgba(255, 215, 90, 1); }
+/* Looks copied from the Superstar references:
+   C bronze · B glossy red frame, orange letter · A glossy purple frame, silver letter · S glowing gold · SS = the glittery "R" gold card */
+.t-c  { --tier-ink: #3f1f07; --ol: #3a1c06; --lg: rgba(255, 150, 70, .55); --inner: rgba(255, 170, 100, .3);
+        --metal: linear-gradient(145deg, #4a2508 0%, #b8743a 26%, #f0b886 44%, #92521f 66%, #4a2508 100%);
+        --ltr: linear-gradient(180deg, #ffe6c8 0%, #f0ac72 50%, #d98a4c 78%, #b36a2e 100%); }
+.t-b  { --tier-ink: #fff; --ol: #2e1500; --lg: rgba(255, 120, 30, .6); --inner: rgba(255, 90, 90, .45); --rim: rgba(255, 255, 255, .12);
+        --metal: linear-gradient(145deg, #6a000c 0%, #f0222c 28%, #ff8c84 45%, #d4101c 66%, #6a000c 100%);
+        --ltr: linear-gradient(180deg, #fff1c4 0%, #ffbf4a 50%, #ff9a10 78%, #e07800 100%);
+        --gc: rgba(255, 40, 50, .55); }
+.t-a  { --tier-ink: #fff; --ol: #1b0a33; --lg: rgba(200, 150, 255, .65); --inner: rgba(190, 120, 255, .5); --rim: rgba(255, 255, 255, .12);
+        --metal: linear-gradient(145deg, #34086a 0%, #a566ff 28%, #e9d2ff 45%, #8238e8 66%, #34086a 100%);
+        --ltr: linear-gradient(180deg, #ffffff 0%, #eef1f7 50%, #cfd6e3 78%, #aab3c4 100%);
+        --gc: rgba(170, 90, 255, .7); }
+.t-s  { --tier-ink: #4a3000; --ol: #3a2400; --lg: rgba(255, 210, 70, .95); --inner: rgba(255, 214, 90, .65);
+        --metal: linear-gradient(145deg, #9a6400 0%, #ffd23f 24%, #fffbd2 44%, #ffc21a 66%, #a86c00 100%);
+        --ltr: linear-gradient(180deg, #fff8c4 0%, #ffe25a 50%, #ffc61f 78%, #ec9f00 100%);
+        --gc: rgba(255, 205, 60, .95); }
+.t-ss { --tier-ink: #5a3600; --ol: #3a2400; --lg: rgba(255, 224, 110, 1); --inner: rgba(255, 230, 120, .85);
+        --metal: linear-gradient(135deg, #a86c00, #ffd34d 16%, #fffbe0 30%, #ffc933 46%, #fff3a8 60%, #ffb800 76%, #a86c00);
+        /* gold with glitter dots = the sparkly "R" letter */
+        --ltr: radial-gradient(circle, rgba(255, 255, 255, .95) 0 7%, transparent 9%) 0 0 / .62em .56em,
+               radial-gradient(circle, rgba(255, 255, 255, .8) 0 6%, transparent 8%) .27em .24em / .48em .44em,
+               linear-gradient(180deg, #fff8c4 0%, #ffe25a 50%, #ffc61f 78%, #ec9f00 100%);
+        --gc: rgba(255, 215, 90, 1); }
 
-.t-a  .tc-glow { opacity: .45; }
+.t-b  .tc-glow { opacity: .3; }
+.t-a  .tc-glow { opacity: .5; }
 .t-s  .tc-glow { opacity: .8; animation: glow-pulse 2.2s ease-in-out infinite; }
 .t-ss .tc-glow { animation: glow-ss 2.6s ease-in-out infinite; }
 @keyframes glow-pulse { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.07); } }
@@ -322,14 +366,14 @@
 }
 .t-s  .tc-sweep { animation: sweep 4.6s ease-in-out infinite; }
 .t-ss .tc-sweep { animation: sweep 3s ease-in-out infinite; }
-.t-ss .tc-face, .t-ss .tc-badge { background-size: 240% 240%; animation: metal-shift 3.2s ease-in-out infinite; }
+.t-ss .tc-face { background-size: 240% 240%; animation: metal-shift 3.2s ease-in-out infinite; }
 @keyframes metal-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
 .t-ss .tc-foil {
   background: linear-gradient(115deg, transparent 18%, rgba(255, 110, 200, .4) 30%, rgba(110, 220, 255, .36) 42%, rgba(255, 240, 130, .44) 54%, rgba(180, 130, 255, .36) 66%, transparent 80%);
   background-size: 260% 260%;
   mix-blend-mode: color-dodge;
-  opacity: .85;
+  opacity: .6;
   animation: foil-drift 4s linear infinite;
 }
 @keyframes foil-drift { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }

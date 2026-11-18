@@ -14,11 +14,11 @@
 
   // Tier order = left to right in the collection
   const TIERS = [
-    { id: 'C',  name: 'Bronze',        hint: 'Finish a song with rank C' },
-    { id: 'B',  name: 'Silver',        hint: 'Rank B, or C with a Full Combo' },
-    { id: 'A',  name: 'Gold',          hint: 'Rank A, or B with a Full Combo' },
-    { id: 'S',  name: 'Radiant Gold',  hint: 'Rank S, or A with a Full Combo' },
-    { id: 'SS', name: 'Dazzling Gold', hint: 'Rank S with a Full Combo' },
+    { id: 'C',  name: 'Common',        hint: 'Buy packs in shop' },
+    { id: 'B',  name: 'Bronze',        hint: 'Combine cards to unlock' },
+    { id: 'A',  name: 'Silver',        hint: 'Combine cards to unlock' },
+    { id: 'S',  name: 'Radiant Gold',  hint: 'Combine cards to unlock' },
+    { id: 'SS', name: 'Dazzling Gold', hint: 'Combine cards to unlock' },
   ];
 
   // Add a member = add her name to her team's list. Her art is images/cards/<lowercase name>.webp
@@ -36,7 +36,7 @@
   }));
 
   const BURST_COLORS = {
-    C: ['#e0a56b', '#f6c897'], B: ['#dfe6ef', '#ffffff'], A: ['#ffd54a', '#fff0a0'],
+    C: ['#e0a56b', '#f6c897'], B: ['#ff3b3b', '#ffb23d', '#ffffff'], A: ['#b06bff', '#e9d2ff', '#ffffff'],
     S: ['#ffd23f', '#fffbd2', '#ffb300'], SS: ['#ffe680', '#ff9fd0', '#7fe0ff', '#ffffff', '#c9a0ff'],
   };
 
@@ -78,7 +78,7 @@
 
   const SPARKS = [[14, 18, 0], [84, 12, .6], [90, 60, 1.1], [10, 72, .3], [52, 90, .9]]
     .map(([x, y, d]) => `<span class="sp" style="left:${x}%;top:${y}%;animation-delay:${d}s">✦</span>`).join('');
-  const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg>';
+  const LOCK ='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg>';
 
   // ---------- CARD ----------
   function makeCard(m, t, owned, ghost) {
@@ -89,7 +89,7 @@
     c.innerHTML =
       '<i class="tc-glow"></i><div class="tc-tilt"><div class="tc-inner">' +
         `<div class="tc-face tc-front"><div class="tc-art"><img src="${m.front}" alt="${m.name}" draggable="false" onerror="this.outerHTML='<div class=tc-ph style=--pc:${m.color}><b>${m.name}</b><small>Team ${m.team}</small></div>'"><i class="tc-foil"></i><i class="tc-sheen"></i><i class="tc-sweep"></i></div>` +
-          `<span class="tc-badge">${t.id}</span>${t.id === 'SS' ? SPARKS : ''}</div>` +
+          `<span class="tc-badge" data-t="${t.id}">${t.id}</span>${t.id === 'SS' ? SPARKS : ''}</div>` +
         `<div class="tc-face tc-back"><div class="tc-art"><img src="${m.back}" alt="Team ${m.team}" draggable="false"><i class="tc-sheen"></i><i class="tc-sweep"></i><div class="tc-lock">${LOCK}<b>${t.id}</b></div></div></div>` +
       '</div></div>';
     if ((owned || ghost) && isOshiId(m.id)) syncHeart(c, true);

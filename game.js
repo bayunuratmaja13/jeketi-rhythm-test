@@ -225,6 +225,9 @@ let lastBeatOpacity = -1;
 
 // adaptive quality
 let lowFx = false, frameEma = 16.7, perfBad = 0, perfGood = 0;
+let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
+const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
+function fxLight() { return lowFx || performance.now() < spikeUntil; }
 
 const hitBarTimers = [null, null, null, null];
 const laneFlashTimers = [null, null, null, null];
@@ -416,6 +419,8 @@ function setHudVisible(visible) {
 
 function hideTransientHud() {
   countdownEl.classList.remove('show');
+  document.body.classList.remove('intro-hud', 'intro-hud-in');
+  if (introLoadingEl) introLoadingEl.style.display = 'none';
   timingEl.style.opacity = 0;
   tierBanner.getAnimations().forEach(a => a.cancel());
   judgementEl.getAnimations().forEach(a => a.cancel());
@@ -501,7 +506,6 @@ function buildMenu() {
       <div class="song-info">
         <div class="song-card-title">${escapeHtml(song.title || song.id)}</div>
         <div class="song-card-artist">${escapeHtml(song.artist || '')}</div>
-        <div class="song-best"></div>
       </div>
       <button class="card-play-btn" type="button" aria-label="Play ${escapeHtml(song.title || song.id)}"><svg class="card-play-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.2v13.6a1 1 0 0 0 1.52.85l11-6.8a1 1 0 0 0 0-1.7l-11-6.8A1 1 0 0 0 8.5 5.2z" fill="currentColor"/></svg></button>
     `;
@@ -537,13 +541,9 @@ function buildMenu() {
   updateCardBests();
 }
 
+// best scores are shown in the equipped-cards bar now (shop.js), not on the song cards
 function updateCardBests() {
-  songGrid.querySelectorAll('.song-card').forEach(card => {
-    const el = card.querySelector('.song-best');
-    if (!el) return;
-    const best = loadBest(card.dataset.songId);
-    el.textContent = best ? `BEST  ${best.grade || ''}  ·  ${Number(best.score || 0).toLocaleString()}` : '';
-  });
+  if (window.Shop && Shop.renderBest) Shop.renderBest();
 }
 
 function selectCard(card, song, fast) {
@@ -1909,7 +1909,7 @@ function drawField(now, dt) {
       if (n.judged) continue;
       const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
       if (tHead < 0) continue;
-      c.globalAlpha = tHead < 0.12 ? tHead / 0.12 : 1;      // fade in just under the card strip
+      c.globalAlpha = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;      // fade in just under the card strip (and during the get-ready intro)
       if (n.dur > 0) {
         const tTail = Math.max(0, (now - (n.time + n.dur - APPROACH_TIME)) / APPROACH_TIME);
         const th = n.holding ? Math.min(tHead, 1) : tHead;
@@ -1982,7 +1982,7 @@ function drawField(now, dt) {
 function fxColor(j) { return FX_COL[String(j).toLowerCase()] || '#ff6ba6'; }
 
 function spawnShockwave(laneIndex, judgement, count) {
-  const n = lowFx ? 1 : Math.min(count, 3);
+  const n = fxLight() ? 1 : Math.min(count, 3);
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
     if (fxRings.length >= 14) fxRings.shift();
@@ -1991,7 +1991,7 @@ function spawnShockwave(laneIndex, judgement, count) {
 }
 
 function spawnParticles(laneIndex, judgement, count) {
-  const n = Math.round(count * (lowFx ? 0.4 : 1) * (COARSE ? 0.6 : 1));
+  const n = Math.round(count * (fxLight() ? 0.4 : 1) * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 48; i++) {
@@ -2015,7 +2015,7 @@ function flashJudgementLine(laneIndex, judgement) {
 function beamHit(laneIndex, judgementName) {
   const j = JUDGE[judgementName];
   beamColor[laneIndex] = j ? j.beam : '#ff5252';
-  if (lowFx) return;
+  if (fxLight()) return;
   beamA[laneIndex] = judgementName === 'PERFECT' ? 1 : 0.85;
 }
 
@@ -2115,7 +2115,7 @@ const petals = (() => {
     setTier(t) { tier = t; },
     setQuality(low) { quality = low ? 0.3 : 1; },
     burst(count) {
-      if (reduceMotion || lowFx) return;
+      if (reduceMotion || fxLight()) return;
       for (let i = 0; i < count && list.length < 90; i++) spawn(true, true);
     },
     update(dt, t) {
@@ -2165,7 +2165,13 @@ function setLowFx(v) {
 
 // Watches the frame rate. If the device struggles, effects get lighter on their own.
 function trackPerformance(dt) {
-  frameEma += (dt - frameEma) * 0.05;
+  if (dt > SPIKE_FRAME_MS) {              // one very long frame: the phone was busy elsewhere. Go light right away and let it recover
+    spikeUntil = performance.now() + SPIKE_LIGHT_MS;
+    fxParts.length = 0; fxRings.length = 0;
+    beatPulse.style.opacity = 0; lastBeatOpacity = 0;
+  } else {
+    frameEma += (dt - frameEma) * 0.05;
+  }
   if (!lowFx) {
     if (frameEma > 26) { if (++perfBad > 90) setLowFx(true); } else perfBad = 0;
   } else {
@@ -2609,6 +2615,73 @@ function resetRunState() {
   updateLife();
 }
 
+// ---------- GET-READY INTRO ----------
+// Before the 3-2-1: (1) the lanes slide in and the notes fade in, (2) the card strip, score and life bar fade in.
+// It doubles as loading time: after the 2 seconds the countdown waits (up to INTRO_MAX_WAIT_MS) until the song has
+// buffered, so the first seconds of a run do not stutter while the audio is still arriving.
+const INTRO_LANES_MS = 1000;                // step 1: lanes + notes
+const INTRO_HUD_MS = 1000;                  // step 2: cards, score, life bar
+const INTRO_NOTES_AT = 400;                 // notes start fading in this long after the lanes begin
+const INTRO_NOTES_MS = 600;
+const INTRO_MAX_WAIT_MS = 8000;             // never hold a player longer than this for the audio
+const INTRO_NO_PROGRESS_MS = 1500;          // browser buffers nothing until play() (iPhones): stop waiting after this
+let introT0 = 0;
+let introNoteK = 1;                         // 0..1 multiplier on note opacity (1 = normal play)
+
+(function addIntroStyles() {
+  const st = document.createElement('style');
+  st.textContent =
+    'body.intro-hud .card-cheer, body.intro-hud #score, body.intro-hud #life, body.intro-hud #pause-btn { opacity: 0 !important; transition: none !important; }' +
+    'body.intro-hud #score, body.intro-hud #life { translate: 0 -14px; }' +
+    'body.intro-hud-in .card-cheer, body.intro-hud-in #score, body.intro-hud-in #life, body.intro-hud-in #pause-btn { transition: opacity 700ms ease-out, translate 700ms ease-out !important; }';
+  document.head.appendChild(st);
+})();
+
+const introLoadingEl = mk('div', 'intro-loading');
+introLoadingEl.style.cssText =
+  'position:fixed;left:0;right:0;top:46%;text-align:center;z-index:60;pointer-events:none;display:none;' +
+  'font:900 28px/1.2 system-ui,sans-serif;letter-spacing:.2em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7);';
+introLoadingEl.textContent = 'LOADING…';
+
+function runIntro(token, done) {
+  const alive = () => token === playToken && mode === 'starting';
+  introT0 = performance.now();
+
+  // step 1: lanes slide up and fade in (notes follow through introNoteK in the update loop)
+  if (playfieldEl.animate) {
+    const slide = reduceMotion ? [] : [{ transform: 'translateY(36px)' }, { transform: 'translateY(0)' }];
+    playfieldEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: 'ease-out' });
+    if (slide.length) for (const cv of [fieldBgCv, fieldCv]) cv.animate(slide, { duration: 800, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+
+  // step 2: cards, score and life bar fade in
+  setTimeout(() => {
+    if (!alive()) return;
+    document.body.classList.add('intro-hud-in');
+    document.body.classList.remove('intro-hud');
+    setTimeout(() => document.body.classList.remove('intro-hud-in'), 800);
+  }, INTRO_LANES_MS);
+
+  // then: hold the countdown until the song is buffered
+  setTimeout(() => {
+    if (!alive()) return;
+    const t0 = performance.now();
+    const poll = () => {
+      if (!alive()) return;
+      const waited = performance.now() - t0;
+      let ok = true;
+      try {
+        ok = music.readyState >= 3;
+        if (!ok && waited > INTRO_NO_PROGRESS_MS && !(music.buffered && music.buffered.length)) ok = true;
+      } catch (e) { ok = true; }
+      if (ok || waited > INTRO_MAX_WAIT_MS) { introLoadingEl.style.display = 'none'; done(); return; }
+      if (waited > 300) introLoadingEl.style.display = 'block';
+      setTimeout(poll, 150);
+    };
+    poll();
+  }, INTRO_LANES_MS + INTRO_HUD_MS);
+}
+
 // 3-2-1 before a song starts. Stops quietly if the player leaves or restarts meanwhile (the token changes).
 const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
 function runStartCountdown(token, done) {
@@ -2672,6 +2745,8 @@ function startPlayback() {
   scoreEl.textContent = 'Score: 0';
   measureLane();
 
+  introNoteK = reduceMotion ? 1 : 0;
+  document.body.classList.add('intro-hud');          // cards, score and life bar stay hidden until the intro reaches them
   pauseBtn.classList.add('show');
   setHudVisible(true);
   [80, 400, 1000].forEach(ms => setTimeout(measureLane, ms));   // card strip finishes its entrance: place the track under it
@@ -2685,6 +2760,7 @@ function startPlayback() {
   const begin = (audioOk) => {
     if (token !== playToken || mode !== 'starting') return;
     introShow = false;
+    introT0 = 0; introNoteK = 1;
     useAudio = audioOk;
     if (!audioOk) wallStart = performance.now();
     wallOffset = 0;
@@ -2696,15 +2772,15 @@ function startPlayback() {
 
   introShow = true;
   startUpdateLoop();
-  // 3-2-1 first (same look and beeps as the resume countdown), then the song and the notes start together
-  runStartCountdown(token, () => {
+  // get-ready intro (lanes + notes, then cards + score bar) -> wait for the song to buffer -> 3-2-1 -> song and notes start together
+  runIntro(token, () => runStartCountdown(token, () => {
     if (token !== playToken || mode !== 'starting') return;
     music.currentTime = 0;
     wallStart = performance.now();
     const p = music.play();
     if (p && p.then) p.then(() => begin(true), () => begin(false));
     else begin(true);
-  });
+  }));
 
   setStatus(`▶ ${currentSong.title} | ${currentChart.length} notes | miss limit ${missLimit}`);
 }
@@ -3155,7 +3231,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- LOOP ----------
 function updateBeat(now, dt) {
-  if (lowFx) return;
+  if (fxLight()) return;
   let v = kick;
   kick *= Math.exp(-dt / 140);
   if (kick < 0.01) kick = 0;
@@ -3188,6 +3264,10 @@ function update(ts) {
 
   if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); return; }
   if (mode === 'starting' && introShow) {   // 3-2-1 before the song: the first notes are on the track, standing still at song time 0
+    if (introT0) {                          // get-ready intro: notes fade in during the second half of the lane entrance
+      const k = Math.min(1, Math.max(0, (performance.now() - introT0 - INTRO_NOTES_AT) / INTRO_NOTES_MS));
+      introNoteK = 1 - Math.pow(1 - k, 3);
+    }
     while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= 0) {
       const n = queue[spawnIdx++];
       if (n.judged) continue;
