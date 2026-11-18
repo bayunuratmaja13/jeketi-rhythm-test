@@ -5,8 +5,8 @@
   'use strict';
 
   // ================= 1) PASTE YOUR TWO VALUES HERE =================
-  var SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';   // Project URL
-  var SUPABASE_KEY = 'sb_publishable_YOUR_KEY';                // Publishable key (safe to be public)
+  var SUPABASE_URL = 'https://gpbffmigrfacgwdjcqhj.supabase.co';   // Project URL
+  var SUPABASE_KEY = 'sb_publishable_sAuwhgZR34XPG--2Pk6uvw_A6kpAmVR';                // Publishable key (safe to be public)
   // =================================================================
 
   var NAME_RE = /^[A-Za-z0-9]{1,10}$/;
@@ -85,17 +85,18 @@
 
   // ---------- styles ----------
   var css = '' +
-    // SUBMIT button: sits right under the result card (the overlay stacks the card and the button in a column)
-    '#results{flex-direction:column;gap:12px}' +
-    '#results.lb-on:not(.hs-view) .results-card{max-height:calc(100dvh - 84px)}' +
-    '#lb-submit{display:none;flex:none;font:800 clamp(16px,3.8dvh,24px)/1 Fredoka,var(--font-game,sans-serif);letter-spacing:.08em;color:#fff;' +
-      'text-shadow:0 2px 0 rgba(160,40,90,.35);padding:.5em 1.4em;border:3px solid #fff;border-radius:999px;' +
-      'background:linear-gradient(180deg,#ff9cc4,#ff66a3);box-shadow:0 4px 0 #c23b79,0 6px 14px rgba(0,0,0,.35);cursor:pointer;' +
-      'white-space:nowrap;touch-action:manipulation}' +
-    '#lb-submit:active{transform:translateY(3px);box-shadow:0 1px 0 #c23b79}' +
-    '#lb-submit:disabled{background:linear-gradient(180deg,#d9d9d9,#b5b5b5);box-shadow:0 4px 0 #8a8a8a;cursor:default;text-shadow:none}' +
-    '#results.show:not(.hs-view) #lb-submit.on{display:block;animation:lbIn .35s ease 1.8s both}' +
-    '@keyframes lbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}' +
+    // SUBMIT button: lives in the left column of the result card, right under the grade + points (two rows of text)
+    // The space is always reserved (visibility, not display) so the card never changes size when it appears.
+    "#lb-submit{display:block;visibility:hidden;flex:none;margin:6px auto 0;font:800 17px/1.05 Fredoka,var(--font-game,sans-serif);letter-spacing:.06em;" +
+      "text-align:center;color:#fff;text-shadow:0 2px 0 rgba(160,40,90,.35);padding:.42em 1em .5em;border:2px solid #fff;border-radius:999px;" +
+      "background:linear-gradient(180deg,#ff9cc4,#ff66a3);box-shadow:0 3px 0 #c23b79,0 4px 10px rgba(0,0,0,.3);cursor:pointer;touch-action:manipulation}" +
+    '#lb-submit:active{transform:translateY(2px);box-shadow:0 1px 0 #c23b79}' +
+    '#lb-submit:disabled{background:linear-gradient(180deg,#d9d9d9,#b5b5b5);box-shadow:0 3px 0 #8a8a8a;text-shadow:none;cursor:default}' +
+    '#results.show:not(.hs-view) #lb-submit.on{visibility:visible;animation:lbIn .35s ease 1.8s both}' +
+    '#results.hs-view #lb-submit{display:none}' +
+    '@keyframes lbIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}' +
+    '@media (max-height:700px) and (min-height:501px){#lb-submit{font-size:15px}}' +
+    '@media (max-height:500px){#lb-submit{font-size:12px;margin-top:3px;border-width:2px}}' +
     '.cp-lb{margin-top:8px}' +
     // pop ups: same look as the "PLAY THIS SONG?" box (cp-box)
     '.lb-ov{position:fixed;left:0;top:0;right:0;bottom:0;z-index:3000;display:none;align-items:center;justify-content:center;padding:12px;' +
@@ -268,10 +269,12 @@
   var submitBtn = el('button', '');
   submitBtn.id = 'lb-submit';
   submitBtn.type = 'button';
-  submitBtn.textContent = 'SUBMIT TO LEADERBOARD';
+  submitBtn.innerHTML = 'SUBMIT TO<br>LEADERBOARD';
   submitBtn.addEventListener('click', function (e) { e.stopPropagation(); openName(); });
   var resultsEl = document.getElementById('results');
-  if (resultsEl) resultsEl.appendChild(submitBtn);
+  var gradeRow = resultsEl && resultsEl.querySelector('.rl-grade-row');
+  if (gradeRow && gradeRow.parentNode) gradeRow.parentNode.insertBefore(submitBtn, gradeRow.nextSibling);   // under the grade + points
+  else if (resultsEl) resultsEl.appendChild(submitBtn);
 
   // ---------- LEADERBOARD button on the "PLAY THIS SONG?" pop up ----------
   function addConfirmButton() {
@@ -308,10 +311,9 @@
     onResults: function (song, score, acc) {
       var ok = !!(song && song.id && score > 0);
       run = ok ? { song: song, score: Math.round(score), acc: Math.round((acc || 0) * 10000) / 100, sent: false } : null;
-      submitBtn.textContent = 'SUBMIT TO LEADERBOARD';
+      submitBtn.innerHTML = 'SUBMIT TO<br>LEADERBOARD';
       submitBtn.disabled = false;
       if (ok) submitBtn.classList.add('on'); else submitBtn.classList.remove('on');
-      if (resultsEl) { if (ok) resultsEl.classList.add('lb-on'); else resultsEl.classList.remove('lb-on'); }
     }
   };
 })();
