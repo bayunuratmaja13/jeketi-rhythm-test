@@ -5,6 +5,7 @@ console.log('songs.js loaded');
 //   beatOffset:   ms until the first beat (default 0)
 //   previewStart: second where the song-select preview starts (default 15)
 //   preview:      set to false to disable the preview for that song
+//   volume:       music loudness for this song (default 1; 1.2 = 20% louder; above 1 uses a gain node)
 //   team:         'dream' | 'love' | 'passion' -> only that team's cards are equipped
 //                 (leave it out, or use null, to allow every member's cards)
 window.SONGS = [
@@ -131,6 +132,59 @@ window.SONGS = [
     team: null,
     audio: 'music/laptime_masa_remaja.mp3',
     chart: 'charts/laptime_masa_remaja.js',
-    cover: 'images/laptime_masa_remaja.webp'
+    cover: 'images/laptime_masa_remaja.webp',
+    volume: 1.1
+  },
+    {
+    id: 'belalang_yang_membangkang',
+    title: 'Belalang yang Membangkang',
+    artist: 'JKT48',
+    team: null,
+    only: ['michie', 'anindya', 'elin', 'cynthia', 'danella', 'daisy', 'aralie', 'lana', 'erine', 'fritzy', 'lily', 'trisha', 'levi', 'nayla', 'nachia', 'oline', 'nala', 'ribka', 'kimmy'],
+    audio: 'music/belalang_yang_membangkang.mp3',
+    chart: 'charts/belalang_yang_membangkang.js',
+    cover: 'images/belalang_yang_membangkang.webp',
+    volume: 1.1
+  },
+    {
+    id: 'magic_hour',
+    title: 'Magic Hour',
+    artist: 'JKT48',
+    team: null,
+    only: ['marsha', 'christy', 'feni', 'fiony', 'freya', 'gita', 'jessi', 'kathrina', 'muthe'],
+    audio: 'music/magic_hour.mp3',
+    chart: 'charts/magic_hour.js',
+    cover: 'images/magic_hour.webp',
+    volume: 1.3
+  },
+    {
+    id: 'langit_biru_cinta_searah',
+    title: 'Langit Biru Cinta Searah',
+    artist: 'JKT48',
+    team: null,
+    only: ['ella', 'lulu', 'oniel', 'eli', 'greesel', 'freya'],
+    guest: 'pia',
+    audio: 'music/langit_biru_cinta_searah.mp3',
+    chart: 'charts/langit_biru_cinta_searah.js',
+    cover: 'images/langit_biru_cinta_searah.webp',
+    volume: 1.1
+  },
+    {
+    id: 'must_be_now',
+    title: 'Must Be Now',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/must_be_now.mp3',
+    chart: 'charts/must_be_now.js',
+    cover: 'images/must_be_now.webp'
+  },
+    {
+    id: 'apa_yang_sang_gadis_perbuat_di_musim_panas',
+    title: 'Apa yang Sang Gadis Perbuat di Musim Panas',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.mp3',
+    chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
+    cover: 'images/must_be_now.webp'
   }
 ];

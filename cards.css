@@ -59,13 +59,11 @@
 }
 #cards-title-gif { height: clamp(44px, 11vh, 96px); width: auto; display: block; }
 #cards-back-btn {
-  position: fixed;                                   /* bottom right, big tap target */
-  bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
-  right: max(14px, calc(env(safe-area-inset-right, 0px) + 10px));
+  position: fixed;                                   /* top left (the Points / progress note is top right) */
+  top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
+  left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
   z-index: 20;
-  padding: 10px;                                     /* extra invisible hit area around the image */
 }
-#cards-back-btn .btn-gif { height: clamp(64px, 15vh, 120px); width: auto; }
 
 .cards-progress {
   position: absolute;

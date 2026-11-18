@@ -10,7 +10,7 @@
   const MISSION_REWARD = { easy: 40, med: 80, hard: 120 };   // Points per mission
   const ALL_BONUS = 100;                                       // Points for finishing all three
   const FEATURED_MULT = 1.5;                                   // Points multiplier on the featured song
-  const RANK = { C: 1, B: 2, A: 3, S: 4 };
+  const RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
   // 7-day calendar. 'low' / 'high' packs are picked at runtime: cheapest / most expensive paid pack that doesn't need an oshi.
   const DAYS = [
@@ -167,9 +167,9 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const screen = document.createElement('div');
   screen.id = 'daily-screen';
-  screen.innerHTML = '<div class="dy-head"><div class="dy-title"><img src="images/daily.gif" alt="Daily" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'dy-title-text\',textContent:\'DAILY\'}))"></div>' +
+  screen.innerHTML = '<div class="dy-head"><button class="dy-back gif-btn" type="button" aria-label="Back"><span class="back-pill">BACK</span></button><div class="dy-title"><img src="images/daily.gif" alt="Daily" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'dy-title-text\',textContent:\'DAILY\'}))"></div>' +
     '<div class="dy-pts"></div></div><div class="dy-body"></div>' +
-    '<button class="dy-back gif-btn" type="button" aria-label="Back"><img src="images/back.webp" class="btn-gif" alt="Back"></button><div class="dy-toast"></div>';
+    '<div class="dy-toast"></div>';
   document.body.appendChild(screen);
   const body = screen.querySelector('.dy-body'), ptsBox = screen.querySelector('.dy-pts'), toastEl = screen.querySelector('.dy-toast');
   let timer = 0, toastT = 0;
