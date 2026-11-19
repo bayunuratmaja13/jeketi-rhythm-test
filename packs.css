@@ -572,3 +572,11 @@
 .pk-flap .pk-art::before, .pk-flap .pk-art::after { display: none; }
 .pk-flap .pk-art { box-shadow: none; }
 .pk-flap, .pk-body { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
+/* ---------- after the rip: nothing of the opening may stay behind ---------- */
+/* The glow along the tear (.pk-leak), the bright dot at its end (.pk-spark) and the white torn edge (.pk-fray) are driven by --p,
+   which stays at 1 after the rip, so they used to hang in the air until the whole pack was removed (about a second later).
+   The big flash / light / beam of the rip takes over from the glow, and the torn edge now slumps away together with the pack body. */
+.pk-pack.torn .pk-leak, .pk-pack.torn .pk-spark { animation: pk-trace-out .2s ease-out forwards; }
+@keyframes pk-trace-out { to { opacity: 0; } }
+.pk-pack.torn .pk-fray { animation: pk-body-slump .75s .12s ease-in forwards; }
