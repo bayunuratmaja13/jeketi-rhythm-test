@@ -262,7 +262,7 @@ window.SONGS = [
     artist: 'JKT48',
     team: null,
     audio: 'music/ponytail_dan_shu_shu.ogg',
-    chart: 'charts/ponytail_dan_shu-shu.js',
+    chart: 'charts/ponytail_dan_shu_shu.js',
     cover: 'images/ponytail_dan_shu_shu.webp',
     volume: 1.5
   },
