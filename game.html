@@ -69,7 +69,10 @@
   <div id="menu-screen" style="display:none">
     <div class="menu-header">
       <button id="shop-btn" class="gif-btn" aria-label="Card Shop"><img src="images/shop.gif" class="btn-gif" alt="Shop" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'Shop'}))"></button>
-      <button id="back-to-main-btn" class="gif-btn" aria-label="Back"><span class="back-pill">BACK</span></button>
+      <div id="menu-left-btns">
+        <button id="back-to-main-btn" class="gif-btn" aria-label="Back"><span class="back-pill">BACK</span></button>
+        <button id="option-btn" class="gif-btn" aria-label="Options"><span class="back-pill option-pill">OPTION</span></button>
+      </div>
       <button id="daily-btn" class="gif-btn" aria-label="Daily"><span class="btn-fallback">🎁 DAILY</span></button>
       <img src="images/pick-song.gif" id="pick-song-gif" alt="Pick a Song">
       <button id="my-cards-btn" class="gif-btn" aria-label="My Cards"><img src="images/my-cards.gif" class="btn-gif" alt="My Cards" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'btn-fallback',textContent:'My Cards'}))"></button>

@@ -235,7 +235,7 @@ let lastPopScore = 0, lastPopCombo = 0, lastBuzz = 0;
 let accFx = 0, accBeat = 0;                                  // ambient effects run at ~30 fps, one per frame (staggered)
 const NUM_FMT = new Intl.NumberFormat();                     // same output as toLocaleString(), but built once
 function buzz(ms) {                                          // phone vibration is an IPC call: at most once per 80 ms
-  if (!navigator.vibrate) return;
+  if (!navigator.vibrate || !OPT.vib) return;
   const t = performance.now();
   if (t - lastBuzz < 80) return;
   lastBuzz = t;
@@ -243,12 +243,26 @@ function buzz(ms) {                                          // phone vibration 
 }
 let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
-// TWO quality levels:
-//   NORMAL = what "light mode" used to be, now always on (no beat glow / beams / shake, few particles, 1x playfield).
-//   LITE   = new, even lighter, adaptive (kicks in when the frame rate drops, or right after a long frame):
-//            no particles / rings / hit-flash / tier glow, no petals, flat hold bodies, slower ambience, playfield below 1x.
-const LITE_DPR = 0.75;                 // playfield resolution in lite mode (normal = 1x)
-function fxLight() { return true; }    // kept so every old call site still reads the same: normal IS the old light mode
+// ---------- PLAYER OPTIONS (saved on the device) ----------
+const OPT_KEY = 'jeketi.options';
+const OPT = { music: 1, sfx: 1, vib: true, gfx: false };      // gfx: OFF by default
+try {
+  const o = JSON.parse(localStorage.getItem(OPT_KEY) || '{}');
+  if (typeof o.music === 'number') OPT.music = Math.max(0, Math.min(1, o.music));
+  if (typeof o.sfx === 'number') OPT.sfx = Math.max(0, Math.min(1, o.sfx));
+  if (typeof o.vib === 'boolean') OPT.vib = o.vib;
+  if (typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
+} catch (e) { /* storage blocked or damaged: defaults */ }
+function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) { /* storage blocked */ } }
+
+// THREE looks:
+//   GRAPHICS OFF (default) = the light look: no beat glow / beams / shake, few particles, 1x playfield.
+//   GRAPHICS ON            = the full look the game had before the light pass (beat glow, beams, shake, full particles, sharper playfield).
+//   LITE                   = even lighter, adaptive, ALWAYS available whatever the graphics option says (kicks in when the frame rate
+//                            drops, or right after a long frame): no particles / rings / hit-flash / tier glow, no petals,
+//                            flat hold bodies, slower ambience, playfield below 1x.
+const LITE_DPR = 0.75;                 // playfield resolution in lite mode
+function fxLight() { return !OPT.gfx || fxLite(); }    // "light look": graphics off, or lite on top of anything
 function fxLite() { return lowFx || performance.now() < spikeUntil; }
 
 // start-up smoothness
@@ -415,7 +429,7 @@ function startPreview(song) {
   const url = previewUrlOf(song);
   const start = typeof song.previewStart === 'number' ? song.previewStart : (isClip ? 0 : 15);
   const SONG_VOL = song.volume > 0 ? Number(song.volume) : 1;   // per-song loudness (preview base is 0.8, capped at 1, so no gain node needed)
-  const TARGET_VOL = Math.min(1, 0.8 * SONG_VOL), FADE_MS = 700;
+  const targetVol = () => Math.min(1, 0.8 * SONG_VOL) * OPT.music, FADE_MS = 700;   // read live, so the Option slider is heard while the preview plays
   let LEN_MS = 14000;
 
   a.muted = false;
@@ -435,8 +449,8 @@ function startPreview(song) {
     previewTimer = setInterval(() => {
       if (token !== previewToken) return;
       const el = performance.now() - t0;
-      let v = Math.min(1, el / FADE_MS) * TARGET_VOL;
-      if (el > LEN_MS - FADE_MS) v = Math.max(0, (LEN_MS - el) / FADE_MS) * TARGET_VOL;
+      let v = Math.min(1, el / FADE_MS) * targetVol();
+      if (el > LEN_MS - FADE_MS) v = Math.max(0, (LEN_MS - el) / FADE_MS) * targetVol();
       a.volume = Math.max(0, Math.min(1, v));
       if (el >= LEN_MS) stopPreview();
     }, 60);
@@ -474,6 +488,7 @@ function hideTransientHud() {
 }
 
 function hideAllOverlays() {
+  optionEl.classList.remove('show');
   results.classList.remove('show');
   gameOver.classList.remove('show');
   pauseOverlay.classList.remove('show');
@@ -1351,7 +1366,8 @@ function ensureAudio() {
     try {
       const realOut = audioCtx.destination;
       const bus = audioCtx.createGain();
-      bus.gain.value = SFX_VOLUME;
+      bus.gain.value = SFX_VOLUME * OPT.sfx;
+      audioCtx.sfxBus = bus;
       const limiter = audioCtx.createDynamicsCompressor();
       limiter.threshold.value = -6; limiter.knee.value = 6; limiter.ratio.value = 12;
       limiter.attack.value = 0.003; limiter.release.value = 0.15;
@@ -1881,7 +1897,8 @@ function layoutField() {
   if (!W || !H) return;
   const F = FIELD;
   // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
-  const dprCap = lowFx ? LITE_DPR : 1, pxCap = lowFx ? 0.55e6 : 1.0e6, dprMin = lowFx ? 0.5 : 1;
+  const dprCap = lowFx ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
+  const pxCap = lowFx ? 0.55e6 : OPT.gfx ? (COARSE ? 1.3e6 : 1.7e6) : 1.0e6, dprMin = lowFx ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
   while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);   // never paint a huge bitmap
   layoutVer++;
@@ -2123,7 +2140,7 @@ function drawField(now, dt) {
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function spawnShockwave(laneIndex, judgement, count) {
-  const n = fxLite() ? 0 : 1;
+  const n = fxLite() ? 0 : fxLight() ? 1 : Math.min(count, 3);
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
     if (fxRings.length >= 14) fxRings.shift();
@@ -2132,7 +2149,7 @@ function spawnShockwave(laneIndex, judgement, count) {
 }
 
 function spawnParticles(laneIndex, judgement, count) {
-  const n = fxLite() ? 0 : Math.round(count * 0.4 * (COARSE ? 0.6 : 1));
+  const n = fxLite() ? 0 : Math.round(count * (fxLight() ? 0.4 : 1) * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 48; i++) {
@@ -2675,7 +2692,7 @@ const sparklerFx = (() => {
 
   function burstFw(f) {
     const R = f.spec.size * H, d = 2.1;
-    const n = fxLite() ? 12 : 22;
+    const n = fxLite() ? 12 : fxLight() ? 22 : COARSE ? 36 : 56;
     for (let k = 0; k < n; k++) {
       const a = (6.2832 * k) / n + (Math.random() - 0.5) * 0.12, r = Math.random();
       let v, life, grav, w;
@@ -2741,7 +2758,8 @@ const sparklerFx = (() => {
 
       const light = fxLite();
       // streaks + star sparks from every lit sparkler tip
-      const rate = (COARSE ? 18 : 30) * (light ? 0.25 : 0.5), srate = (COARSE ? 3 : 5) * (light ? 0.25 : 0.5);
+      const rateK = light ? 0.25 : fxLight() ? 0.5 : 1;
+      const rate = (COARSE ? 18 : 30) * rateK, srate = (COARSE ? 3 : 5) * rateK;
       for (let i = 0; i < 4; i++) {
         if (act[i] <= 0.001) { acc[i] = 0; accS[i] = 0; continue; }
         acc[i] += rate * act[i] * sec;
@@ -2781,7 +2799,7 @@ const sparklerFx = (() => {
       const key = vis.toFixed(2) + '|' + Lv.toFixed(2);
       if (!alive && !anyAct && !fwList.length && key === lastKey) return;      // dark and still: nothing to repaint
       drawAcc += dt;
-      if (drawAcc < (fxLite() ? 100 : 66)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
+      if (drawAcc < (fxLite() ? 100 : fxLight() ? 66 : 40)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
       drawAcc = 0;
       lastKey = key;
 
@@ -2917,7 +2935,8 @@ function songFxUpdate(dt) {
 function setLowFx(v) {
   lowFx = v;
   perfBad = perfGood = 0;
-  petals.setQuality(v ? 0 : 0.3);
+  petals.setQuality(v ? 0 : OPT.gfx ? 1 : 0.3);
+  document.body.classList.toggle('low-fx', !OPT.gfx || v);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
   document.body.classList.toggle('lite-fx', v);        // CSS (injected below): hides the hit flash and tier glow
   if (v) {
     beatPulse.style.opacity = 0; lastBeatOpacity = 0;
@@ -2927,10 +2946,14 @@ function setLowFx(v) {
   measureLane();                                       // light mode also renders the playfield at 1x resolution (one small hitch at the switch)
 }
 
-// normal mode = the old light mode, always on. CSS: hides the beat glow layer, freezes the cheering-card bounce
-document.body.classList.add('low-fx');
-petals.setQuality(0.3);
-beatPulse.style.opacity = 0; lastBeatOpacity = 0;
+// Applies the Graphics option (called at start and whenever the player flips it). Lite mode (setLowFx) sits on top of both settings.
+function applyGfx() {
+  document.body.classList.toggle('low-fx', !OPT.gfx || lowFx);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
+  petals.setQuality(lowFx ? 0 : OPT.gfx ? 1 : 0.3);
+  if (!OPT.gfx) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; fxParts.length = 0; fxRings.length = 0; fxPops.length = 0; }
+  measureLane();                                                  // playfield resolution depends on it
+}
+applyGfx();
 (function addLiteStyles() {
   const st = document.createElement('style');
   st.textContent = 'body.lite-fx #screen-flash, body.lite-fx #tier-glow { display: none !important; }';
@@ -3263,7 +3286,7 @@ function judgeTap(n, signedDiff) {
     triggerMissFlash('bad');
     shakeScreen(2.2);
     showBrokenCombo(prevCombo);
-    if (navigator.vibrate) navigator.vibrate([40, 25, 40]);
+    if (navigator.vibrate && OPT.vib) navigator.vibrate([40, 25, 40]);
     removeNote(n);
     return;
   }
@@ -3362,7 +3385,7 @@ function breakCombo(missSoundShake) {
   triggerMissFlash();
   shakeScreen(missSoundShake.shake);
   showBrokenCombo(brokenCombo);
-  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  if (navigator.vibrate && OPT.vib) navigator.vibrate([80, 40, 80]);
 }
 
 function breakHold(n) {
@@ -3524,8 +3547,8 @@ function applySongVolume(song) {
       src.connect(musicGain).connect(lim).connect(audioCtx.rawDestination || audioCtx.destination);
     } catch (e) { musicGain = null; }
   }
-  if (musicGain) { musicGain.gain.value = vol; music.volume = 1; }
-  else music.volume = Math.min(1, vol);
+  if (musicGain) { musicGain.gain.value = vol * OPT.music; music.volume = 1; }
+  else music.volume = Math.min(1, vol * OPT.music);
 }
 
 function startPlayback() {
@@ -3840,7 +3863,8 @@ function playEmptyTap(lane) {      // tapping a lane with no note: a quiet, lane
 // first matching selector wins; null = that module already plays its own sound for it
 const UI_MAP = [
   ['#play-btn', 'start'],
-  ['#back-to-main-btn, #cards-back-btn, .sh-back, .dy-back, #btn-back, #btn-go-back', 'back'],
+  ['#back-to-main-btn, #cards-back-btn, .sh-back, .dy-back, #btn-back, #btn-go-back, .opt-done', 'back'],
+  ['#option-btn, .opt-toggle', 'chip'],
   ['#daily-btn', 'daily'],
   ['.dy-checkin-btn', 'checkin'],
   ['.dy-claim, .dy-bonus-btn', 'coin'],
@@ -4000,12 +4024,77 @@ function closeHighScoreView() {
 }
 results.addEventListener('click', (e) => { if (hsView && e.target === results) closeHighScoreView(); });   // tapping outside the box = NO
 
+// ---------- OPTION CARD (song select) ----------
+const optionEl = document.createElement('div');
+optionEl.id = 'option-overlay';
+optionEl.innerHTML = `
+  <div class="opt-card" role="dialog" aria-modal="true" aria-labelledby="opt-title">
+    <div class="tape-top"></div>
+    <div class="opt-title" id="opt-title">OPTION</div>
+    <div class="opt-row">
+      <label class="opt-label" for="opt-music">Music</label>
+      <input id="opt-music" type="range" min="0" max="100" step="5">
+      <output class="opt-val" id="opt-music-v"></output>
+    </div>
+    <div class="opt-row">
+      <label class="opt-label" for="opt-sfx">Effects</label>
+      <input id="opt-sfx" type="range" min="0" max="100" step="5">
+      <output class="opt-val" id="opt-sfx-v"></output>
+    </div>
+    <div class="opt-row" id="opt-vib-row">
+      <span class="opt-label">Vibration</span>
+      <button type="button" class="opt-toggle" id="opt-vib" role="switch"></button>
+    </div>
+    <div class="opt-row">
+      <span class="opt-label">Graphics</span>
+      <button type="button" class="opt-toggle" id="opt-gfx" role="switch"></button>
+    </div>
+    <div class="opt-hint">Graphics ON adds beat glow, lane beams, screen shake and more particles. It can lag on phones.</div>
+    <button type="button" class="gif-btn opt-done"><span class="back-pill option-pill">DONE</span></button>
+  </div>`;
+document.body.appendChild(optionEl);
+const optMusic = optionEl.querySelector('#opt-music'), optMusicV = optionEl.querySelector('#opt-music-v');
+const optSfx = optionEl.querySelector('#opt-sfx'), optSfxV = optionEl.querySelector('#opt-sfx-v');
+const optVib = optionEl.querySelector('#opt-vib'), optGfx = optionEl.querySelector('#opt-gfx');
+optionEl.querySelector('#opt-vib-row').style.display = navigator.vibrate ? '' : 'none';   // no vibration motor (computers): no switch
+
+function syncOptions() {
+  optMusic.value = Math.round(OPT.music * 100); optMusicV.textContent = Math.round(OPT.music * 100) + '%';
+  optSfx.value = Math.round(OPT.sfx * 100); optSfxV.textContent = Math.round(OPT.sfx * 100) + '%';
+  for (const [b, on] of [[optVib, OPT.vib], [optGfx, OPT.gfx]]) { b.setAttribute('aria-checked', on ? 'true' : 'false'); b.textContent = on ? 'ON' : 'OFF'; }
+}
+function openOptions() {
+  syncOptions();
+  optionEl.classList.remove('show'); void optionEl.offsetWidth;
+  optionEl.classList.add('show');
+  setTimeout(() => optionEl.querySelector('.opt-done').focus({ preventScroll: true }), 40);
+}
+function closeOptions() { optionEl.classList.remove('show'); }
+
+document.getElementById('option-btn').addEventListener('click', openOptions);
+optionEl.querySelector('.opt-done').addEventListener('click', closeOptions);
+optionEl.addEventListener('click', (e) => { if (e.target === optionEl) closeOptions(); });
+
+optMusic.addEventListener('input', () => { OPT.music = optMusic.value / 100; optMusicV.textContent = optMusic.value + '%'; saveOpt(); });   // the song preview follows live
+optSfx.addEventListener('input', () => {
+  OPT.sfx = optSfx.value / 100; optSfxV.textContent = optSfx.value + '%'; saveOpt();
+  if (audioCtx && audioCtx.sfxBus) audioCtx.sfxBus.gain.value = SFX_VOLUME * OPT.sfx;
+});
+optSfx.addEventListener('change', () => { try { ensureAudio(); UI_SND.chip(1); } catch (e) { /* audio unavailable */ } });   // a blip so the new level can be heard
+optVib.addEventListener('click', () => { OPT.vib = !OPT.vib; saveOpt(); syncOptions(); if (OPT.vib) buzz(30); });
+optGfx.addEventListener('click', () => { OPT.gfx = !OPT.gfx; saveOpt(); syncOptions(); applyGfx(); });
+
 // ---------- KEYBOARD ----------
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
 
   if (hsView) {                                        // high score card is open: Esc closes it, nothing else reacts
     if (e.code === 'Escape') { e.preventDefault(); closeHighScoreView(); }
+    return;
+  }
+
+  if (optionEl.classList.contains('show')) {           // Option card is open: Esc closes it, nothing else reacts
+    if (e.code === 'Escape') { e.preventDefault(); closeOptions(); }
     return;
   }
 
@@ -4165,9 +4254,9 @@ function update(ts) {
   drawField(now, dt);
 
   // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
-  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~12 fps in lite mode)
+  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~30 fps with graphics on, ~20 off, ~12 in lite mode)
   accFx += dt; accBeat += dt;
-  const ambT = fxLite() ? 80 : 48;
+  const ambT = fxLite() ? 80 : fxLight() ? 48 : 30;
   if (accFx >= ambT) {
     const d = accFx; accFx = 0;
     if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
