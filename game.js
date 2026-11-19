@@ -224,6 +224,7 @@ let kick = 0;                         // hit-driven pulse for the background glo
 let lastBeatOpacity = -1;
 
 // adaptive quality
+let songFx = null;                    // per-song gameplay effect (see SONG_FX); replaces the sakura petals while active
 let lowFx = false, frameEma = 16.7, perfBad = 0, perfGood = 0;
 let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
@@ -276,7 +277,7 @@ function startUpdateLoop() {
   requestAnimationFrame(update);
 }
 
-function measureLane() { layoutField(); }
+function measureLane() { layoutField(); if (songFx && songFx.resize) songFx.resize(); }
 if ('ResizeObserver' in window) new ResizeObserver(measureLane).observe(playfieldEl);
 window.addEventListener('resize', measureLane);
 
@@ -433,6 +434,7 @@ function hideAllOverlays() {
   pauseBtn.classList.remove('show');
   setHudVisible(false);
   hideTransientHud();
+  clearSongFx();
   if (window.Cards) Cards.hideScreen();
   if (window.Shop) Shop.hide();
 }
@@ -473,6 +475,12 @@ function showGameScreen() {
 }
 
 // ---------- MENU ----------
+// long titles get a smaller font (tl-1..3, see style.css) so they always fit the card's two title lines
+function titleSizeClass(t) {
+  const n = String(t).length;
+  return n > 38 ? ' tl-3' : n > 32 ? ' tl-2' : n > 24 ? ' tl-1' : '';
+}
+
 function buildMenu() {
   setTimeout(() => Store.warmCovers(), 600);
   songGrid.innerHTML = '';
@@ -504,7 +512,7 @@ function buildMenu() {
     card.innerHTML = `
       ${dailyBadge}${coverHtml}
       <div class="song-info">
-        <div class="song-card-title">${escapeHtml(song.title || song.id)}</div>
+        <div class="song-card-title${titleSizeClass(song.title || song.id)}">${escapeHtml(song.title || song.id)}</div>
         <div class="song-card-artist">${escapeHtml(song.artist || '')}</div>
       </div>
       <button class="card-play-btn" type="button" aria-label="Play ${escapeHtml(song.title || song.id)}"><svg class="card-play-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.2v13.6a1 1 0 0 0 1.52.85l11-6.8a1 1 0 0 0 0-1.7l-11-6.8A1 1 0 0 0 8.5 5.2z" fill="currentColor"/></svg></button>
@@ -825,9 +833,13 @@ const Store = (() => {
 // the play button first opens the card lineup (if the player owns cards), then the song starts
 function beginSong(song) { askPlay(song); }          // always ask "PLAY THIS SONG?" first
 function proceedSong(song) {
-  if (window.Shop && Shop.openLineup(song)) return;
-  if (matchMedia('(pointer: coarse)').matches) { tryFullscreen(); tryLandscapeLock(); }
-  startSong(song);
+  const go = () => {
+    if (matchMedia('(pointer: coarse)').matches) { tryFullscreen(); tryLandscapeLock(); }
+    startSong(song);
+  };
+  // PLAY -> YES opens the CENTER pick (shop.js); it calls go() once the player has said YES to their center
+  if (window.Shop && Shop.openLineup(song, go)) return;
+  go();
 }
 async function startSong(song) {
   stopPreview();
@@ -998,6 +1010,7 @@ function showResults() {
   document.body.dataset.tier = 0;
   releaseAllInputs();
   petals.clear();
+  clearSongFx();
   beatPulse.style.opacity = 0;
   lastBeatOpacity = 0;
 
@@ -1022,7 +1035,7 @@ function showResults() {
           score, combo: maxCombo, acc, grade, fc: fullCombo, ap: allPerfect,
           stats: { PERFECT: stats.PERFECT, GREAT: stats.GREAT, GOOD: stats.GOOD, BAD: stats.BAD, MISS: stats.MISS },
           bonus: sr ? sr.bonus : 0,
-          cards: sr && sr.cards ? sr.cards.map(cd => ({ id: cd.id, tier: cd.tier })) : []
+          cards: sr && sr.cards ? sr.cards.map(cd => ({ id: cd.id, tier: cd.tier, center: !!cd.center })) : []
         }
       });
     }
@@ -1127,6 +1140,7 @@ function showGameOverScreen() {
   setComboHidden();
   document.body.dataset.tier = 0;
   petals.clear();
+  clearSongFx();
   beatPulse.style.opacity = 0;
   lastBeatOpacity = 0;
 
@@ -1253,6 +1267,7 @@ function backToSongSelect() {
   scoreEl.textContent = 'Score: 0';
   setComboHidden();
   petals.clear();
+  clearSongTheme();
   beatPulse.style.opacity = 0;
   lastBeatOpacity = 0;
   document.body.dataset.tier = 0;
@@ -1729,6 +1744,48 @@ const NOTE_COLS = [
   { top: '#B84A9E', bot: '#4A0A3E', glow: 'rgba(190,60,170,0.95)', hi: 'rgba(255,180,240,0.6)',  lo: 'rgba(40,0,30,0.65)',  hex: '#c040a8' },
 ];
 const NOTE_SPR = [];
+// SONG THEME (songs.js:  theme: 'crimson' | 'white'). Recolours petals, lights, hit effects and track. Everything is painted once into sprites / static canvases, nothing extra runs per frame.
+const crimsonNote = (top, bot, glow) => ({ top, bot, glow, hi: 'rgba(255,225,230,0.85)', lo: 'rgba(80,0,15,0.55)', hex: bot });
+const whiteNote = (top, bot, glow) => ({ top, bot, glow, hi: 'rgba(255,255,255,0.8)', lo: 'rgba(120,135,180,0.4)', hex: bot });
+const THEMES = {
+  crimson: {
+    hex: '#dc143c', lane: '#dc143c',
+    atmo: 'radial-gradient(ellipse at 50% 38%,rgba(190,12,48,0.34) 0%,rgba(120,6,32,0.46) 45%,rgba(40,0,10,0.72) 100%)',
+    pulse: 'radial-gradient(ellipse at 50% 60%,rgba(255,30,70,0.55),rgba(160,0,30,0) 70%)', flash: 'rgba(255,40,80,0.38)',
+    notes: [null,                                                          // 0 = combo under 100: the normal pink note
+      crimsonNote('#ff8da1', '#dc143c', 'rgba(220,20,60,0.9)'),            // 100 combo
+      crimsonNote('#ff6f88', '#d10a30', 'rgba(230,15,55,0.95)'),           // 200 combo
+      crimsonNote('#ff5a78', '#b80026', 'rgba(240,10,50,0.95)')],          // 480 combo
+    fx: { perfect: '#ff5a78', great: '#dc143c', good: '#b0122f' },
+    petals: ['#ff4d6d', '#dc143c', '#e8284a', '#c1122f', '#ff2a52'],
+    track: ['rgba(60,0,14,0)', 'rgba(90,6,26,0.55)', 'rgba(130,10,36,0.78)'],
+    edge: 'rgba(255,90,120,0.2)', rail: 'rgba(255,170,185,0.9)', railGlow: 'rgba(220,20,60,0.95)',
+    padLine: 'rgba(255,190,200,0.85)', recStroke: 'rgba(220,20,60,0.75)',
+    atmoOpacity: [0.55, 0.65, 0.78, 0.9, 1],                               // grows with the combo tier
+  },
+  // WHITE / heavenly: soft white notes (from 100 combo), white feathers, pale light from above. The lanes keep their normal look.
+  // Kept gentle on purpose: the glow only rises slowly with the combo and never gets a hard, bright white.
+  white: {
+    hex: '#e9efff', lane: '#ff6ba6',
+    atmo: 'radial-gradient(ellipse at 50% -8%,rgba(236,242,255,0.30) 0%,rgba(205,218,255,0.12) 42%,rgba(190,205,255,0) 75%),radial-gradient(ellipse at 50% 108%,rgba(225,234,255,0.16) 0%,rgba(225,234,255,0) 55%)',
+    pulse: 'radial-gradient(ellipse at 50% 100%,rgba(232,240,255,0.26) 0%,transparent 62%)', flash: 'rgba(232,240,255,0.18)',
+    notes: [null,
+      whiteNote('#ffffff', '#dfe7fb', 'rgba(225,235,255,0.55)'),           // 100 combo
+      whiteNote('#ffffff', '#e6edff', 'rgba(230,238,255,0.72)'),           // 200 combo
+      whiteNote('#ffffff', '#eef3ff', 'rgba(238,244,255,0.88)')],          // 480 combo: the brightest, still soft
+    fx: { perfect: '#f4f7ff', great: '#dfe7fb', good: '#c9d6f5' },
+    petals: ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff'], petalShape: 'feather',   // white feathers at every combo
+    // lanes stay exactly like the default look
+    track: ['rgba(20,8,40,0)', 'rgba(34,12,60,0.55)', 'rgba(70,18,80,0.78)'],
+    edge: 'rgba(255,170,215,0.16)', rail: 'rgba(255,196,228,0.9)', railGlow: 'rgba(255,107,166,0.9)',
+    padLine: 'rgba(255,205,230,0.85)', recStroke: 'rgba(255,107,166,0.65)',
+    atmoOpacity: [0.5, 0.62, 0.76, 0.9, 1],
+  },
+};
+let TH = null;                                                              // active theme (null = default look)
+let COLS_NOW = NOTE_COLS;                                                   // cached, so the draw loop never builds arrays
+const noteCols = () => COLS_NOW;
+const ACCENT = () => (TH ? TH.hex : '#ff6ba6');
 const _rgbCache = {};
 
 function rgbaOf(hex, a) {
@@ -1802,8 +1859,9 @@ function layoutField() {
 
 function buildSprites() {
   const F = FIELD;
+  const COLS = noteCols();
   const pad = Math.ceil(F.lw * 0.14), w = F.noteW, h = F.noteH, k = F.dpr * 1.15;
-  NOTE_COLS.forEach((c, i) => {
+  COLS.forEach((c, i) => {
     const cv = (NOTE_SPR[i] && NOTE_SPR[i].cv) || document.createElement('canvas');
     cv.width = Math.ceil((w + 2 * pad) * k);
     cv.height = Math.ceil((h + 2 * pad) * k);
@@ -1837,16 +1895,16 @@ function drawStatic() {
   c.lineTo(edgeX(4, s1), F.H); c.lineTo(edgeX(0, s1), F.H);
   c.closePath();
   const g = c.createLinearGradient(0, y0, 0, F.H);
-  g.addColorStop(0, 'rgba(20,8,40,0)');
-  g.addColorStop(0.4, 'rgba(34,12,60,0.55)');
-  g.addColorStop(1, 'rgba(70,18,80,0.78)');
+  g.addColorStop(0, TH ? TH.track[0] : 'rgba(20,8,40,0)');
+  g.addColorStop(0.4, TH ? TH.track[1] : 'rgba(34,12,60,0.55)');
+  g.addColorStop(1, TH ? TH.track[2] : 'rgba(70,18,80,0.78)');
   c.fillStyle = g; c.fill();
-  c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,170,215,0.16)';
+  c.lineWidth = 1.5; c.strokeStyle = TH ? TH.edge : 'rgba(255,170,215,0.16)';
   for (let k = 1; k <= 3; k++) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
   const rg = c.createLinearGradient(0, y0, 0, y0 + (F.H - y0) * 0.3);
-  rg.addColorStop(0, 'rgba(255,196,228,0)'); rg.addColorStop(1, 'rgba(255,196,228,0.9)');
+  rg.addColorStop(0, TH ? 'rgba(255,170,185,0)' : 'rgba(255,196,228,0)'); rg.addColorStop(1, TH ? TH.rail : 'rgba(255,196,228,0.9)');
   c.lineWidth = 3; c.strokeStyle = rg;
-  c.shadowColor = 'rgba(255,107,166,0.9)'; c.shadowBlur = 12;
+  c.shadowColor = TH ? TH.railGlow : 'rgba(255,107,166,0.9)'; c.shadowBlur = 12;
   for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
   c.shadowBlur = 0;
 }
@@ -1879,7 +1937,7 @@ function drawField(now, dt) {
       c.lineTo(edgeX(i + 1, 0.5), yTop); c.lineTo(edgeX(i, 0.5), yTop);
       c.closePath(); c.fill();
     }
-    let col = '#ff6ba6', a = 0.10;
+    let col = TH ? TH.lane : '#ff6ba6', a = 0.10;
     if (wall < laneHitUntil[i]) { col = laneHitColor[i]; a = 0.5; }
     else if (down) a = 0.38;
     else if (wall < laneFlashUntil[i]) a = 0.22;
@@ -1889,11 +1947,11 @@ function drawField(now, dt) {
     c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
     c.closePath(); c.fill();
     c.globalAlpha = 1;
-    c.strokeStyle = down ? '#ffffff' : 'rgba(255,205,230,0.85)';
+    c.strokeStyle = down ? '#ffffff' : (TH ? TH.padLine : 'rgba(255,205,230,0.85)');
     c.lineWidth = 3;
     c.beginPath(); c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop); c.stroke();
     // receptor outline that the notes land on
-    c.strokeStyle = down ? '#ffffff' : 'rgba(255,107,166,0.65)';
+    c.strokeStyle = down ? '#ffffff' : (TH ? TH.recStroke : 'rgba(255,107,166,0.65)');
     c.lineWidth = 2.5;
     rr(c, laneX(i, 1) - F.noteW * 0.52, F.hitY - F.recH / 2, F.noteW * 1.04, F.recH, F.recH * 0.4);
     c.stroke();
@@ -1904,7 +1962,7 @@ function drawField(now, dt) {
   const v = tierVariant();
   const spr = NOTE_SPR[v];
   if (spr) {
-    const colr = NOTE_COLS[v];
+    const colr = noteCols()[v];
     for (let i = 0; i < active.length; i++) {
       const n = active[i];
       if (n.judged) continue;
@@ -1980,7 +2038,7 @@ function drawField(now, dt) {
   c.globalAlpha = 1;
 }
 
-function fxColor(j) { return FX_COL[String(j).toLowerCase()] || '#ff6ba6'; }
+function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function spawnShockwave(laneIndex, judgement, count) {
   const n = fxLight() ? 1 : Math.min(count, 3);
@@ -2015,7 +2073,7 @@ function flashJudgementLine(laneIndex, judgement) {
 
 function beamHit(laneIndex, judgementName) {
   const j = JUDGE[judgementName];
-  beamColor[laneIndex] = j ? j.beam : '#ff5252';
+  beamColor[laneIndex] = TH ? TH.hex : (j ? j.beam : '#ff5252');
   if (fxLight()) return;
   beamA[laneIndex] = judgementName === 'PERFECT' ? 1 : 0.85;
 }
@@ -2049,10 +2107,12 @@ function shakeScreen(intensity) {
 }
 
 // ---------- SAKURA PETALS (one small capped canvas) ----------
+// A song can swap the petals for a word with   petalText: 'oaoeeee'   in songs.js: same count, same drifting, but the words sway gently instead of spinning.
 const petals = (() => {
   const cv = mk('canvas', 'petals');
   const ctx = cv.getContext ? cv.getContext('2d') : null;
-  const COLORS = ['#ffb3d1', '#ffb3d1', '#9fd0ff', '#ffe08a', '#d98cff'];
+  const DEFAULT_COLORS = ['#ffb3d1', '#ffb3d1', '#9fd0ff', '#ffe08a', '#d98cff'];
+  let COLORS = DEFAULT_COLORS;
   const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
   const sprites = [];
   const list = [];
@@ -2078,7 +2138,52 @@ const petals = (() => {
     g.fill();
     return c;
   }
-  COLORS.forEach(c => sprites.push(makeSprite(c)));
+  let textMode = false;
+  function makeTextSprite(color, text) {                 // a small word with a soft dark outline so it reads on any background
+    const c = document.createElement('canvas');
+    const g = c.getContext ? c.getContext('2d') : null;
+    const font = '900 30px system-ui, "Segoe UI", Arial, sans-serif';
+    if (!g) { c.width = c.height = 32; return c; }
+    g.font = font;
+    c.width = Math.ceil(g.measureText(text).width) + 14;
+    c.height = 44;
+    g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = 6; g.strokeStyle = 'rgba(40,10,60,0.45)';
+    g.strokeText(text, c.width / 2, c.height / 2 + 1);
+    g.fillStyle = color; g.globalAlpha = 0.97;
+    g.fillText(text, c.width / 2, c.height / 2 + 1);
+    return c;
+  }
+  function makeFeather(color) {                          // a soft white feather: painted once, then reused like the petals
+    const c = document.createElement('canvas');
+    c.width = c.height = 40;
+    const g = c.getContext ? c.getContext('2d') : null;
+    if (!g) return c;
+    g.translate(20, 20);
+    g.shadowColor = 'rgba(235,242,255,0.9)'; g.shadowBlur = 5;
+    g.fillStyle = color; g.globalAlpha = 0.9;
+    g.beginPath();
+    g.moveTo(0, -15);
+    g.bezierCurveTo(-10, -10, -10, 4, -1, 14);
+    g.lineTo(1, 14);
+    g.bezierCurveTo(10, 4, 10, -10, 0, -15);
+    g.fill();
+    g.shadowBlur = 0; g.globalAlpha = 0.55;
+    g.strokeStyle = 'rgba(165,180,215,1)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, -14); g.lineTo(0, 17); g.stroke();                       // quill
+    g.globalAlpha = 0.3; g.lineWidth = 0.8;
+    g.beginPath();
+    for (let y = -9; y <= 7; y += 4) { g.moveTo(0, y); g.lineTo(-6.5, y + 4.5); g.moveTo(0, y); g.lineTo(6.5, y + 4.5); }      // barbs
+    g.stroke();
+    return c;
+  }
+  let shape = null;
+  function buildSprites(text) {
+    sprites.length = 0;
+    textMode = !!text;
+    COLORS.forEach(c => sprites.push(text ? makeTextSprite(c, text) : shape === 'feather' ? makeFeather(c) : makeSprite(c)));
+  }
+  buildSprites(null);
 
   function resize() {
     w = window.innerWidth;
@@ -2099,6 +2204,7 @@ const petals = (() => {
       phase: Math.random() * 6.28,
       freq: 0.6 + Math.random() * 0.9,
       rot: Math.random() * 6.28,
+      r0: (Math.random() - 0.5) * 0.7,                   // resting tilt of a word
       vr: (Math.random() - 0.5) * 2.4,
       s: 0.45 + Math.random() * 0.5,
       a: 0.35 + Math.random() * 0.4,
@@ -2112,11 +2218,22 @@ const petals = (() => {
     return Math.round(TARGETS[tier] * quality);
   }
 
+  let curText = null;
   return {
     setTier(t) { tier = t; },
+    setText(text) {                                      // null = normal sakura petals
+      text = text || null;
+      if (text === curText) return;
+      curText = text; buildSprites(text);
+    },
     setQuality(low) { quality = low ? 0.3 : 1; },
+    setColors(cols, shp) {                               // null = default sakura; shp 'feather' = feathers. Sprites are rebuilt once, not per frame
+      COLORS = cols || DEFAULT_COLORS;
+      shape = (cols && shp) || null;
+      buildSprites(curText);
+    },
     burst(count) {
-      if (reduceMotion || fxLight()) return;
+      if (reduceMotion || fxLight() || songFx) return;   // songs with their own effect (moon...) have no petals
       for (let i = 0; i < count && list.length < 90; i++) spawn(true, true);
     },
     update(dt, t) {
@@ -2138,10 +2255,12 @@ const petals = (() => {
           if (list.length > want || p.fast) { list.splice(i, 1); continue; }
           p.y = -20; p.x = Math.random() * w; p.spriteIdx = tier;
         }
-        const cos = Math.cos(p.rot) * p.s * dpr, sin = Math.sin(p.rot) * p.s * dpr;
+        const ang = textMode ? p.r0 + Math.sin(p.phase * 1.3) * 0.5 : p.rot;      // petals spin, words just sway
+        const cos = Math.cos(ang) * p.s * dpr, sin = Math.sin(ang) * p.s * dpr;
         ctx.globalAlpha = p.a;
         ctx.setTransform(cos, sin, -sin, cos, p.x * dpr, p.y * dpr);
-        ctx.drawImage(sprites[p.spriteIdx], -16, -16);
+        const sp = sprites[p.spriteIdx];
+        ctx.drawImage(sp, -sp.width / 2, -sp.height / 2);
       }
       ctx.globalAlpha = 1;
     },
@@ -2155,6 +2274,558 @@ const petals = (() => {
     },
   };
 })();
+
+// ---------- PER-SONG EFFECTS ----------
+// A song opts in with   fx: 'moon'   in songs.js. The effect replaces the sakura petals for that song only.
+// Every effect is { start(), update(dt), clear(), resize() }. To add another one, write it like moonFx and register it in SONG_FX.
+
+// MOON: a huge moon behind the lanes. Calm until WHITE_AT combo -> glows white; RED_AT combo -> glows crimson;
+// any combo break fades it back to calm. Sprites are painted once, and the canvas is only redrawn while the glow changes.
+const MOON = {
+  WHITE_AT: 100, RED_AT: 200,
+  SIZE_W: 0.26, SIZE_H: 0.40,        // radius as a share of screen width / height (the smaller one wins)
+  CENTER_Y: 0.40,                    // vertical centre of the moon, as a share of screen height
+  SOFT: 0.5,                         // surface detail resolution (smaller = blurrier, 1 = sharp)
+  BLUR: 0.03,                        // edge blur as a share of the moon radius
+  UP_MS: 400, DOWN_MS: 600,          // fade time per glow level going up / back down
+};
+const moonFx = (() => {
+  const cv = document.createElement('canvas');
+  cv.id = 'moon-fx';
+  game.insertBefore(cv, game.firstChild);                 // inside #game, under the lanes, and it shakes with the stage
+  const c = cv.getContext('2d');
+  const HALO = 1.4;                                       // sprite size = moon diameter * this (room for the glow)
+  // Realistic moon: the surface (dark maria, fine texture, craters, bright ray craters, soft lighting) is painted procedurally once per size,
+  // then tinted per glow state. Nothing here runs per frame.
+  const T = [0, 0, 0];
+  const STATES = [
+    { rgb: '190,205,235', ha: 0.1, bloom: '215,225,245', ba: 0.1,          // calm: natural grey-cream moon
+      tint(g, o) { o[0] = g * 0.95; o[1] = g * 0.93; o[2] = g * 0.88; } },
+    { rgb: '255,250,240', ha: 0.5, bloom: '255,255,255', ba: 0.32,          // 100 combo: brilliant white
+      tint(g, o) { const w = Math.min(1, g * 1.18 + 0.04); o[0] = w; o[1] = w; o[2] = Math.min(1, w * 1.03 + 0.02); } },
+    { rgb: '255,34,56', ha: 0.5, bloom: '255,70,50', ba: 0.3,               // 200 combo: crimson blood moon
+      tint(g, o) { o[0] = Math.min(1, g * 0.95 + 0.14); o[1] = g * g * 0.3; o[2] = g * g * 0.18; } },
+  ];
+  let spr = [], on = false, W = 0, H = 0, dpr = 1, R = 0, cx = 0, cy = 0, vis = 0, L = 0, lastKey = '';
+  let surf = null, surfKey = 0;
+
+  function rng(seed) {
+    return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+  function hash(ix, iy) { let n = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) | 0; n = Math.imul(n ^ n >>> 13, 1274126177); return ((n ^ n >>> 16) >>> 0) / 4294967295; }
+  function vnoise(x, y) {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = hash(ix, iy), b = hash(ix + 1, iy), c2 = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+    return a + (b - a) * sx + (c2 - a) * sy + (a - b - c2 + d) * sx * sy;
+  }
+  function fbm(x, y, oct) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < oct; i++) { s += a * vnoise(x * f, y * f); f *= 2; a *= 0.5; } return s; }
+
+  // grey moon disc of diameter d px: ImageData whose red channel is the brightness and alpha the (antialiased) edge
+  function buildSurface(d) {
+    const cvs = document.createElement('canvas'); cvs.width = cvs.height = d;
+    const x = cvs.getContext('2d', { willReadFrequently: true });
+    const img = x.createImageData(d, d), px = img.data, r = d / 2;
+    for (let j = 0; j < d; j++) for (let i = 0; i < d; i++) {
+      const dx = (i + 0.5 - r) / r, dy = (j + 0.5 - r) / r, rho2 = dx * dx + dy * dy;
+      if (rho2 >= 1.02) continue;
+      const rho = Math.sqrt(rho2), nz = Math.sqrt(Math.max(0, 1 - rho2));
+      const a = Math.max(0, Math.min(1, (1 - rho) * r + 0.5));
+      const mare = fbm(dx * 1.5 + 4.2, dy * 1.5 + 9.1, 4);                 // big dark seas
+      const m = Math.max(0, Math.min(1, (mare - 0.40) / 0.36)), ms = m * m * (3 - 2 * m);
+      const fine = fbm(dx * 9 + 1.7, dy * 9 + 5.3, 4) - 0.47;              // fine surface grain
+      const alb = 0.82 - 0.26 * ms + fine * 0.14 * (1 - 0.5 * ms);
+      const ndl = Math.max(0, dx * -0.32 + dy * -0.32 + nz * 0.89);        // light from the upper left, softly
+      let gv = Math.min(1, alb * (0.7 + 0.3 * ndl) * (0.8 + 0.2 * Math.sqrt(nz)) * 1.12);
+      gv = 0.64 + (gv - 0.64) * 0.72;                                      // hazy: less contrast, as if seen from far away
+      const o = (j * d + i) * 4;
+      px[o] = px[o + 1] = px[o + 2] = gv * 255; px[o + 3] = a * 255;
+    }
+    x.putImageData(img, 0, 0);
+    x.globalCompositeOperation = 'source-atop';                            // craters only land on the moon
+    const rnd = rng(48);
+    const crater = (ux, uy, cr) => {                                       // ux, uy, cr in moon radii
+      const rho = Math.hypot(ux, uy);
+      if (rho > 0.97 || cr * r < 1.2) return;
+      const nz = Math.sqrt(1 - rho * rho), rr = cr * r;
+      x.save();
+      x.translate(r + ux * r, r + uy * r);
+      x.rotate(Math.atan2(uy, ux)); x.scale(Math.max(0.25, nz), 1);        // squashed toward the edge, like the real thing
+      const gr = x.createRadialGradient(0, 0, 0, 0, 0, rr);
+      gr.addColorStop(0, 'rgba(0,0,0,0.09)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.05)');
+      gr.addColorStop(0.86, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.beginPath(); x.arc(0, 0, rr, 0, 6.2832); x.fill();
+      x.restore();
+    };
+    for (let k = 0; k < 170; k++) {
+      const a = rnd() * 6.2832, rad = Math.sqrt(rnd()) * 0.96;
+      crater(Math.cos(a) * rad, Math.sin(a) * rad, 0.008 + 0.075 * Math.pow(rnd(), 3.2));
+    }
+    const rayCrater = (ux, uy, cr, rays, len) => {                         // bright young craters with ejecta rays
+      x.save();
+      x.translate(r + ux * r, r + uy * r);
+      const hr = len * r * 0.5, hg = x.createRadialGradient(0, 0, 0, 0, 0, hr);
+      hg.addColorStop(0, 'rgba(255,255,255,0.2)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = hg; x.beginPath(); x.arc(0, 0, hr, 0, 6.2832); x.fill();
+      for (let k = 0; k < rays; k++) {
+        const a = rnd() * 6.2832, l = len * r * (0.45 + 0.55 * rnd()), w = 0.03 + 0.04 * rnd();
+        const lg = x.createLinearGradient(0, 0, Math.cos(a) * l, Math.sin(a) * l);
+        lg.addColorStop(0, 'rgba(255,255,255,0.12)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+        x.fillStyle = lg; x.beginPath(); x.moveTo(0, 0);
+        x.lineTo(Math.cos(a - w) * l, Math.sin(a - w) * l); x.lineTo(Math.cos(a + w) * l, Math.sin(a + w) * l);
+        x.closePath(); x.fill();
+      }
+      x.restore();
+      crater(ux, uy, cr);
+    };
+    rayCrater(-0.12, 0.62, 0.05, 22, 0.5);
+    rayCrater(-0.38, -0.02, 0.035, 12, 0.28);
+    return x.getImageData(0, 0, d, d);
+  }
+
+  function build() {
+    const drawD = 2 * R * HALO;                             // sprite size in CSS px
+    const sc = Math.min(dpr, 900 / drawD);                  // never paint a huge sprite
+    const size = Math.max(8, Math.ceil(drawD * sc)), m = size / 2, r = R * sc;
+    const dd = Math.max(8, Math.ceil(r * 2));
+    const sd0 = Math.max(8, Math.ceil(dd * MOON.SOFT));              // paint small, stretch up: soft focus
+    if (!surf || surfKey !== sd0) { surf = buildSurface(sd0); surfKey = sd0; }
+    spr = STATES.map(s => {
+      const k = document.createElement('canvas');
+      k.width = k.height = size;
+      const g = k.getContext('2d');
+      let h = g.createRadialGradient(m, m, r * 0.9, m, m, m);                 // wide glow
+      for (const [p, f] of [[0, 1], [0.2, 0.55], [0.45, 0.2], [0.75, 0.05], [1, 0]]) h.addColorStop(p, `rgba(${s.rgb},${s.ha * f})`);   // long, gentle falloff
+      g.fillStyle = h; g.fillRect(0, 0, size, size);
+      h = g.createRadialGradient(m, m, r * 0.95, m, m, r * 1.18);             // tight bloom hugging the disc
+      for (const [p, f] of [[0, 1], [0.4, 0.35], [1, 0]]) h.addColorStop(p, `rgba(${s.bloom},${s.ba * f})`);
+      g.fillStyle = h; g.fillRect(0, 0, size, size);
+      const out = new ImageData(sd0, sd0), sd = surf.data, od = out.data;       // the tinted surface
+      for (let q = 0; q < sd.length; q += 4) {
+        if (!sd[q + 3]) continue;
+        s.tint(sd[q] / 255, T);
+        od[q] = Math.min(255, T[0] * 255); od[q + 1] = Math.min(255, T[1] * 255); od[q + 2] = Math.min(255, T[2] * 255); od[q + 3] = sd[q + 3];
+      }
+      const dc = document.createElement('canvas'); dc.width = dc.height = sd0;
+      dc.getContext('2d').putImageData(out, 0, 0);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      if ('filter' in g) g.filter = `blur(${(r * MOON.BLUR).toFixed(1)}px)`;   // soft edge (browsers without canvas filters just skip it)
+      g.drawImage(dc, m - dd / 2, m - dd / 2, dd, dd);
+      if ('filter' in g) g.filter = 'none';
+      return k;
+    });
+  }
+
+  function resize(force) {
+    if (!on) return;
+    const w = game.clientWidth, h = game.clientHeight;
+    if (!w || !h) return;
+    let d = Math.min(window.devicePixelRatio || 1, 1.5);
+    while (w * h * d * d > 2.5e6 && d > 1) d = Math.max(1, d - 0.25);
+    if (!force && w === W && h === H && d === dpr) return;
+    W = w; H = h; dpr = d;
+    cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+    R = Math.min(w * MOON.SIZE_W, h * MOON.SIZE_H);
+    cx = w / 2; cy = h * MOON.CENTER_Y;
+    build();
+    lastKey = '';
+  }
+
+  function draw() {
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    if (vis <= 0.01 || !spr.length) return;
+    const dsz = 2 * R * HALO * dpr;
+    const x = cx * dpr - dsz / 2, y = cy * dpr - dsz / 2;
+    const i = Math.min(1, Math.floor(L)), f = L - i;        // crossfade: lower glow level underneath, next level fading in on top
+    c.globalAlpha = vis;
+    c.drawImage(spr[i], x, y, dsz, dsz);
+    if (f > 0.005) { c.globalAlpha = vis * f; c.drawImage(spr[i + 1], x, y, dsz, dsz); }
+    c.globalAlpha = 1;
+  }
+
+  return {
+    start() {
+      on = true; vis = 0; L = 0; lastKey = '';
+      cv.style.display = 'block';
+      cv.classList.remove('lit');
+      resize(true);
+    },
+    clear() {
+      on = false;
+      cv.style.display = 'none';
+      cv.classList.remove('lit');
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, cv.width, cv.height);
+    },
+    resize,
+    update(dt) {
+      if (!on) return;
+      if (!W) { resize(true); if (!W) return; }
+      const target = combo >= MOON.RED_AT ? 2 : combo >= MOON.WHITE_AT ? 1 : 0;
+      if (L !== target) {
+        const step = dt / (target > L ? MOON.UP_MS : MOON.DOWN_MS);
+        L = target > L ? Math.min(target, L + step) : Math.max(target, L - step);
+      }
+      if (vis < 1) vis = Math.min(1, vis + dt / 900);
+      const key = vis.toFixed(2) + '|' + L.toFixed(2);
+      if (key === lastKey) return;                          // nothing changed: no repaint
+      lastKey = key;
+      draw();
+      cv.classList.toggle('lit', L > 0.5);
+    },
+  };
+})();
+
+// SPARKLER: the stage starts dark. 50 combo lights one sparkler, 100 combo lights more and brightens the stage, 200 combo keeps that
+// and sends up two big fireworks, one after the other, in the middle; 300 combo sends up two more and then one extra finale
+// (each again if the combo is lost and reaches it again).
+// A combo break fades everything back to dark. Look: soft, slightly blurred and subtle: a small warm core, a wide amber glow that
+// blends into the stage, and thin sparks that fly out, arc down and cool from pale yellow to deep orange (no stick, no spiky rays). Soft sprites + one low-resolution canvas + fixed particle pools keep it light; it draws behind the lanes.
+const SPARK = {
+  FIRST_AT: 50, MORE_AT: 100, FIREWORK_AT: 200, FIREWORK2_AT: 300,
+  DARK: 0.5,                                             // how dark the stage is before any sparkler is lit (0..1)
+  SPOTS: [[0.14, 0.64], [0.86, 0.58], [0.22, 0.30], [0.78, 0.26]],   // sparkler tips as a share of width / height (first one lights at 50)
+  // fireworks: x, y = burst centre (share of width / height), size = burst radius as a share of height, delay = seconds after 200 combo
+  FIREWORKS: [
+    { x: 0.5, y: 0.32, size: 0.40, delay: 0,   col: 0 },
+    { x: 0.5, y: 0.27, size: 0.48, delay: 1.5, col: 1 },
+  ],
+  // at 300 combo: two bursts again, then one more big finale
+  FIREWORKS2: [
+    { x: 0.36, y: 0.30, size: 0.38, delay: 0,   col: 0 },
+    { x: 0.64, y: 0.27, size: 0.42, delay: 1.2, col: 1 },
+    { x: 0.5,  y: 0.24, size: 0.55, delay: 2.6, col: 2 },
+  ],
+  UP_MS: 700, DOWN_MS: 500,                              // fade time per light level
+};
+const FW_COLS = [{ hi: 'rgb(255,242,205)', lo: 'rgb(255,168,72)' }, { hi: 'rgb(255,232,215)', lo: 'rgb(255,140,115)' }, { hi: 'rgb(255,226,185)', lo: 'rgb(255,118,88)' }];
+
+// firework sounds (synthesized, same sound bus as the other effects)
+function fireworkSound(kind) {
+  try {
+    ensureAudio();
+    if (kind === 'launch') {                              // rising whistle
+      uTone(520, { dur: 0.58, to: 1900, vol: 0.05, lp: 3200 });
+      uNoise({ type: 'bandpass', from: 900, to: 3600, dur: 0.5, vol: 0.05, q: 2 });
+    } else {                                              // boom + crack + crackle
+      uTone(95, { dur: 0.4, to: 38, vol: 0.34 });
+      uNoise({ type: 'lowpass', from: 2600, to: 300, dur: 0.24, vol: 0.22, q: 0.7 });
+      uNoise({ type: 'highpass', from: 5000, dur: 0.06, vol: 0.1 });
+      for (let k = 0; k < 6; k++) uNoise({ at: 0.1 + Math.random() * 0.95, type: 'highpass', from: 4500 + Math.random() * 3500, dur: 0.03, vol: 0.04 + Math.random() * 0.05 });
+    }
+  } catch (e) { /* audio unavailable */ }
+}
+
+const sparklerFx = (() => {
+  const cv = document.createElement('canvas');
+  cv.id = 'sparkler-fx';
+  cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
+  game.insertBefore(cv, game.firstChild);
+  const c = cv.getContext('2d');
+  const K = COARSE ? 0.32 : 0.4;                          // low backing resolution: much cheaper, and the stretched-up canvas gives the soft look                         // backing resolution: the glow is soft anyway
+  const MAXP = COARSE ? 60 : 100, MAXF = COARSE ? 130 : 200;
+  const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+
+  function sprite(size, stops) {
+    const k = document.createElement('canvas');
+    k.width = k.height = size;
+    const g = k.getContext('2d'), gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    stops.forEach(s => gr.addColorStop(s[0], s[1]));
+    g.fillStyle = gr; g.fillRect(0, 0, size, size);
+    return k;
+  }
+  const GLOW = sprite(128, [[0, 'rgba(255,215,150,0.55)'], [0.3, 'rgba(255,170,80,0.2)'], [1, 'rgba(255,120,40,0)']]);   // firework flash
+  const SGLOW = sprite(128, [[0, 'rgba(255,196,120,0.34)'], [0.25, 'rgba(255,150,70,0.17)'], [0.6, 'rgba(230,100,45,0.06)'], [1, 'rgba(200,80,30,0)']]);   // sparkler light: wide, amber, fades out softly
+  const CORE = sprite(64, [[0, 'rgba(255,244,222,0.85)'], [0.2, 'rgba(255,224,170,0.6)'], [0.5, 'rgba(255,175,95,0.2)'], [1, 'rgba(255,140,60,0)']]);
+  const DOT = sprite(32, [[0, 'rgba(255,250,235,1)'], [0.25, 'rgba(255,225,160,0.7)'], [0.6, 'rgba(255,170,70,0.18)'], [1, 'rgba(255,140,40,0)']]);
+  // fixed pools: no allocation while playing
+  function pool(n) {
+    const a = [];
+    for (let i = 0; i < n; i++) a.push({ x: 0, y: 0, vx: 0, vy: 0, l: 0, m: 1, w: 1, g: 0, d: 1, o: 1, st: -1, c: 0 });
+    let i = 0;
+    return {
+      a,
+      add(x, y, vx, vy, life, w, grav, drag, op, st, col) {
+        let p = null;
+        for (let t = 0; t < n; t++) { const q = a[i]; i = (i + 1) % n; if (q.l <= 0) { p = q; break; } }
+        if (!p) { p = a[i]; i = (i + 1) % n; }            // pool full: recycle the next one
+        p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.l = p.m = life; p.w = w; p.g = grav; p.d = drag; p.o = op; p.st = st; p.c = col;
+      },
+      step(sec) {
+        let alive = 0;
+        for (let k = 0; k < n; k++) {
+          const p = a[k];
+          if (p.l <= 0) continue;
+          p.l -= sec;
+          if (p.l <= 0) continue;
+          alive++;
+          const e = Math.exp(-p.d * sec);
+          p.vx *= e; p.vy = p.vy * e + p.g * sec;
+          p.x += p.vx * sec; p.y += p.vy * sec;
+        }
+        return alive;
+      },
+      reset() { for (let k = 0; k < n; k++) a[k].l = 0; },
+    };
+  }
+  const S = pool(MAXP), FWP = pool(MAXF);
+
+  let on = false, W = 0, H = 0, sc = 1, vis = 0, Lv = 0, fired = [false, false], lastKey = '', tms = 0, drawAcc = 0;
+  const fwList = [];
+  const act = [0, 0, 0, 0], acc = [0, 0, 0, 0], accS = [0, 0, 0, 0], tipX = [0, 0, 0, 0], tipY = [0, 0, 0, 0];
+  const TL = 0.065, TLF = 0.05;                          // streak length per unit of speed
+
+  function resize(force) {
+    if (!on) return;
+    const w = game.clientWidth, h = game.clientHeight;
+    if (!w || !h) return;
+    if (!force && w === W && h === H) return;
+    W = w; H = h; sc = Math.max(0.7, Math.min(w, h) / 360);
+    cv.width = Math.round(w * K); cv.height = Math.round(h * K);
+    lastKey = '';
+  }
+
+  function burstFw(f) {
+    const R = f.spec.size * H, d = 2.1;
+    const n = fxLight() ? 22 : COARSE ? 36 : 56;
+    for (let k = 0; k < n; k++) {
+      const a = (6.2832 * k) / n + (Math.random() - 0.5) * 0.12, r = Math.random();
+      let v, life, grav, w;
+      if (r < 0.25) { v = R * d * (0.4 + 0.12 * Math.random()); life = 1.0 + 0.5 * Math.random(); grav = 40 * sc; w = 1.5 * sc; }            // soft inner ring
+      else if (r < 0.65) { v = R * d * (0.8 + 0.25 * Math.random()); life = 1.3 + 0.6 * Math.random(); grav = 50 * sc; w = 2.2 * sc; }    // main shell
+      else { v = R * d * (0.7 + 0.2 * Math.random()); life = 1.8 + 0.8 * Math.random(); grav = 150 * sc; w = 1.6 * sc; }                  // drooping glitter
+      FWP.add(f.x, f.cy, Math.cos(a) * v, Math.sin(a) * v, life, w, grav, d, 0.9, -1, f.spec.col);
+    }
+    f.burst = true; f.flash = 1;
+    fireworkSound('burst');
+  }
+
+  return {
+    start() {
+      on = true; vis = 0; Lv = 0; fired[0] = fired[1] = false; lastKey = ''; tms = 0;
+      act.fill(0); acc.fill(0); accS.fill(0);
+      S.reset(); FWP.reset(); fwList.length = 0;
+      cv.style.display = 'block';
+      resize(true);
+    },
+    clear() {
+      on = false; fwList.length = 0;
+      cv.style.display = 'none';
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, cv.width, cv.height);
+    },
+    resize,
+    update(dt) {
+      if (!on) return;
+      if (!W) { resize(true); if (!W) return; }
+      const sec = dt / 1000;
+      tms += dt;
+
+      // light level follows the combo (0 dark, 1 first sparkler, 2 more sparklers); it fades both ways
+      const target = combo >= SPARK.MORE_AT ? 2 : combo >= SPARK.FIRST_AT ? 1 : 0;
+      if (Lv !== target) {
+        const st = dt / (target > Lv ? SPARK.UP_MS : SPARK.DOWN_MS);
+        Lv = target > Lv ? Math.min(target, Lv + st) : Math.max(target, Lv - st);
+      }
+      if (vis < 1) vis = Math.min(1, vis + dt / 900);
+      let anyAct = false;
+      for (let i = 0; i < 4; i++) {
+        const th = i === 0 ? 0 : 1 + (i - 1) * 0.15, span = i === 0 ? 0.6 : 0.45;   // the extra sparklers light up one after another
+        act[i] = clamp01((Lv - th) / span);
+        if (act[i] > 0.001) anyAct = true;
+        tipX[i] = SPARK.SPOTS[i][0] * W + Math.sin(tms / 310 + i * 2.1) * 3 * sc;      // a hand-held sparkler wobbles a little
+        tipY[i] = SPARK.SPOTS[i][1] * H + Math.cos(tms / 270 + i) * 3 * sc;
+      }
+
+      // fireworks: two in a row at 200 combo, two more plus a finale at 300; a combo break cancels the ones that have not launched yet
+      for (let ti = 0; ti < 2; ti++) {
+        const at = ti ? SPARK.FIREWORK2_AT : SPARK.FIREWORK_AT, list = ti ? SPARK.FIREWORKS2 : SPARK.FIREWORKS;
+        if (combo >= at) {
+          if (!fired[ti]) {
+            fired[ti] = true;
+            for (const spec of list) fwList.push({ tier: ti, spec, x: spec.x * W, y0: H * 0.92, ty: spec.y * H, cy: H * 0.92, wait: spec.delay, t: 0, launched: false, burst: false, flash: 0, acc: 0 });
+          }
+        } else {
+          fired[ti] = false;
+          for (let i = fwList.length - 1; i >= 0; i--) if (!fwList[i].launched && fwList[i].tier === ti) fwList.splice(i, 1);
+        }
+      }
+
+      const light = fxLight();
+      // streaks + star sparks from every lit sparkler tip
+      const rate = (COARSE ? 18 : 30) * (light ? 0.5 : 1), srate = (COARSE ? 3 : 5) * (light ? 0.5 : 1);
+      for (let i = 0; i < 4; i++) {
+        if (act[i] <= 0.001) { acc[i] = 0; accS[i] = 0; continue; }
+        acc[i] += rate * act[i] * sec;
+        while (acc[i] >= 1) {
+          acc[i]--;
+          const a = Math.random() * 6.2832, sp = (60 + Math.random() * 170) * sc;
+          S.add(tipX[i], tipY[i], Math.cos(a) * sp, Math.sin(a) * sp - 20 * sc, 0.3 + Math.random() * 0.5, (0.6 + Math.random() * 0.5) * sc, 230 * sc, 1.8, 0.8, -1, 0);
+        }
+        accS[i] += srate * act[i] * sec;
+        while (accS[i] >= 1) {
+          accS[i]--;
+          const a = Math.random() * 6.2832, sp = (20 + Math.random() * 90) * sc;
+          S.add(tipX[i], tipY[i], Math.cos(a) * sp, Math.sin(a) * sp - 10 * sc, 0.12 + Math.random() * 0.22, (1.2 + Math.random() * 1.2) * sc, 120 * sc, 2.4, 0.8, 0, 0);
+        }
+      }
+
+      // fireworks: whistle + short rise, then a big burst
+      for (let i = fwList.length - 1; i >= 0; i--) {
+        const f = fwList[i];
+        f.wait -= sec;
+        if (f.wait > 0) continue;
+        if (!f.launched) { f.launched = true; fireworkSound('launch'); }
+        if (!f.burst) {
+          f.t += sec;
+          const p = Math.min(1, f.t / 0.6);
+          f.cy = f.y0 + (f.ty - f.y0) * (1 - (1 - p) * (1 - p));
+          f.acc += 40 * sec;
+          while (f.acc >= 1) { f.acc--; S.add(f.x + (Math.random() - 0.5) * 3 * sc, f.cy, (Math.random() - 0.5) * 20 * sc, 30 * sc, 0.25 + Math.random() * 0.2, 1.4 * sc, 80 * sc, 1.5, 0.7, -1, 0); }
+          if (p >= 1) burstFw(f);
+        } else {
+          f.flash -= sec * 2.4;
+          if (f.flash <= 0) fwList.splice(i, 1);
+        }
+      }
+
+      const alive = S.step(sec) + FWP.step(sec);
+      const key = vis.toFixed(2) + '|' + Lv.toFixed(2);
+      if (!alive && !anyAct && !fwList.length && key === lastKey) return;      // dark and still: nothing to repaint
+      drawAcc += dt;
+      if (drawAcc < 40) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
+      drawAcc = 0;
+      lastKey = key;
+
+      // ---- draw ----
+      c.setTransform(K, 0, 0, K, 0, 0);
+      c.clearRect(0, 0, W, H);
+      const D = SPARK.DARK * (1 - 0.36 * Math.min(Lv, 1) - 0.42 * Math.max(0, Lv - 1));
+      c.fillStyle = `rgba(16,5,4,${(D * vis).toFixed(3)})`;      // warm dark, not blue-black
+      c.fillRect(0, 0, W, H);
+      c.globalCompositeOperation = 'lighter';
+      c.lineCap = 'round';
+      const boost = 0.6 + 0.4 * clamp01(Lv - 1);                               // the stage gets brighter at the second level
+      for (let i = 0; i < 4; i++) {
+        if (act[i] <= 0.001) continue;
+        const tx = tipX[i], ty = tipY[i], a0 = act[i] * vis;
+        const flick = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(tms / 61 + i * 1.7) * Math.sin(tms / 37 + i * 2.9) + 0.5 * Math.sin(tms / 23 + i));   // uneven, like a real flame
+        const r = H * (i === 0 ? 0.42 : 0.37);
+        c.globalAlpha = a0 * flick * boost;                                    // wide warm light that blends into the stage
+        c.drawImage(SGLOW, tx - r, ty - r, 2 * r, 2 * r);
+        const cr = 8 * sc * (0.9 + 0.2 * flick);                                // small warm core, no hard edge
+        c.globalAlpha = a0 * 0.7;
+        c.drawImage(CORE, tx - cr, ty - cr, 2 * cr, 2 * cr);
+      }
+      // sparks: pale yellow while young, amber, then deep orange as they cool; each has a short fading tail and a soft glowing head
+      for (let pass = 0; pass < 3; pass++) {
+        c.strokeStyle = pass === 0 ? 'rgb(255,228,175)' : pass === 1 ? 'rgb(255,172,82)' : 'rgb(232,104,46)';
+        for (let k = 0; k < MAXP; k++) {
+          const p = S.a[k];
+          if (p.l <= 0 || p.st >= 0) continue;
+          const f = p.l / p.m;
+          if ((f > 0.6 ? 0 : f > 0.28 ? 1 : 2) !== pass) continue;
+          c.globalAlpha = Math.min(1, f * 2) * p.o * vis * 0.5;
+          c.lineWidth = p.w * (0.6 + 0.4 * f);
+          c.beginPath(); c.moveTo(p.x - p.vx * TL, p.y - p.vy * TL); c.lineTo(p.x, p.y); c.stroke();
+        }
+      }
+      for (let k = 0; k < MAXP; k++) {
+        const p = S.a[k];
+        if (p.l <= 0) continue;
+        const f = p.l / p.m;
+        if (p.st < 0) {                                                         // soft head of a spark
+          if (k % 3) continue;                                                  // heads on every other spark only
+          const s = 2.6 * sc * (0.6 + 0.4 * f);
+          c.globalAlpha = Math.min(1, f * 2) * vis * 0.5;
+          c.drawImage(DOT, p.x - s, p.y - s, 2 * s, 2 * s);
+        } else {                                                                // tiny fork: a quick bright twinkle
+          const s = p.w * (0.5 + 0.5 * f);
+          c.globalAlpha = Math.min(1, f * 2) * (0.4 + 0.6 * Math.abs(Math.sin(tms / 16 + k * 2.3))) * vis * 0.5;
+          c.drawImage(DOT, p.x - s, p.y - s, 2 * s, 2 * s);
+        }
+      }
+      // fireworks
+      for (const f of fwList) {
+        if (f.wait > 0) continue;
+        if (!f.burst) {
+          const s = 6 * sc;
+          c.globalAlpha = 0.85 * vis;
+          c.drawImage(DOT, f.x - s, f.cy - s, 2 * s, 2 * s);
+        } else {
+          const r = H * 0.42 * (1 + (1 - f.flash) * 0.3);
+          c.globalAlpha = Math.max(0, f.flash) * 0.5 * vis;
+          c.drawImage(GLOW, f.x - r, f.cy - r, 2 * r, 2 * r);
+        }
+      }
+      for (let k = 0; k < MAXF; k++) {
+        const p = FWP.a[k];
+        if (p.l <= 0) continue;
+        const f = p.l / p.m, col = FW_COLS[p.c];
+        c.strokeStyle = f > 0.45 ? col.hi : col.lo;
+        c.globalAlpha = Math.min(1, f * 1.5) * p.o * vis * 0.9;
+        c.lineWidth = p.w * (0.6 + 0.4 * f);
+        c.beginPath(); c.moveTo(p.x - p.vx * TLF, p.y - p.vy * TLF); c.lineTo(p.x, p.y); c.stroke();
+        if (k % 6 === 0) { const s = 3 * sc * (0.5 + 0.5 * f); c.drawImage(DOT, p.x - s, p.y - s, 2 * s, 2 * s); }
+      }
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'source-over';
+    },
+  };
+})();
+
+const SONG_FX = { moon: moonFx, sparkler: sparklerFx };
+
+function applySongFx(song) {
+  clearSongFx();
+  songFx = (song && song.fx && SONG_FX[song.fx]) || null;
+  if (songFx) { try { songFx.start(); } catch (e) { console.warn('song effect failed to start', e); try { songFx.clear(); } catch (e2) { /* ignore */ } songFx = null; } }
+}
+function clearSongFx() {
+  if (songFx) { try { songFx.clear(); } catch (e) { /* ignore */ } songFx = null; }
+  clearSongTheme();
+}
+
+// ---------- SONG THEME (crimson) ----------
+// One static gradient layer (opacity only, so it costs nothing to animate) + recoloured sprites. No filters, no blend modes, no per-frame work.
+const atmo = (() => {
+  const el = document.createElement('div');
+  el.id = 'theme-atmo';
+  el.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;display:none;opacity:0;transition:opacity .6s ease;' +
+    'background:radial-gradient(ellipse at 50% 38%,rgba(190,12,48,0.34) 0%,rgba(120,6,32,0.46) 45%,rgba(40,0,10,0.72) 100%);';
+  game.insertBefore(el, game.firstChild);
+  return el;
+})();
+let themeTierShown = -1;
+function setThemeTier(t) {
+  if (!TH || t === themeTierShown) return;
+  themeTierShown = t;
+  atmo.style.opacity = TH.atmoOpacity[t];
+}
+function applySongTheme(song) {
+  const name = song && song.theme;
+  const next = (name && THEMES[name]) || null;
+  if (next === TH) { if (TH) { themeTierShown = -1; setThemeTier(0); } return; }
+  TH = next;
+  COLS_NOW = TH ? NOTE_COLS.map((c, i) => TH.notes[i] || c) : NOTE_COLS;
+  for (let i = 0; i < 4; i++) { beamColor[i] = laneHitColor[i] = ACCENT(); }
+  petals.setColors(TH ? TH.petals : null, TH ? TH.petalShape : null);
+  tierGlow.style.display = TH ? 'none' : '';                 // replaced by the theme atmosphere
+  beatPulse.style.background = TH ? TH.pulse : '';
+  screenFlash.style.background = TH ? TH.flash : '';
+  if (TH) atmo.style.background = TH.atmo;
+  atmo.style.display = TH ? 'block' : 'none';
+  themeTierShown = -1;
+  if (TH) { atmo.style.transition = 'none'; atmo.style.opacity = 0; void atmo.offsetWidth; atmo.style.transition = ''; setThemeTier(0); }
+  else atmo.style.opacity = 0;
+  if (FIELD.W) { buildSprites(); drawStatic(); }
+}
+function clearSongTheme() { if (TH) applySongTheme(null); }
+// a song effect must never be able to stop the song: if it ever throws, it is switched off for the rest of the run
+function songFxUpdate(dt) {
+  try { songFx.update(dt); } catch (e) { console.warn('song effect failed', e); clearSongFx(); }
+}
 
 function setLowFx(v) {
   lowFx = v;
@@ -2246,6 +2917,7 @@ function updateComboVisuals() {
   }
   document.body.dataset.tier = tier;
   petals.setTier(tier);
+  setThemeTier(tier);
 }
 
 function showBrokenCombo(prev) {
@@ -2392,7 +3064,7 @@ function laneDown(lane) {
 
   pressedLanes.add(lane);
   setLanePressed(lane, true);
-  beamColor[lane] = '#ff6ba6';
+  beamColor[lane] = ACCENT();
 
   const now = getSongTime();
   const q = laneQueues[lane];
@@ -2706,10 +3378,16 @@ function runStartCountdown(token, done) {
 
 // per-song music loudness (song.volume): >1 boosts through a gain node that bypasses the SFX bus
 let musicGain = null;
+function canBoostMusic() {                    // a MediaElementSource outputs SILENCE for file:// pages and cross-origin audio without CORS
+  try {
+    if (location.protocol === 'file:') return false;
+    return music.crossOrigin != null || new URL(music.currentSrc || music.src, location.href).origin === location.origin;
+  } catch (e) { return false; }
+}
 function applySongVolume(song) {
   const vol = song && Number(song.volume) > 0 ? Number(song.volume) : 1;
   ensureAudio();
-  if (vol > 1 && !musicGain) {
+  if (vol > 1 && !musicGain && canBoostMusic()) {
     try {
       const src = audioCtx.createMediaElementSource(music);
       musicGain = audioCtx.createGain();
@@ -2743,6 +3421,9 @@ function startPlayback() {
   document.body.dataset.tier = 0;
   petals.clear();
   petals.setTier(0);
+  petals.setText(currentSong && currentSong.petalText);
+  applySongFx(currentSong);
+  applySongTheme(currentSong);
   scoreEl.textContent = 'Score: 0';
   measureLane();
 
@@ -3263,7 +3944,7 @@ function update(ts) {
   const dt = lastFrameT ? Math.min(ts - lastFrameT, 100) : 16.7;
   lastFrameT = ts;
 
-  if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); return; }
+  if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); if (songFx) songFxUpdate(dt); return; }
   if (mode === 'starting' && introShow) {   // 3-2-1 before the song: the first notes are on the track, standing still at song time 0
     if (introT0) {                          // get-ready intro: notes fade in during the second half of the lane entrance
       const k = Math.min(1, Math.max(0, (performance.now() - introT0 - INTRO_NOTES_AT) / INTRO_NOTES_MS));
@@ -3276,6 +3957,7 @@ function update(ts) {
       active.push(n);
     }
     drawField(0, dt);
+    if (songFx) songFxUpdate(dt);
     return;
   }
   if (mode !== 'playing') return;      // starting / paused / resuming: nothing moves
@@ -3337,7 +4019,8 @@ function update(ts) {
 
   // 4) ambience
   updateBeat(now, dt);
-  petals.update(dt, getTier(combo));
+  if (songFx) songFxUpdate(dt);                         // songs with their own effect (moon...) skip the sakura petals
+  else petals.update(dt, getTier(combo));
 }
 
 // ---------- SONG ENDED ----------

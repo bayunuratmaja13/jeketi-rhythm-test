@@ -10,6 +10,7 @@
   const KEY = 'jeketi.shop';
   const COOLDOWN_MS = 24 * 3600 * 1000;
   const TIER_BONUS = [1, 2, 5, 9, 14];         // % score per equipped card, C B A S SS  (a perfect no-card run = 500,000; S grade = 1,000,000)
+  const CENTER_BONUS = [2, 4, 8, 14, 20];         // % extra score for the CENTER card, by its tier C B A S SS (only that one card; added on top of its own bonus)
   const OSHI_MULT = 1.5;                       // oshi card bonus multiplier
   const SONG_MATCH = 1;                        // % per equipped member that sings in the song
   const TEAM_BONUS = { 3: 3, 4: 5, 5: 8 };     // % when 3 / 4 / 5+ equipped cards share a team
@@ -78,6 +79,7 @@
   const GUEST_LABEL = 'R';
   const GUESTS = {
     bernadya: { id: 'bernadya', name: 'Bernadya', team: 'Special', color: '#ff6ad5', front: 'images/cards/bernadya.webp', back: 'images/cards/love_back.webp', guest: true },
+    tasya: { id: 'tasya', name: 'Tasya', caption: 'Tasya Tety', team: 'Special', color: '#ff6ad5', front: 'images/cards/tasya.webp', back: 'images/cards/love_back.webp', guest: true },
     pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const member = (id) => GUESTS[id] || C().memberOf(id);
@@ -157,7 +159,7 @@
     }
     return set;
   }
-  function calc(ids, song) {
+  function calc(ids, song, centerId) {
     const oshi = getOshi(), set = songSet(song);
     let cards = 0, oshiExtra = 0, match = 0;
     const teams = {};
@@ -175,8 +177,9 @@
     Object.keys(teams).forEach(k => { if (teams[k] > teamN) { teamN = teams[k]; teamId = k; } });
     const teamPct = teamN >= 5 ? TEAM_BONUS[5] : (TEAM_BONUS[teamN] || 0);
     const r = (v) => Math.round(v * 10) / 10;
-    const total = cards + oshiExtra + match + teamPct;
-    return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, total: r(total) };
+    const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (CENTER_BONUS[bestT(centerId)] || 0) : 0;   // CENTER: stacks with the oshi bonus
+    const total = cards + oshiExtra + match + teamPct + ctr;
+    return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, center: r(ctr), total: r(total) };
   }
   // the squad: the 12 highest-tier owned cards, one per member (oshi wins ties, then roster order)
   function autoLineup(song) {
@@ -191,12 +194,17 @@
   }
 
   // what the game uses for one run
+  let centerPick = null;                         // { song, id }: the CENTER the player picked for the song about to be played
+  let cpick = null;                              // the CENTER pop out while it is open: { song, go, sel }
+  const songKey = (s) => (s && (s.id || s.title)) || '';
+  const centerOf = (song, ids) => (centerPick && centerPick.song === songKey(song) && ids.indexOf(centerPick.id) >= 0 ? centerPick.id : null);
   let run = { mult: 1, bonus: 0, cards: [] };
   function beginRun(song) {
     const ids = song ? autoLineup(song) : [];
-    const b = calc(ids, song);
+    const center = centerOf(song, ids);
+    const b = calc(ids, song, center);
     const oshi = getOshi();
-    run = { mult: 1 + b.total / 100, bonus: b.total, breakdown: b, cards: ids.map(id => ({ id, tier: bestT(id), oshi: id === oshi })) };
+    run = { mult: 1 + b.total / 100, bonus: b.total, center, breakdown: b, cards: ids.map(id => ({ id, tier: bestT(id), oshi: id === oshi, center: id === center })) };
     showHud(run);
     return run;
   }
@@ -499,13 +507,15 @@
             ok = true;
           } catch (e) { /* fall back to a blank slot */ }
         }
+        if (ok) cell.dataset.m = id;                 // which member this cell is (the CENTER pick reads it)
         if (!ok) { cell.classList.add('empty'); cell.innerHTML = '<div class="sq-blank"><span>🔒</span></div>'; }
         frag.appendChild(cell);
       }
       sqGrid.replaceChildren(frag);                  // one DOM swap, one layout
     }
+    sqBar.style.setProperty('--sq-n', slots);       // how many cells the bar holds, so the CSS can centre them on the whole screen
     const tmName = tm ? tm.toUpperCase() : '';
-    const capHTML = 'HIGHEST CARDS EQUIPPED' + (on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS</em>');
+    const capHTML = 'HIGHEST CARDS EQUIPPED' + (on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>');
     const tagHTML = ids.length ? 'TEAM <b>+' + bo.total + '%</b> <small>' + ids.length + '/' + slots + '</small>' : (on ? 'NO CARDS OF THE CHOSEN MEMBERS YET · OPEN A PACK IN THE SHOP' : tm ? 'NO ' + esc(tmName) + ' CARDS YET · OPEN A PACK IN THE SHOP' : 'NO CARDS YET · OPEN A PACK IN THE SHOP');
     if (capHTML !== sqCapHTML) { sqCapHTML = capHTML; sqCap.innerHTML = capHTML; }
     if (tagHTML !== sqTagHTML) { sqTagHTML = tagHTML; sqTag.innerHTML = tagHTML; }
@@ -555,14 +565,114 @@
   // optional: call Shop.setSong(song) when the selected song changes so the ♪ marks and bonus follow it
   // song changed: let the carousel finish moving first, then update the bar (rapid swipes only render the last one)
   function setSong(song) {
+    if (cpick) return;                           // a CENTER pick is open: the bar stays on the song being picked for
     curSong = song || null;
     if (!sqOn) return;
     clearTimeout(sqTimer);
     // wait for the carousel to settle, then do the update in idle time (and only if the loadout really changed)
     sqTimer = setTimeout(() => idle(() => { if (sqOn && !document.body.classList.contains('carousel-scrolling')) renderSquad(); else if (sqOn) setSong(curSong); }), 220);
   }
-  // the squad is automatic now, so there is no separate screen: false = "nothing to open, start the song"
-  function openLineup() { return false; }
+  // ============================================================
+  //  CENTER PICK
+  //  PLAY -> YES calls openLineup(song, go). A pop out asks for the CENTER, the equipped cards in the bottom bar become
+  //  clickable, tapping one asks "PICK <name> AS CENTER?" (YES starts the song by calling go(), NO goes back to picking).
+  //  The CENTER card gives CENTER_BONUS[its tier] % on top of its own bonus (see calc / beginRun).
+  //  false = "nothing to pick, start the song"
+  // ============================================================
+  let pickEl = null;
+  const centerBonusFor = (ti) => CENTER_BONUS[ti] || 0;
+  function pickBuild() {
+    if (pickEl) return;
+    pickEl = h('div');
+    pickEl.id = 'center-pick';
+    pickEl.innerHTML =
+      '<div class="cp-box cpk-box" role="dialog" aria-modal="true" aria-labelledby="cpk-title">' +
+        '<div class="cp-title cpk-title" id="cpk-title"></div>' +
+        '<div class="cpk-sub"></div>' +
+        '<div class="cp-btns cpk-btns"><button type="button" class="cp-yes">YES</button><button type="button" class="cp-no">NO</button></div>' +
+        '<button type="button" class="cpk-back">BACK</button>' +
+      '</div>';
+    document.body.appendChild(pickEl);
+    pickEl.querySelector('.cp-yes').addEventListener('click', pickYes);
+    pickEl.querySelector('.cp-no').addEventListener('click', pickNo);
+    pickEl.querySelector('.cpk-back').addEventListener('click', pickCancel);
+  }
+  function pickMark(id) {
+    sqGrid.querySelectorAll('.sq-cell').forEach(c => c.classList.toggle('sel', !!id && c.dataset.m === id));
+    document.body.classList.toggle('cp-has-sel', !!id);
+  }
+  function pickRender() {
+    if (!cpick || !pickEl) return;
+    const title = pickEl.querySelector('.cpk-title'), sub = pickEl.querySelector('.cpk-sub');
+    pickEl.classList.toggle('confirm', !!cpick.sel);
+    if (!cpick.sel) {
+      title.textContent = 'PICK THE CENTER FOR THIS SONG';
+      sub.innerHTML = 'Tap one of your equipped cards below.<br>A higher tier card gives a bigger <b>CENTER</b> bonus.';
+    } else {
+      const ti = bestT(cpick.sel), t = C().TIERS && C().TIERS[ti];
+      title.textContent = 'PICK ' + String(member(cpick.sel).name || '').toUpperCase() + ' AS CENTER?';
+      sub.innerHTML = '<b>CENTER</b> bonus <b>+' + centerBonusFor(ti) + '%</b>' + (t ? ' <small>(' + esc(t.id) + ' card)</small>' : '');
+    }
+  }
+  function pickSelect(cell) {
+    if (!cpick || !cell || !cell.dataset.m) return;
+    cpick.sel = cell.dataset.m;
+    pickMark(cpick.sel);
+    pickRender();
+    try { if (typeof UI_SND !== 'undefined' && UI_SND.chip) UI_SND.chip(Math.max(0, Array.prototype.indexOf.call(sqGrid.children, cell))); } catch (e) { /* ignore */ }
+    const y = pickEl.querySelector('.cp-yes');
+    if (y) y.focus({ preventScroll: true });
+  }
+  function pickClose() {
+    if (pickEl) pickEl.classList.remove('show');
+    document.body.classList.remove('center-picking');
+    pickMark(null);
+    cpick = null;
+  }
+  function pickYes() {
+    const q = cpick;
+    if (!q || !q.sel) return;
+    centerPick = { song: songKey(q.song), id: q.sel };
+    pickClose();
+    q.go();                                      // the song starts
+  }
+  function pickNo() {
+    if (!cpick) return;
+    cpick.sel = null;
+    pickMark(null);
+    pickRender();                                // back to "PICK THE CENTER FOR THIS SONG"
+  }
+  function pickCancel() {                        // BACK: leave the pick, nothing starts
+    if (!cpick) return;
+    centerPick = null;
+    pickClose();
+  }
+  sqGrid.addEventListener('click', (e) => {
+    if (cpick) pickSelect(e.target.closest ? e.target.closest('.sq-cell') : null);
+  });
+  window.addEventListener('keydown', (e) => {    // while the pop out is open the song list behind it must not move
+    if (!cpick) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (cpick.sel) pickNo(); else pickCancel(); }
+    else if (e.key && e.key.indexOf('Arrow') === 0) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  function openLineup(song, go) {
+    if (cpick) return true;
+    if (!song || typeof go !== 'function') return false;
+    centerPick = null;
+    curSong = song;
+    if (!sqBar.classList.contains('show')) return false;      // the bottom bar is not on screen: nothing to tap, just start
+    renderSquad();
+    if (!autoLineup(song).length) return false;               // no cards equipped: no center to pick
+    pickBuild();
+    cpick = { song, go, sel: null };
+    document.body.classList.add('center-picking');
+    pickEl.classList.remove('show'); void pickEl.offsetWidth;
+    pickEl.classList.add('show');
+    pickMark(null);
+    pickRender();
+    return true;
+  }
 
   // ============================================================
   //  IN-GAME CARD STRIP
@@ -585,6 +695,7 @@
     const pl = h('div', 'cc-pulse');
     pl.appendChild(mkCard(id, t));
     bob.appendChild(pl);
+    if (cheer.center === id) bob.appendChild(h('b', 'cc-center', '★ CENTER'));
     bob.insertAdjacentHTML('beforeend', '<i class="cc-spark s1">✦</i><i class="cc-spark s2">✦</i><i class="cc-spark s3">✦</i>');
     w.appendChild(bob);
     cheer.els.set(id, w);
@@ -630,7 +741,7 @@
     if (!r || !r.cards.length || !window.Cards) return;
     hud = h('div', 'card-cheer' + (cheerPaused ? ' paused' : ''));
     hud.innerHTML = '<b class="cc-bonus">+' + r.bonus + '%</b>';
-    cheer = { ids: r.cards.map(c => c.id), i: 0, els: new Map(), timer: 0 };
+    cheer = { ids: r.cards.map(c => c.id), center: r.center || null, i: 0, els: new Map(), timer: 0 };
     document.body.appendChild(hud);
     layoutCheer();
     cheer.timer = setTimeout(cheerLoop, 3800);
@@ -650,6 +761,7 @@
       run.cards.forEach(c => {
         const card = mkCard(c.id, bestT(c.id));
         card.style.pointerEvents = 'none';
+        if (c.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));      // pause / game over / results
         row.appendChild(card);
       });
       el.appendChild(h('div', 'eq-label', 'EQUIPPED CARDS <b>+' + run.bonus + '%</b>'));
@@ -666,6 +778,7 @@
       try {
         const card = mkCard(cd.id, cd.tier >= 0 ? cd.tier : bestT(cd.id));
         card.style.pointerEvents = 'none';
+        if (cd.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));     // saved high-score run
         row.appendChild(card);
       } catch (e) { /* unknown card id: skip */ }
     });
@@ -706,7 +819,7 @@
     open: openShop, openLineup, setSong, songTeam, renderSquad, hide, openPack, packStatus, cooldownLeft,
     getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, slotCount, renderBest, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom,
     onChange(fn) { listeners.push(fn); },
-    TIER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
+    TIER_BONUS, CENTER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
     isOpen: () => !!openName,
     // console: Shop.reset() clears shop timers so you can test the free first-time packs again
     reset() { S = load(); S.firstDone = {}; S.cd = {}; S.pity = 0; save(); if (openName === 'shop') renderShop(); refreshBadges(); },
