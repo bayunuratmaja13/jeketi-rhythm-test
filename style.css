@@ -2312,6 +2312,11 @@ body[data-tier="4"] #tier-glow { animation: none; }
 #results .results-card .gif-btn { padding: 2px 4px; }
 #results .results-card .btn-gif { height: clamp(64px, 16vh, 124px); }
 
+/* game over: same buttons, same size as the result card */
+#game-over .gameover-buttons { gap: 10px; margin-top: 2px; flex-wrap: nowrap; }
+#game-over .gameover-card .gif-btn { padding: 2px 4px; }
+#game-over .gameover-card .btn-gif { height: clamp(64px, 16vh, 124px); }
+
 /* equipped cards: bigger, 6 per row, a second row is centred under the first */
 #results .eq-strip { --eqw: clamp(28px, 8vh, 62px); margin: 8px auto 0; }
 #results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(24px, 6.2vh, 48px); }

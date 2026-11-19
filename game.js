@@ -123,10 +123,9 @@ gameOver.innerHTML = `
         <div class="gameover-value combo-value" id="go-combo">0</div>
       </div>
     </div>
-    <div class="eq-strip"></div>
     <div class="gameover-buttons">
-      <button id="btn-go-play-again" class="gif-btn"><img src="images/play.webp" class="btn-gif" alt="Play Again"></button>
-      <button id="btn-go-back" class="gif-btn"><img src="images/back.webp" class="btn-gif" alt="Songs"></button>
+      <button id="btn-go-play-again" class="gif-btn"><img src="images/play-again.gif" class="btn-gif" alt="Play Again"></button>
+      <button id="btn-go-back" class="gif-btn"><img src="images/exit.gif" class="btn-gif" alt="Exit"></button>
     </div>
   </div>
 `;
