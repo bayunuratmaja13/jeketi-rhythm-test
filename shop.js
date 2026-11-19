@@ -693,7 +693,10 @@
     const bob = h('div', 'cc-bob');
     bob.innerHTML = '<i class="cc-aura"></i>';
     const pl = h('div', 'cc-pulse');
-    pl.appendChild(mkCard(id, t));
+    const cardEl = mkCard(id, t);
+    cardEl.classList.add('flat');                                   // same flat, no-animation card the squad bar uses (see shop.css)
+    const bk = cardEl.querySelector('.tc-back'); if (bk) bk.remove();   // never flipped in game: no back face to composite
+    pl.appendChild(cardEl);
     bob.appendChild(pl);
     if (cheer.center === id) bob.appendChild(h('b', 'cc-center', '★ CENTER'));
     bob.insertAdjacentHTML('beforeend', '<i class="cc-spark s1">✦</i><i class="cc-spark s2">✦</i><i class="cc-spark s3">✦</i>');
@@ -789,11 +792,9 @@
   function pulse() {
     if (!hud || !cheer) return;
     const now = performance.now();
-    if (now - lastPulse < 90) return;
+    if (now - lastPulse < 130) return;
     lastPulse = now;
-    pulseEl(hud.querySelector('.pos-c'), 1.2);
-    pulseEl(hud.querySelector('.pos-l'), 1.08);
-    pulseEl(hud.querySelector('.pos-r'), 1.08);
+    pulseEl(hud.querySelector('.pos-c'), 1.2);       // only the centre card bounces now (the two side cards used to as well)
   }
 
   // ---------- red dots ----------

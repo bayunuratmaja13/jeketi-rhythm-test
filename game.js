@@ -226,6 +226,22 @@ let lastBeatOpacity = -1;
 // adaptive quality
 let songFx = null;                    // per-song gameplay effect (see SONG_FX); replaces the sakura petals while active
 let lowFx = false, frameEma = 16.7, perfBad = 0, perfGood = 0;
+let lowLock = false, lowFlips = 0;    // after two relapses in one run, low-fx stays on until the run ends (no flip-flopping)
+// weak phones (little RAM / few cores) start their first run already in light mode; it can still switch back if the phone copes
+const WEAK_DEVICE = COARSE && ((navigator.deviceMemory && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
+let weakTried = false;
+let shownScoreInt = -1;
+let judgeAnim = null, timingAnim = null, bannerAnim = null;   // kept so a new one can cancel the old one without getAnimations() (which forces a style recalculation)
+let lastPopScore = 0, lastPopCombo = 0, lastBuzz = 0;
+let accFx = 0, accBeat = 0;                                  // ambient effects run at ~30 fps, one per frame (staggered)
+const NUM_FMT = new Intl.NumberFormat();                     // same output as toLocaleString(), but built once
+function buzz(ms) {                                          // phone vibration is an IPC call: at most once per 80 ms
+  if (!navigator.vibrate) return;
+  const t = performance.now();
+  if (t - lastBuzz < 80) return;
+  lastBuzz = t;
+  navigator.vibrate(ms);
+}
 let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
 function fxLight() { return lowFx || performance.now() < spikeUntil; }
@@ -926,7 +942,6 @@ results.innerHTML = `
         </div>
       </div>
     </div>
-    <div class="eq-strip"></div>
   </div>
 `;
 document.body.appendChild(results);
@@ -1338,6 +1353,7 @@ function getNoiseBuffer(seconds, decay) {
 // NOTE-TAP VOLUME: 1 = as before, 0.5 = half as loud (only the sound of hitting a note; other sfx are not affected)
 const HIT_VOLUME = 0;
 function playHitSound(judgement, comboValue) {
+  if (HIT_VOLUME <= 0) return;      // silent anyway: do not build oscillators / noise nodes on every single hit
   ensureAudio();
   const now = audioCtx.currentTime;
   const tier = getTier(comboValue);
@@ -1733,6 +1749,8 @@ const laneHitUntil = [0, 0, 0, 0];
 const laneHitColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
 const beamA = [0, 0, 0, 0];
 const beamColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
+const beamG = [null, null, null, null], beamGC = ['', '', '', ''], beamGV = [-1, -1, -1, -1];   // cached beam gradients
+let layoutVer = 0;                                                                                // bumps whenever the field is re-laid-out
 const fxRings = [];
 const fxParts = [];
 const fxPops = [];                         // quick "pop" of a note that was just hit
@@ -1832,8 +1850,11 @@ function layoutField() {
   const W = playfieldEl.clientWidth, H = playfieldEl.clientHeight;
   if (!W || !H) return;
   const F = FIELD;
-  let dpr = Math.min(window.devicePixelRatio || 1, 2);
-  while (W * H * dpr * dpr > 1.7e6 && dpr > 1) dpr = Math.max(1, dpr - 0.25);   // never paint a huge bitmap
+  // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
+  const dprCap = lowFx ? 1 : (COARSE ? 1.5 : 2), pxCap = lowFx ? 1.0e6 : (COARSE ? 1.3e6 : 1.7e6);
+  let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+  while (W * H * dpr * dpr > pxCap && dpr > 1) dpr = Math.max(1, dpr - 0.25);   // never paint a huge bitmap
+  layoutVer++;
   const r = playfieldEl.getBoundingClientRect();
   const strip = cardStripBottom();
   const topY = strip > 0 ? Math.min(Math.round(strip + 6), Math.round(H * 0.34)) : 0;
@@ -1862,6 +1883,7 @@ function buildSprites() {
   const COLS = noteCols();
   const pad = Math.ceil(F.lw * 0.14), w = F.noteW, h = F.noteH, k = F.dpr * 1.15;
   COLS.forEach((c, i) => {
+    c.h0 = rgbaOf(c.hex, 0.25); c.h1 = rgbaOf(c.hex, 0.7); c.h2 = rgbaOf(c.hex, 0.9); c.hk = rgbaOf(c.hex, 0.95);   // hold-body colours, built once (not per frame)
     const cv = (NOTE_SPR[i] && NOTE_SPR[i].cv) || document.createElement('canvas');
     cv.width = Math.ceil((w + 2 * pad) * k);
     cv.height = Math.ceil((h + 2 * pad) * k);
@@ -1907,6 +1929,24 @@ function drawStatic() {
   c.shadowColor = TH ? TH.railGlow : 'rgba(255,107,166,0.9)'; c.shadowBlur = 12;
   for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
   c.shadowBlur = 0;
+
+  // resting tap pads: tint, top line and the receptor outline the notes land on (idle look; pressed lanes are highlighted per frame in drawField)
+  const padTop = F.hitY - F.recH / 2, sA = sAt(padTop), sB = sAt(F.H);
+  for (let i = 0; i < 4; i++) {
+    c.globalAlpha = 0.10; c.fillStyle = TH ? TH.lane : '#ff6ba6';
+    c.beginPath();
+    c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop);
+    c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
+    c.closePath(); c.fill();
+    c.globalAlpha = 1;
+    c.strokeStyle = TH ? TH.padLine : 'rgba(255,205,230,0.85)';
+    c.lineWidth = 3;
+    c.beginPath(); c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop); c.stroke();
+    c.strokeStyle = TH ? TH.recStroke : 'rgba(255,107,166,0.65)';
+    c.lineWidth = 2.5;
+    rr(c, laneX(i, 1) - F.noteW * 0.52, F.hitY - F.recH / 2, F.noteW * 1.04, F.recH, F.recH * 0.4);
+    c.stroke();
+  }
 }
 
 function drawField(now, dt) {
@@ -1927,9 +1967,13 @@ function drawField(now, dt) {
     else if (beamA[i] < target) beamA[i] = target;
     if (beamA[i] > 0.02) {
       const yTop = yAt(0.5);
-      const gr = c.createLinearGradient(0, F.hitY, 0, yTop);
-      gr.addColorStop(0, rgbaOf(beamColor[i], 0.85));
-      gr.addColorStop(1, rgbaOf(beamColor[i], 0));
+      let gr = beamG[i];                                     // the gradient only changes with colour / layout: build it once, not every frame
+      if (!gr || beamGC[i] !== beamColor[i] || beamGV[i] !== layoutVer) {
+        gr = c.createLinearGradient(0, F.hitY, 0, yTop);
+        gr.addColorStop(0, rgbaOf(beamColor[i], 0.85));
+        gr.addColorStop(1, rgbaOf(beamColor[i], 0));
+        beamG[i] = gr; beamGC[i] = beamColor[i]; beamGV[i] = layoutVer;
+      }
       c.globalAlpha = Math.min(1, beamA[i]);
       c.fillStyle = gr;
       c.beginPath();
@@ -1937,24 +1981,28 @@ function drawField(now, dt) {
       c.lineTo(edgeX(i + 1, 0.5), yTop); c.lineTo(edgeX(i, 0.5), yTop);
       c.closePath(); c.fill();
     }
-    let col = TH ? TH.lane : '#ff6ba6', a = 0.10;
+    // The resting pad (10% tint, top line, receptor outline) is painted once on the static canvas (drawStatic).
+    // Here only the lanes that are pressed / flashing add a highlight on top, so an idle lane costs nothing per frame.
+    let col = TH ? TH.lane : '#ff6ba6', a = 0;
     if (wall < laneHitUntil[i]) { col = laneHitColor[i]; a = 0.5; }
     else if (down) a = 0.38;
     else if (wall < laneFlashUntil[i]) a = 0.22;
-    c.globalAlpha = a; c.fillStyle = col;
-    c.beginPath();
-    c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop);
-    c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
-    c.closePath(); c.fill();
-    c.globalAlpha = 1;
-    c.strokeStyle = down ? '#ffffff' : (TH ? TH.padLine : 'rgba(255,205,230,0.85)');
-    c.lineWidth = 3;
-    c.beginPath(); c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop); c.stroke();
-    // receptor outline that the notes land on
-    c.strokeStyle = down ? '#ffffff' : (TH ? TH.recStroke : 'rgba(255,107,166,0.65)');
-    c.lineWidth = 2.5;
-    rr(c, laneX(i, 1) - F.noteW * 0.52, F.hitY - F.recH / 2, F.noteW * 1.04, F.recH, F.recH * 0.4);
-    c.stroke();
+    if (a > 0) {
+      c.globalAlpha = (a - 0.10) / 0.90; c.fillStyle = col;   // stacks on the 10% base, so the total stays exactly `a`
+      c.beginPath();
+      c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop);
+      c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
+      c.closePath(); c.fill();
+      c.globalAlpha = 1;
+    }
+    if (down) {
+      c.strokeStyle = '#ffffff';
+      c.lineWidth = 3.5;
+      c.beginPath(); c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop); c.stroke();
+      c.lineWidth = 3;
+      rr(c, laneX(i, 1) - F.noteW * 0.52, F.hitY - F.recH / 2, F.noteW * 1.04, F.recH, F.recH * 0.4);
+      c.stroke();
+    }
   }
   c.globalAlpha = 1;
 
@@ -1968,7 +2016,8 @@ function drawField(now, dt) {
       if (n.judged) continue;
       const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
       if (tHead < 0) continue;
-      c.globalAlpha = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;      // fade in just under the card strip (and during the get-ready intro)
+      const na = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;           // fade in just under the card strip (and during the get-ready intro)
+      if (na !== c.globalAlpha) c.globalAlpha = na;                        // only touch the canvas state when it actually changes
       if (n.dur > 0) {
         const tTail = Math.max(0, (now - (n.time + n.dur - APPROACH_TIME)) / APPROACH_TIME);
         const th = n.holding ? Math.min(tHead, 1) : tHead;
@@ -1978,14 +2027,14 @@ function drawField(now, dt) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
           const gr = c.createLinearGradient(0, yT, 0, yH);
-          gr.addColorStop(0, rgbaOf(colr.hex, 0.25));
-          gr.addColorStop(1, rgbaOf(colr.hex, n.holding ? 0.9 : 0.7));
+          gr.addColorStop(0, colr.h0);
+          gr.addColorStop(1, n.holding ? colr.h2 : colr.h1);
           c.fillStyle = gr;
           c.beginPath();
           c.moveTo(cxT - bwT / 2, yT); c.lineTo(cxT + bwT / 2, yT);
           c.lineTo(cxH + bwH / 2, yH); c.lineTo(cxH - bwH / 2, yH);
           c.closePath(); c.fill();
-          c.strokeStyle = rgbaOf(colr.hex, 0.95); c.lineWidth = 2;
+          c.strokeStyle = colr.hk; c.lineWidth = 2;
           c.stroke();
         }
         const w = spr.w * sH, h = spr.h * sH;
@@ -2094,6 +2143,7 @@ function triggerMissFlash(kind) {
 // Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
+  if (fxLight()) return;                       // light mode: no shaking at all
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
@@ -2420,7 +2470,7 @@ const moonFx = (() => {
     if (!on) return;
     const w = game.clientWidth, h = game.clientHeight;
     if (!w || !h) return;
-    let d = Math.min(window.devicePixelRatio || 1, 1.5);
+    let d = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);   // the moon is soft-focus anyway: 1x on phones (about half the memory)
     while (w * h * d * d > 2.5e6 && d > 1) d = Math.max(1, d - 0.25);
     if (!force && w === W && h === H && d === dpr) return;
     W = w; H = h; dpr = d;
@@ -2694,7 +2744,7 @@ const sparklerFx = (() => {
       const key = vis.toFixed(2) + '|' + Lv.toFixed(2);
       if (!alive && !anyAct && !fwList.length && key === lastKey) return;      // dark and still: nothing to repaint
       drawAcc += dt;
-      if (drawAcc < 40) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
+      if (drawAcc < (fxLight() ? 66 : 40)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
       drawAcc = 0;
       lastKey = key;
 
@@ -2831,8 +2881,13 @@ function setLowFx(v) {
   lowFx = v;
   perfBad = perfGood = 0;
   petals.setQuality(v);
-  if (v) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; }
+  document.body.classList.toggle('low-fx', v);         // CSS: hides the beat glow layer, freezes the cheering-card bounce
+  if (v) {
+    beatPulse.style.opacity = 0; lastBeatOpacity = 0;
+    fxParts.length = 0; fxRings.length = 0; fxPops.length = 0;
+  }
   setStatus(status.textContent.split('\n')[0] + (v ? '\nlow-fx mode' : ''));
+  measureLane();                                       // light mode also renders the playfield at 1x resolution (one small hitch at the switch)
 }
 
 // Watches the frame rate. If the device struggles, effects get lighter on their own.
@@ -2845,14 +2900,18 @@ function trackPerformance(dt) {
     frameEma += (dt - frameEma) * 0.05;
   }
   if (!lowFx) {
-    if (frameEma > 26) { if (++perfBad > 90) setLowFx(true); } else perfBad = 0;
-  } else {
-    if (frameEma < 19) { if (++perfGood > 400) setLowFx(false); } else perfGood = 0;
+    // below ~48 fps for about one second -> light mode (it used to wait for ~38 fps and 1.5 s)
+    if (frameEma > 21) { if (++perfBad > 50) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
+  } else if (!lowLock) {
+    if (frameEma < 17.5) { if (++perfGood > 600) setLowFx(false); } else perfGood = 0;
   }
 }
 
 // ---------- NUMBER POPS ----------
 function popScore() {
+  const t = performance.now();
+  if (t - lastPopScore < 90) return;
+  lastPopScore = t;
   scoreEl.animate(
     [{ transform: 'scale(1)' }, { transform: 'scale(1.15)', offset: 0.4 }, { transform: 'scale(1)' }],
     { duration: 200, easing: 'ease-out' }
@@ -2862,6 +2921,9 @@ function popScore() {
 function popCombo() {
   if (comboEl.classList.contains('milestone')) return;
   if (comboEl.classList.contains('broke')) return;
+  const t = performance.now();
+  if (t - lastPopCombo < 90) return;
+  lastPopCombo = t;
   comboEl.animate(
     [
       { transform: 'translateX(-50%) scale(1)' },
@@ -2915,7 +2977,8 @@ function updateComboVisuals() {
   } else if (combo === 0) {
     // leave the "broken" animation alone
   }
-  document.body.dataset.tier = tier;
+  const ts = '' + tier;                                       // only touch <body> when the tier really changed (it restyles a lot of CSS)
+  if (document.body.getAttribute('data-tier') !== ts) document.body.setAttribute('data-tier', ts);
   petals.setTier(tier);
   setThemeTier(tier);
 }
@@ -2942,9 +3005,9 @@ function showJudgement(text, color) {
   judgementEl.textContent = text;
   judgementEl.style.color = color;
   const miss = text === 'MISS' || text === 'BAD';
-  judgementEl.getAnimations().forEach(a => a.cancel());
+  if (judgeAnim) judgeAnim.cancel();
   // no tilt, no travel: it appears in place, holds for a beat, fades out
-  judgementEl.animate([
+  judgeAnim = judgementEl.animate([
     { transform: 'translateX(-50%) scale(1.12)', opacity: 0 },
     { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.15 },
     { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.6 },
@@ -2958,8 +3021,8 @@ function showTiming(name, signedDiff) {
   const early = signedDiff < 0;
   timingEl.textContent = early ? 'EARLY' : 'LATE';
   timingEl.style.color = early ? '#7fc4ff' : '#ffab66';
-  timingEl.getAnimations().forEach(a => a.cancel());
-  timingEl.animate([
+  if (timingAnim) timingAnim.cancel();
+  timingAnim = timingEl.animate([
     { transform: 'translateX(-50%)', opacity: 0 },
     { transform: 'translateX(-50%)', opacity: 0.85, offset: 0.15 },
     { transform: 'translateX(-50%)', opacity: 0.85, offset: 0.6 },
@@ -2972,8 +3035,8 @@ function showTierBanner(tier, c, isTierUp) {
   tbTitle.textContent = isTierUp ? TIER_NAMES[tier] : `${c} COMBO!`;
   tbSub.textContent = isTierUp ? `${c} COMBO` : '';
   tierBanner.className = 't' + Math.max(1, tier);
-  tierBanner.getAnimations().forEach(a => a.cancel());
-  tierBanner.animate([
+  if (bannerAnim) bannerAnim.cancel();
+  bannerAnim = tierBanner.animate([
     { transform: 'translateX(-50%)', opacity: 0 },
     { transform: 'translateX(-50%)', opacity: 0.95, offset: 0.12 },
     { transform: 'translateX(-50%)', opacity: 0.95, offset: 0.7 },
@@ -3165,10 +3228,8 @@ function judgeTap(n, signedDiff) {
   spawnShockwave(lane, name, ringCount);
   spawnParticles(lane, name, particleCount);
 
-  const shakeBase = name === 'PERFECT' ? 1.5 : name === 'GREAT' ? 1 : 0.5;
-  shakeScreen(shakeBase + tier * 0.25);
-
-  if (navigator.vibrate) navigator.vibrate(name === 'PERFECT' ? 15 : 10);
+  // (no screen shake on ordinary taps: it was under 1 px and cost an animation per hit; shakes stay for milestones, holds and misses)
+  buzz(name === 'PERFECT' ? 15 : 10);
 
   handleComboIncrement();
   removeNoteAnimated(n);
@@ -3195,9 +3256,8 @@ function startHold(n, diffMs, signedDiff) {
   kick = Math.min(0.7, kick + j.kick);
   spawnShockwave(lane, name === 'BAD' ? 'miss' : name, 1);
   spawnParticles(lane, name === 'BAD' ? 'miss' : name, 3);
-  shakeScreen(0.8);
   popScore();
-  if (navigator.vibrate) navigator.vibrate(12);
+  buzz(12);
 }
 
 function completeHold(n) {
@@ -3233,7 +3293,7 @@ function completeHold(n) {
   spawnParticles(lane, 'perfect', 6 + tier);
   shakeScreen(1.2 + tier * 0.25);
 
-  if (navigator.vibrate) navigator.vibrate(20);
+  buzz(20);
 
   handleComboIncrement();
   removeNoteAnimated(n);
@@ -3282,6 +3342,9 @@ function resetRunState() {
   lastCountdownNum = 0;
   frameEma = 16.7;
   perfBad = perfGood = 0;
+  lowLock = false; lowFlips = 0;
+  shownScoreInt = -1;
+  accFx = accBeat = 0;
   lastFrameT = 0;
   shownCombo = -1;
   beamA.fill(0); lanePressedState.fill(false);
@@ -3425,6 +3488,7 @@ function startPlayback() {
   applySongFx(currentSong);
   applySongTheme(currentSong);
   scoreEl.textContent = 'Score: 0';
+  if (WEAK_DEVICE && !weakTried) { weakTried = true; setLowFx(true); }   // weak phone: start light, it may switch back up if it copes
   measureLane();
 
   introNoteK = reduceMotion ? 1 : 0;
@@ -3839,7 +3903,6 @@ function openHighScoreView(song) {
   finalRecordEl.classList.remove('show');
   finalPointsEl.innerHTML = '';
   finalPointsEl.classList.remove('show');
-  if (window.Shop && Shop.fillStripFrom) Shop.fillStripFrom(results.querySelector('.eq-strip'), r.cards, r.bonus);
   results.classList.remove('show');
   void results.offsetWidth;
   results.classList.add('show');
@@ -4011,16 +4074,25 @@ function update(ts) {
   if (displayScore !== score) {
     const diff = score - displayScore;
     displayScore = Math.abs(diff) < 1 ? score : displayScore + diff * 0.3;
-    scoreEl.textContent = `Score: ${Math.round(displayScore).toLocaleString()}`;
+    const r = Math.round(displayScore);
+    if (r !== shownScoreInt) { shownScoreInt = r; scoreEl.textContent = 'Score: ' + NUM_FMT.format(r); }   // no text/layout work when the shown number did not change
   }
 
   // 3b) draw the whole playfield in one go
   drawField(now, dt);
 
-  // 4) ambience
-  updateBeat(now, dt);
-  if (songFx) songFxUpdate(dt);                         // songs with their own effect (moon...) skip the sakura petals
-  else petals.update(dt, getTier(combo));
+  // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
+  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input
+  accFx += dt; accBeat += dt;
+  const ambT = fxLight() ? 48 : 30;
+  if (accFx >= ambT) {
+    const d = accFx; accFx = 0;
+    if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
+    else petals.update(d, getTier(combo));
+  } else if (accBeat >= ambT) {
+    const d = accBeat; accBeat = 0;
+    updateBeat(now, d);
+  }
 }
 
 // ---------- SONG ENDED ----------

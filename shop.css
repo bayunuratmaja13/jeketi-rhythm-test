@@ -372,3 +372,25 @@ body.center-picking .sq-cell.sel, body.center-picking .sq-cell.sel:hover {
 .cc-center { bottom: -6px; font-size: clamp(7px, calc(var(--cw) * .15), 11px); }
 .sq-cell.sel::after { content: '★ CENTER'; bottom: -8px; font-size: clamp(8px, calc(var(--sq-cw) * .17), 12px); }
 @media (prefers-reduced-motion: reduce) { body.center-picking .sq-cell { animation: none !important; } #center-pick.show { animation: none; } }
+
+
+/* ============================================================
+   PERFORMANCE (in-game): the cheering cards are flat like the squad-bar cards (no 3D stack, no shimmer / sparkle loops,
+   no blur filter), and light mode (body.low-fx, set by game.js when the phone struggles) removes the extra layers
+   ============================================================ */
+.card-cheer .tcard.flat { perspective: none; }
+.card-cheer .tcard.flat .tc-tilt,
+.card-cheer .tcard.flat .tc-inner { transform: none !important; transform-style: flat; transition: none; }
+.card-cheer .tcard.flat .tc-face { backface-visibility: visible; -webkit-backface-visibility: visible; }
+.card-cheer .tcard.flat .tc-sweep,
+.card-cheer .tcard.flat .tc-sheen,
+.card-cheer .tcard.flat .tc-foil,
+.card-cheer .tcard.flat .tc-spark,
+.card-cheer .tcard.flat .sp { display: none !important; }
+.card-cheer .tcard.flat *,
+.card-cheer .tcard.flat { animation: none !important; }
+.card-cheer .tcard.flat .tc-glow { filter: none; background: radial-gradient(closest-side, var(--gc, transparent) 40%, transparent 100%); }
+.card-cheer .tcard.flat .tc-heart { filter: none; }
+
+body.low-fx #beat-pulse { display: none; }
+body.low-fx .cc-bob, body.low-fx .cc-aura, body.low-fx .cc-spark { animation: none !important; }
