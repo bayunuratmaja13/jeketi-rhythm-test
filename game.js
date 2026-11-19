@@ -1336,7 +1336,7 @@ function getNoiseBuffer(seconds, decay) {
 }
 
 // NOTE-TAP VOLUME: 1 = as before, 0.5 = half as loud (only the sound of hitting a note; other sfx are not affected)
-const HIT_VOLUME = 0.25;
+const HIT_VOLUME = 0;
 function playHitSound(judgement, comboValue) {
   ensureAudio();
   const now = audioCtx.currentTime;
