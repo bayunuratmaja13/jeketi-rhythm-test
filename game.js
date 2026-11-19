@@ -243,7 +243,34 @@ function buzz(ms) {                                          // phone vibration 
 }
 let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
-function fxLight() { return lowFx || performance.now() < spikeUntil; }
+// TWO quality levels:
+//   NORMAL = what "light mode" used to be, now always on (no beat glow / beams / shake, few particles, 1x playfield).
+//   LITE   = new, even lighter, adaptive (kicks in when the frame rate drops, or right after a long frame):
+//            no particles / rings / hit-flash / tier glow, no petals, flat hold bodies, slower ambience, playfield below 1x.
+const LITE_DPR = 0.75;                 // playfield resolution in lite mode (normal = 1x)
+function fxLight() { return true; }    // kept so every old call site still reads the same: normal IS the old light mode
+function fxLite() { return lowFx || performance.now() < spikeUntil; }
+
+// start-up smoothness
+const CLOCK_SNAP_MS = 400;             // song clock only JUMPS to the audio when they differ by more than this (was 120: a weak phone's audio start-up often wobbles more than that)
+const CLOCK_MAX_SLEW = 0.12;           // below that it catches up gradually: notes never run more than 12% faster / slower than real time
+const WARMUP_MS = 2000;                // first seconds of a song: audio start-up jank alone must not flip the quality mode mid-song
+let playBeganAt = 0, introFrames = 0;
+
+// add ?debug to the game's address to see a small clock / frame readout in the bottom-left corner (for finding stutter)
+const DBG = /[?&]debug\b/.test(location.search);
+const dbg = { snaps: 0, maxErr: 0, long: 0, worst: 0, last: 0 };
+const dbgEl = document.createElement('div');
+dbgEl.style.cssText = 'position:fixed;bottom:8px;left:8px;color:#0f0;font:10px/1.4 monospace;z-index:999;white-space:pre;background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:6px;pointer-events:none;display:' + (DBG ? 'block' : 'none') + ';';
+document.body.appendChild(dbgEl);
+function dbgReset() { dbg.snaps = 0; dbg.maxErr = 0; dbg.long = 0; dbg.worst = 0; dbg.last = 0; }
+function dbgTick(dt) {
+  if (performance.now() - playBeganAt < 10000) { if (dt > 33) dbg.long++; if (dt > dbg.worst) dbg.worst = dt; }
+  const t = performance.now();
+  if (t - dbg.last < 400) return;
+  dbg.last = t;
+  dbgEl.textContent = 'first 10 s of the song\nclock jumps: ' + dbg.snaps + '   worst clock error: ' + Math.round(dbg.maxErr) + ' ms\nslow frames (>33 ms): ' + dbg.long + '   worst: ' + Math.round(dbg.worst) + ' ms\nmode: ' + (lowFx ? 'lite' : 'normal');
+}
 
 const hitBarTimers = [null, null, null, null];
 const laneFlashTimers = [null, null, null, null];
@@ -278,8 +305,12 @@ function getSongTime() {
     const dt = p - smoothPerf;
     let t = smoothT + dt;
     const err = est - t;
-    if (Math.abs(err) > 120) t = est;
-    else t += err * 0.1 * Math.min(1, dt / 16.7);
+    if (DBG && performance.now() - playBeganAt < 10000 && Math.abs(err) > dbg.maxErr) dbg.maxErr = Math.abs(err);
+    if (Math.abs(err) > CLOCK_SNAP_MS) { t = est; if (DBG) dbg.snaps++; }
+    else {
+      const corr = err * 0.1 * Math.min(1, dt / 16.7), lim = dt * CLOCK_MAX_SLEW;
+      t += corr > lim ? lim : corr < -lim ? -lim : corr;
+    }
     smoothT = t;
     smoothPerf = p;
   }
@@ -1850,9 +1881,9 @@ function layoutField() {
   if (!W || !H) return;
   const F = FIELD;
   // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
-  const dprCap = lowFx ? 1 : (COARSE ? 1.5 : 2), pxCap = lowFx ? 1.0e6 : (COARSE ? 1.3e6 : 1.7e6);
+  const dprCap = lowFx ? LITE_DPR : 1, pxCap = lowFx ? 0.55e6 : 1.0e6, dprMin = lowFx ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-  while (W * H * dpr * dpr > pxCap && dpr > 1) dpr = Math.max(1, dpr - 0.25);   // never paint a huge bitmap
+  while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);   // never paint a huge bitmap
   layoutVer++;
   const r = playfieldEl.getBoundingClientRect();
   const strip = cardStripBottom();
@@ -2025,10 +2056,13 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          const gr = c.createLinearGradient(0, yT, 0, yH);
-          gr.addColorStop(0, colr.h0);
-          gr.addColorStop(1, n.holding ? colr.h2 : colr.h1);
-          c.fillStyle = gr;
+          if (fxLite()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // lite: flat body, no gradient built per frame
+          else {
+            const gr = c.createLinearGradient(0, yT, 0, yH);
+            gr.addColorStop(0, colr.h0);
+            gr.addColorStop(1, n.holding ? colr.h2 : colr.h1);
+            c.fillStyle = gr;
+          }
           c.beginPath();
           c.moveTo(cxT - bwT / 2, yT); c.lineTo(cxT + bwT / 2, yT);
           c.lineTo(cxH + bwH / 2, yH); c.lineTo(cxH - bwH / 2, yH);
@@ -2089,7 +2123,7 @@ function drawField(now, dt) {
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function spawnShockwave(laneIndex, judgement, count) {
-  const n = fxLight() ? 1 : Math.min(count, 3);
+  const n = fxLite() ? 0 : 1;
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
     if (fxRings.length >= 14) fxRings.shift();
@@ -2098,7 +2132,7 @@ function spawnShockwave(laneIndex, judgement, count) {
 }
 
 function spawnParticles(laneIndex, judgement, count) {
-  const n = Math.round(count * (fxLight() ? 0.4 : 1) * (COARSE ? 0.6 : 1));
+  const n = fxLite() ? 0 : Math.round(count * 0.4 * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 48; i++) {
@@ -2165,7 +2199,7 @@ const petals = (() => {
   const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
   const sprites = [];
   const list = [];
-  let w = 0, h = 0, dpr = 1, tier = 0, quality = 1, dirty = false;
+  let w = 0, h = 0, dpr = 1, tier = 0, quality = 0.3, dirty = false;
 
   function makeSprite(color) {
     const c = document.createElement('canvas');
@@ -2275,7 +2309,7 @@ const petals = (() => {
       if (text === curText) return;
       curText = text; buildSprites(text);
     },
-    setQuality(low) { quality = low ? 0.3 : 1; },
+    setQuality(q) { quality = q; },
     setColors(cols, shp) {                               // null = default sakura; shp 'feather' = feathers. Sprites are rebuilt once, not per frame
       COLORS = cols || DEFAULT_COLORS;
       shape = (cols && shp) || null;
@@ -2290,6 +2324,10 @@ const petals = (() => {
       tier = t;
       const sec = dt / 1000;
       const want = target();
+      if (want === 0 && !list.length) {                  // lite mode: no petals at all, so no per-frame canvas work either
+        if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
+        return;
+      }
       if (list.length < want && Math.random() < 0.25) spawn(true, false);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, cv.width, cv.height);
@@ -2637,7 +2675,7 @@ const sparklerFx = (() => {
 
   function burstFw(f) {
     const R = f.spec.size * H, d = 2.1;
-    const n = fxLight() ? 22 : COARSE ? 36 : 56;
+    const n = fxLite() ? 12 : 22;
     for (let k = 0; k < n; k++) {
       const a = (6.2832 * k) / n + (Math.random() - 0.5) * 0.12, r = Math.random();
       let v, life, grav, w;
@@ -2701,9 +2739,9 @@ const sparklerFx = (() => {
         }
       }
 
-      const light = fxLight();
+      const light = fxLite();
       // streaks + star sparks from every lit sparkler tip
-      const rate = (COARSE ? 18 : 30) * (light ? 0.5 : 1), srate = (COARSE ? 3 : 5) * (light ? 0.5 : 1);
+      const rate = (COARSE ? 18 : 30) * (light ? 0.25 : 0.5), srate = (COARSE ? 3 : 5) * (light ? 0.25 : 0.5);
       for (let i = 0; i < 4; i++) {
         if (act[i] <= 0.001) { acc[i] = 0; accS[i] = 0; continue; }
         acc[i] += rate * act[i] * sec;
@@ -2743,7 +2781,7 @@ const sparklerFx = (() => {
       const key = vis.toFixed(2) + '|' + Lv.toFixed(2);
       if (!alive && !anyAct && !fwList.length && key === lastKey) return;      // dark and still: nothing to repaint
       drawAcc += dt;
-      if (drawAcc < (fxLight() ? 66 : 40)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
+      if (drawAcc < (fxLite() ? 100 : 66)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
       drawAcc = 0;
       lastKey = key;
 
@@ -2879,17 +2917,27 @@ function songFxUpdate(dt) {
 function setLowFx(v) {
   lowFx = v;
   perfBad = perfGood = 0;
-  petals.setQuality(v);
-  document.body.classList.toggle('low-fx', v);         // CSS: hides the beat glow layer, freezes the cheering-card bounce
+  petals.setQuality(v ? 0 : 0.3);
+  document.body.classList.toggle('lite-fx', v);        // CSS (injected below): hides the hit flash and tier glow
   if (v) {
     beatPulse.style.opacity = 0; lastBeatOpacity = 0;
     fxParts.length = 0; fxRings.length = 0; fxPops.length = 0;
   }
-  setStatus(status.textContent.split('\n')[0] + (v ? '\nlow-fx mode' : ''));
+  setStatus(status.textContent.split('\n')[0] + (v ? '\nlite-fx mode' : ''));
   measureLane();                                       // light mode also renders the playfield at 1x resolution (one small hitch at the switch)
 }
 
-// Watches the frame rate. If the device struggles, effects get lighter on their own.
+// normal mode = the old light mode, always on. CSS: hides the beat glow layer, freezes the cheering-card bounce
+document.body.classList.add('low-fx');
+petals.setQuality(0.3);
+beatPulse.style.opacity = 0; lastBeatOpacity = 0;
+(function addLiteStyles() {
+  const st = document.createElement('style');
+  st.textContent = 'body.lite-fx #screen-flash, body.lite-fx #tier-glow { display: none !important; }';
+  document.head.appendChild(st);
+})();
+
+// Watches the frame rate. If the device struggles, it drops from normal to lite mode on its own.
 function trackPerformance(dt) {
   if (dt > SPIKE_FRAME_MS) {              // one very long frame: the phone was busy elsewhere. Go light right away and let it recover
     spikeUntil = performance.now() + SPIKE_LIGHT_MS;
@@ -2900,7 +2948,8 @@ function trackPerformance(dt) {
   }
   if (!lowFx) {
     // below ~48 fps for about one second -> light mode (it used to wait for ~38 fps and 1.5 s)
-    if (frameEma > 21) { if (++perfBad > 50) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
+    if (performance.now() - playBeganAt < WARMUP_MS) perfBad = 0;     // first 2 s: no resize / mode switch while the audio is still starting up
+    else if (frameEma > 21) { if (++perfBad > 50) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
   } else if (!lowLock) {
     if (frameEma < 17.5) { if (++perfGood > 600) setLowFx(false); } else perfGood = 0;
   }
@@ -3362,6 +3411,8 @@ const INTRO_MAX_WAIT_MS = 8000;             // never hold a player longer than t
 const INTRO_NO_PROGRESS_MS = 1500;          // browser buffers nothing until play() (iPhones): stop waiting after this
 let introT0 = 0;
 let introNoteK = 1;                         // 0..1 multiplier on note opacity (1 = normal play)
+let startArm = null;                        // song is playing but the audio clock has not moved yet: notes stay frozen until it does
+const START_ARM_MAX_MS = 600;               // never wait longer than this for the audio clock
 
 (function addIntroStyles() {
   const st = document.createElement('style');
@@ -3418,12 +3469,26 @@ function runIntro(token, done) {
 }
 
 // 3-2-1 before a song starts. Stops quietly if the player leaves or restarts meanwhile (the token changes).
+// The first element.animate() on an element builds its compositor layer. Do that during the countdown, not on the first hit.
+function prewarmHud() {
+  const still = (el, tf) => { try { el.animate([{ transform: tf }, { transform: tf }], { duration: 40 }); } catch (e) { /* ignore */ } };
+  still(judgementEl, 'translateX(-50%)'); still(timingEl, 'translateX(-50%)'); still(tierBanner, 'translateX(-50%)');
+  still(scoreEl, 'scale(1)'); still(comboEl, 'translateX(-50%) scale(1)');
+}
+// If the phone is clearly struggling while the notes only stand still, go lite NOW (before the song), so the playfield
+// resize does not hitch in the middle of the first notes.
+function autoPickQuality() {
+  if (!lowFx && introFrames > 30 && frameEma > 21) setLowFx(true);
+}
+
 const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
 function runStartCountdown(token, done) {
   let n = 3;
   const step = () => {
     if (token !== playToken || mode !== 'starting') return;
     if (n <= 0) { countdownEl.classList.remove('show'); done(); return; }
+    if (n === 3) prewarmHud();
+    if (n === 2) autoPickQuality();
     countdownEl.classList.add('show');
     countdownEl.textContent = n;
     countdownEl.animate([
@@ -3491,6 +3556,7 @@ function startPlayback() {
   measureLane();
 
   introNoteK = reduceMotion ? 1 : 0;
+  introFrames = 0; playBeganAt = 0;
   document.body.classList.add('intro-hud');          // cards, score and life bar stay hidden until the intro reaches them
   pauseBtn.classList.add('show');
   setHudVisible(true);
@@ -3506,6 +3572,7 @@ function startPlayback() {
     if (token !== playToken || mode !== 'starting') return;
     introShow = false;
     introT0 = 0; introNoteK = 1;
+    playBeganAt = performance.now(); dbgReset();
     useAudio = audioOk;
     if (!audioOk) wallStart = performance.now();
     wallOffset = 0;
@@ -3515,6 +3582,17 @@ function startPlayback() {
     startUpdateLoop();
   };
 
+  // play() resolves when the browser STARTS playing, but on many devices (Android, Bluetooth, first play) the audio clock
+  // stays at 0 for another 50-300 ms. If the notes already moved in that gap, the clock later snapped back and notes that
+  // were already on screen (songs with early notes) visibly jumped. So the notes wait, frozen like in the countdown, until
+  // the audio position really starts moving (see the 'starting' branch of update()).
+  const arm = (audioOk) => {
+    if (token !== playToken || mode !== 'starting') return;
+    if (!audioOk) { begin(false); return; }
+    startArm = { token, t0: performance.now(), go: begin };
+  };
+
+  startArm = null;
   introShow = true;
   startUpdateLoop();
   // get-ready intro (lanes + notes, then cards + score bar) -> wait for the song to buffer -> 3-2-1 -> song and notes start together
@@ -3523,8 +3601,8 @@ function startPlayback() {
     music.currentTime = 0;
     wallStart = performance.now();
     const p = music.play();
-    if (p && p.then) p.then(() => begin(true), () => begin(false));
-    else begin(true);
+    if (p && p.then) p.then(() => arm(true), () => arm(false));
+    else arm(true);
   }));
 
   setStatus(`▶ ${currentSong.title} | ${currentChart.length} notes | miss limit ${missLimit}`);
@@ -4012,6 +4090,7 @@ function update(ts) {
       const k = Math.min(1, Math.max(0, (performance.now() - introT0 - INTRO_NOTES_AT) / INTRO_NOTES_MS));
       introNoteK = 1 - Math.pow(1 - k, 3);
     }
+    if (introT0 && performance.now() - introT0 > INTRO_LANES_MS + INTRO_HUD_MS) { frameEma += (dt - frameEma) * 0.05; introFrames++; }   // frame rate while the notes stand still (loading + countdown)
     while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= 0) {
       const n = queue[spawnIdx++];
       if (n.judged) continue;
@@ -4020,11 +4099,16 @@ function update(ts) {
     }
     drawField(0, dt);
     if (songFx) songFxUpdate(dt);
+    if (startArm) {                         // audio started: hand over to the playing clock as soon as the audio position really moves
+      if (startArm.token !== playToken) startArm = null;
+      else if (music.currentTime > 0 || performance.now() - startArm.t0 > START_ARM_MAX_MS) { const go = startArm.go; startArm = null; go(true); }
+    }
     return;
   }
   if (mode !== 'playing') return;      // starting / paused / resuming: nothing moves
 
   trackPerformance(dt);
+  if (DBG) dbgTick(dt);
   const now = getSongTime();
 
   // 1) create elements for notes that are about to come into view
@@ -4081,9 +4165,9 @@ function update(ts) {
   drawField(now, dt);
 
   // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
-  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input
+  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~12 fps in lite mode)
   accFx += dt; accBeat += dt;
-  const ambT = fxLight() ? 48 : 30;
+  const ambT = fxLite() ? 80 : 48;
   if (accFx >= ambT) {
     const d = accFx; accFx = 0;
     if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
