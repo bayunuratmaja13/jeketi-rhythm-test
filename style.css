@@ -2442,3 +2442,36 @@ body[data-tier="4"] #tier-glow { animation: none; }
 }
 .opt-hint { padding: 4px 0 14px; font: 700 13px/1.35 var(--font-text); opacity: .65; }
 .opt-done { display: flex; margin: 0 auto; padding: 4px 8px; }
+
+
+/* ====================================================================== */
+/* ===== RESULTS: grade stamp sits on top of the cover, CENTER card takes  */
+/* ===== the old stamp spot next to the Points                            */
+/* ====================================================================== */
+.rl-cover-wrap { position: relative; display: block; line-height: 0; }
+.rl-cover-wrap .results-cover { margin: 0; }
+#results .rl-cover-wrap .grade-stamp {
+  position: absolute; right: -16px; bottom: -16px; z-index: 3;
+  width: 86px; height: 86px; font-size: 54px; border-width: 5px;
+  background: rgba(255, 255, 255, .9); box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
+  pointer-events: none;
+}
+#results .rl-cover-wrap .grade-stamp.g-SS { font-size: 30px; box-shadow: 0 0 14px rgba(255, 204, 51, .8), 0 3px 10px rgba(0, 0, 0, .3); }
+
+/* the center card: --rlcw is its width; the slot is empty (no space used) when no center was picked */
+.rl-center { --rlcw: clamp(56px, 13vh, 96px); position: relative; flex: none; margin-bottom: 4px; }
+.rl-center:empty { display: none; }
+.rl-center .tcard { --cw: var(--rlcw); pointer-events: none; }
+.rl-center .rl-center-tag { bottom: -7px; font-size: clamp(8px, calc(var(--rlcw) * .17), 12px); }
+
+@media (max-height: 700px) and (min-height: 501px) {
+  #results .rl-cover-wrap .grade-stamp { width: 68px; height: 68px; font-size: 42px; right: -12px; bottom: -12px; }
+  #results .rl-cover-wrap .grade-stamp.g-SS { font-size: 24px; }
+  .rl-center { --rlcw: clamp(46px, 11vh, 70px); }
+}
+@media (max-height: 500px) {
+  #results .rl-cover-wrap .grade-stamp { width: 46px; height: 46px; font-size: 28px; right: -8px; bottom: -8px; border-width: 3px; }
+  #results .rl-cover-wrap .grade-stamp.g-SS { font-size: 17px; }
+  .rl-center { --rlcw: clamp(34px, 10vh, 48px); margin-bottom: 2px; }
+  .rl-center .rl-center-tag { bottom: -5px; }
+}

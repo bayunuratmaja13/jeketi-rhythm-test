@@ -110,7 +110,7 @@
   }
   function packStatus(kind) {
     const P = Packs.PACKS[kind];
-    const left = cooldownLeft(kind);
+    const left = kind === 'daily' ? cooldownLeft(kind) : 0;       // only the Daily Pack has a 24h lock
     const first = !S.firstDone[kind];
     const free = P.price === 0 || (first && kind === 'daily');   // new players: only the daily pack is free
     const st = { kind, price: P.price, free, first, left, ok: false, reason: '' };
@@ -132,7 +132,7 @@
     if (!st.free && !Points.spend(P.price)) return false;
     const before = { fd: S.firstDone[kind], cd: S.cd[kind], pity: S.pity };
     S.firstDone[kind] = 1;
-    S.cd[kind] = now() + COOLDOWN_MS;
+    if (kind === 'daily') S.cd[kind] = now() + COOLDOWN_MS;       // other packs: no lock, open as many as you can afford
     save();
     const drops = Packs.open(kind);
     if (!drops) {                                  // an opening is already on screen: undo everything
@@ -181,14 +181,17 @@
     const total = cards + oshiExtra + match + teamPct + ctr;
     return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, center: r(ctr), total: r(total) };
   }
-  // the squad: the 12 highest-tier owned cards, one per member (oshi wins ties, then roster order)
+  // the squad: the 12 highest-tier owned cards, one per member (oshi wins ties, then a random pick among the equal cards)
+  // the random order is re-rolled every time the song select menu is opened (and stays the same while it is open and for the run)
+  let rollKeys = new Map();
+  const rollKey = (id) => { let k = rollKeys.get(id); if (k === undefined) { k = Math.random(); rollKeys.set(id, k); } return k; };
+  function rerollSquad() { rollKeys = new Map(); }
   function autoLineup(song) {
     const oshi = getOshi(), team = songTeam(song), only = songOnly(song);
-    const order = new Map(C().MEMBERS.map((m, i) => [m.id, i]));
     const guests = songGuests(song);
     const owned = Array.from(new Set(C().ownedIds()))
       .filter(id => C().memberOf(id) && C().best(id) >= 0 && (!team || member(id).team.toLowerCase() === team) && (!only || only.has(id)))
-      .sort((a, b) => (C().best(b) - C().best(a)) || ((b === oshi) - (a === oshi)) || (order.get(a) - order.get(b)))
+      .sort((a, b) => (C().best(b) - C().best(a)) || ((b === oshi) - (a === oshi)) || (rollKey(a) - rollKey(b)))
       .slice(0, slotCount(song) - guests.length);
     return guests.concat(owned);
   }
@@ -334,7 +337,7 @@
       const P = Packs.PACKS[k], sum = P.odds.C + P.odds.B + P.odds.A;
       html += '<tr><td>' + esc(P.name.replace(' Pack', '')) + '</td><td>' + (P.price ? fmt(P.price) : 'FREE') + '</td><td>' + Math.round(P.odds.C / sum * 100) + '%</td><td>' + Math.round(P.odds.B / sum * 100) + '%</td><td>' + Math.round(P.odds.A / sum * 100) + '%</td><td>' + P.minBest + '+</td></tr>';
     });
-    html += '</table><ul><li>The <b>Daily Pack</b> is ' + (Packs.PACKS.daily.price ? 'free the first time you open it' : 'free') + '. All other packs cost Points.</li><li>After opening, that pack is <b>locked for 24 hours</b>.</li><li>Packs only hold C, B and A cards. <b>Combine</b> cards of the same member and tier to rank up: ' + C().COMBINE_NEED.map((n, i) => n + '× ' + C().TIERS[i].id + ' → ' + C().TIERS[i + 1].id).join(', ') + ' (S and SS come only from combining).</li><li>Oshi Pack: each card has a ' + Math.round(Packs.PACKS.oshi.oshi * 100) + '% chance to be your oshi.</li><li>Pity: ' + (PITY_A - 1) + ' packs in a row without an A card, and the next one has one.</li></ul>';
+    html += '</table><ul><li>The <b>Daily Pack</b> is ' + (Packs.PACKS.daily.price ? 'free the first time you open it' : 'free') + '. All other packs cost Points.</li><li>Only the <b>Daily Pack</b> is locked for 24 hours after opening. Every other pack can be opened again right away.</li><li>Packs only hold C, B and A cards. <b>Combine</b> cards of the same member and tier to rank up: ' + C().COMBINE_NEED.map((n, i) => n + '× ' + C().TIERS[i].id + ' → ' + C().TIERS[i + 1].id).join(', ') + ' (S and SS come only from combining).</li><li>Oshi Pack: each card has a ' + Math.round(Packs.PACKS.oshi.oshi * 100) + '% chance to be your oshi.</li><li>Pity: ' + (PITY_A - 1) + ' packs in a row without an A card, and the next one has one.</li></ul>';
     b.innerHTML = html;
     modal(b);
   });
@@ -393,6 +396,7 @@
     const build = (keepId) => {
       const cur = keepId || (list[idx] && list[idx].id) || getOshi();
       list = C().MEMBERS.filter(m => filter === 'all' || m.team === filter);
+      list.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));   // A to Z by nickname (ALL = every team mixed)
       car.innerHTML = '';
       const frag = document.createDocumentFragment();
       list.forEach((m, i) => {
@@ -540,9 +544,13 @@
   }
 
   // show the bar only while the song-select page is on screen
-  let sqOn = false;
+  let sqOn = false, menuWasShown = false;
   function syncSquad() {
     const menu = $('menu-screen');
+    // the song select menu just opened (title, back from a song, ...): shuffle which equal-tier cards make the squad
+    const shown = !!menu && menu.style.display !== 'none';
+    if (shown && !menuWasShown) { rerollSquad(); sqCache.clear(); sqSig = ''; }
+    menuWasShown = shown;
     let on = false;
     if (menu && !openName && !document.querySelector('.oshi-pick')) {
       const cs = getComputedStyle(menu);
@@ -788,6 +796,23 @@
     el.appendChild(h('div', 'eq-label', 'EQUIPPED CARDS <b>+' + (bonus || 0) + '%</b>'));
     el.appendChild(row);
   }
+  // the run's CENTER card, big, for the result card (saved = { cards } of a stored high-score run); empty when no center was picked
+  function fillCenter(el, saved) {
+    if (!el) return;
+    el.textContent = '';
+    let id = null, ti = -1;
+    if (saved) {
+      const c = (saved.cards || []).find(x => x.center);
+      if (c) { id = c.id; ti = c.tier; }
+    } else if (run && run.center) { id = run.center; }
+    if (!id || !window.Cards) return;
+    try {
+      const card = mkCard(id, ti >= 0 ? ti : bestT(id));
+      card.style.pointerEvents = 'none';
+      el.appendChild(card);
+      el.appendChild(h('b', 'eq-center rl-center-tag', '\u2605 CENTER'));
+    } catch (e) { /* unknown card id: leave the slot empty */ }
+  }
   // called on every PERFECT: the centre card bounces (the side cards just a little)
   function pulse() {
     if (!hud || !cheer) return;
@@ -818,7 +843,7 @@
 
   window.Shop = {
     open: openShop, openLineup, setSong, songTeam, renderSquad, hide, openPack, packStatus, cooldownLeft,
-    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, slotCount, renderBest, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom,
+    getOshi, setOshi, pickOshi, tierBonus, pityA, noteResult, calc, autoLineup, slotCount, renderBest, beginRun, getRun, hideHud, pulse, setCheerPaused, fillStrips, fillStripFrom, fillCenter,
     onChange(fn) { listeners.push(fn); },
     TIER_BONUS, CENTER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
     isOpen: () => !!openName,

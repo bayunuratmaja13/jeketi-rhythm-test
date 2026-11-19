@@ -30,6 +30,9 @@
     { id: 'Passion', color: '#e8541e', back: 'images/cards/passion_back.webp',
       members: ['Aralie', 'Christy', 'Erine', 'Oniel', 'Danella', 'Daisy', 'Feni', 'Jessi', 'Kathrina', 'Lulu', 'Levi', 'Muthe', 'Raisha', 'Ribka', 'Kimmy'] },
   ];
+  // every list shows members A to Z by nickname (the name used here), not by full name
+  const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' });
+  TEAMS.forEach(T => T.members.sort(byName));
   const MEMBERS = TEAMS.flatMap(T => T.members.map(name => {
     const id = name.toLowerCase();
     return { id, name, team: T.id, color: T.color, front: `images/cards/${id}.webp`, back: T.back };

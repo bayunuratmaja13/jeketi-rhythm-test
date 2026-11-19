@@ -949,10 +949,13 @@ results.innerHTML = `
       <div class="results-left">
         <div class="record-badge" id="final-record">NEW RECORD!</div>
         <div class="rl-mid">
-          <div class="results-cover" id="final-cover"></div>
+          <div class="rl-cover-wrap">
+            <div class="results-cover" id="final-cover"></div>
+            <div class="grade-stamp" id="final-grade"></div>
+          </div>
           <div class="results-song" id="final-song"></div>
           <div class="rl-grade-row">
-            <div class="grade-stamp" id="final-grade"></div>
+            <div class="rl-center" id="final-center"></div>
             <div class="rl-points" id="final-points"></div>
           </div>
         </div>
@@ -998,6 +1001,15 @@ const finalCoverEl = document.getElementById('final-cover');
 const finalGradeEl = document.getElementById('final-grade');
 const finalBannerEl = document.getElementById('final-banner');
 const finalRecordEl = document.getElementById('final-record');
+const finalCenterEl = document.getElementById('final-center');
+// the CENTER card of the run goes where the grade stamp used to be (saved = center from a stored high-score run)
+function fillResultCenter(saved) {
+  if (!finalCenterEl) return;
+  finalCenterEl.textContent = '';
+  try {
+    if (window.Shop && Shop.fillCenter) Shop.fillCenter(finalCenterEl, saved);
+  } catch (e) { /* never block the results screen */ }
+}
 const finalPointsEl = document.getElementById('final-points');
 const judgeNumEls = {
   PERFECT: document.getElementById('jc-perfect'),
@@ -1127,6 +1139,7 @@ function showResults() {
   results.classList.remove('show');
   void results.offsetWidth;
   if (window.Shop) Shop.fillStrips();
+  fillResultCenter(null);
   results.classList.add('show');
 
   afterMs(400, () => {
@@ -4004,6 +4017,7 @@ function openHighScoreView(song) {
   finalRecordEl.classList.remove('show');
   finalPointsEl.innerHTML = '';
   finalPointsEl.classList.remove('show');
+  fillResultCenter({ cards: r.cards || [] });
   results.classList.remove('show');
   void results.offsetWidth;
   results.classList.add('show');
