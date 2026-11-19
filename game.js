@@ -580,6 +580,7 @@ function buildMenu() {
     `;
 
     card._song = song;
+    card._idx = i;                                          // original position, used by SORT BY DEFAULT
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-play-btn')) return;
@@ -663,6 +664,7 @@ function centerCard(card, smooth) {
 // Card positions are measured once and cached (re-measured only when the grid is resized or rebuilt), so scrolling does
 // pure arithmetic: no layout reads, and only the few cards near the middle are touched. Cost no longer grows with song count.
 let focusGeo = null, focusActive = [];
+let lastTickCard = null, carouselDown = false;                       // lastTickCard: card nearest the middle (for the haptic tick), carouselDown: a finger is on the carousel
 const invalidateFocusGeo = () => { focusGeo = null; };
 if ('ResizeObserver' in window) new ResizeObserver(() => { invalidateFocusGeo(); if (songGrid.clientWidth) updateCarouselFocus(); }).observe(songGrid);
 if ('MutationObserver' in window) new MutationObserver(invalidateFocusGeo).observe(songGrid, { childList: true });
@@ -682,11 +684,11 @@ function updateCarouselFocus() {
   if (lo > 0 && mid - g.mid[lo - 1] <= g.mid[lo] - mid) lo--;
   const next = [];
   for (let i = Math.max(0, lo - 2); i <= Math.min(n - 1, lo + 2); i++) {
-    const c = g.cards[i], f = Math.max(0, 1 - Math.abs(g.mid[i] - mid) / (g.w[i] * 1.15)).toFixed(3);
+    const c = g.cards[i], f = Math.max(0, 1 - Math.abs(g.mid[i] - mid) / (g.w[i] * 1.15)).toFixed(2);   // 2 decimals is invisible but means far fewer style writes while scrolling
     if (c._f !== f) { c._f = f; c.style.setProperty('--f', f); }
     next.push(c);
   }
-  for (const c of focusActive) if (next.indexOf(c) < 0 && c._f !== '0.000') { c._f = '0.000'; c.style.setProperty('--f', '0.000'); }
+  for (const c of focusActive) if (next.indexOf(c) < 0 && c._f !== '0.00') { c._f = '0.00'; c.style.setProperty('--f', '0.00'); }
   focusActive = next;
   return g.cards[lo];
 }
@@ -702,6 +704,7 @@ function markScrolling() {
 
 function settleCarousel() {
   if (wheelBrowsing) return;                              // PC wheel: the song is picked when the wheel stops (finishWheelBrowse)
+  if (carouselDown) return;                               // finger still on the screen: wait until it lifts (touchend re-arms this)
   const near = updateCarouselFocus();
   if (near && near !== selectedCardEl && near._song) selectCard(near, near._song);
 }
@@ -720,6 +723,7 @@ function stepCarousel(dir) {
 function initCarousel() {
   const cards = carouselCards();
   if (!cards.length) return;
+  lastTickCard = null;
   // wait for layout (the screen was just un-hidden)
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (menuScreen.style.display === 'none') return;
@@ -730,13 +734,58 @@ function initCarousel() {
   }));
 }
 
+// ---------- SORT BUTTON (next to OPTION) ----------
+// SORT BY TITLE <-> SORT BY DEFAULT. Only re-orders the existing cards (listeners, selection and preview stay as they are).
+let sortByTitle = false;
+(function addSortButton() {
+  const optBtn = document.getElementById('option-btn');
+  if (!optBtn) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'sort-btn';
+  btn.className = 'gif-btn';
+  btn.innerHTML = '<span class="back-pill sort-pill"><span>SORT BY</span><span class="sort-word">TITLE</span></span>';
+  optBtn.insertAdjacentElement('afterend', btn);
+  const label = btn.querySelector('.sort-word');            // second line: TITLE <-> DEFAULT
+  const titleOf = (c) => String((c._song && (c._song.title || c._song.id)) || '');
+
+  btn.addEventListener('click', () => {
+    sortByTitle = !sortByTitle;
+    label.textContent = sortByTitle ? 'DEFAULT' : 'TITLE';
+    const cards = carouselCards();
+    cards.sort(sortByTitle
+      ? (a, b) => titleOf(a).localeCompare(titleOf(b), undefined, { sensitivity: 'base', numeric: true }) || a._idx - b._idx
+      : (a, b) => a._idx - b._idx);
+    const frag = document.createDocumentFragment();
+    cards.forEach(c => frag.appendChild(c));
+    songGrid.appendChild(frag);
+    invalidateFocusGeo();
+    lastTickCard = null;
+    const keep = selectedCardEl || cards[0];                // keep the current song in the middle
+    if (keep) centerCard(keep, false);
+    updateCarouselFocus();
+  });
+})();
+
 songGrid.addEventListener('pointerdown', markScrolling, { passive: true });
+// The scroll event fires right before the frame is drawn, and updateCarouselFocus is pure arithmetic on ~5 cards, so it runs
+// straight in the handler. (It used to wait for a requestAnimationFrame, which made the cards' size / fade trail the scroll by a frame.)
 songGrid.addEventListener('scroll', () => {
   markScrolling();
-  if (!carouselRaf) carouselRaf = requestAnimationFrame(() => { carouselRaf = 0; updateCarouselFocus(); });
+  const near = updateCarouselFocus();
+  if (near && near !== lastTickCard) {                    // a card passed the middle: tiny haptic tick, like a detent (throttled inside buzz, respects the Vibration option)
+    if (lastTickCard) buzz(6);
+    lastTickCard = near;
+  }
   clearTimeout(carouselSettle);
   carouselSettle = setTimeout(settleCarousel, 110);
 }, { passive: true });
+
+// don't pick a song (sound, preview, squad bar) while a finger is still dragging; do it once the finger lifts and the carousel has stopped
+songGrid.addEventListener('touchstart', () => { carouselDown = true; }, { passive: true });
+const carouselLift = () => { carouselDown = false; clearTimeout(carouselSettle); carouselSettle = setTimeout(settleCarousel, 110); };
+songGrid.addEventListener('touchend', carouselLift, { passive: true });
+songGrid.addEventListener('touchcancel', carouselLift, { passive: true });
 
 // mouse wheel / touchpad.
 //  - PC browsers: the carousel glides smoothly under the wheel and songs only "hover" (focus effect) while it moves;
@@ -3877,7 +3926,7 @@ function playEmptyTap(lane) {      // tapping a lane with no note: a quiet, lane
 const UI_MAP = [
   ['#play-btn', 'start'],
   ['#back-to-main-btn, #cards-back-btn, .sh-back, .dy-back, #btn-back, #btn-go-back, .opt-done', 'back'],
-  ['#option-btn, .opt-toggle', 'chip'],
+  ['#option-btn, #sort-btn, .opt-toggle', 'chip'],
   ['#daily-btn', 'daily'],
   ['.dy-checkin-btn', 'checkin'],
   ['.dy-claim, .dy-bonus-btn', 'coin'],
