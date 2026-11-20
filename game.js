@@ -139,10 +139,13 @@ const btnGoBack = document.getElementById('btn-go-back');
 
 // ---------- CONSTANTS ----------
 // NOTE SPEED: how long a note takes to travel from the top of the track to the hit line.
-// Player-facing speed 2.0 .. 10.0 (Option card). approach ms = 10000 / speed, so 5.0 = 2000 ms = the old fixed speed.
+// Player-facing speed 0 .. 10 in 0.5 steps (Option card). 0 = the slowest a note can fall (5000 ms, the old "2"),
+// 5 = the old maximum (1000 ms), 10 = even faster (about 556 ms). Each step is +1.6 on the old scale: old = 2 + 1.6 * speed.
 // Hit windows and score do NOT depend on it: it only changes how early you can see a note.
-const SPEED_MIN = 2, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 5;
-const approachFor = (speed) => Math.round(10000 / speed);
+const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 4;      // 4 = default for everyone (old scale 8.4, about 1190 ms)
+const SPEED_RESET_VER = 1;                                                      // bump this number to force every player back to SPEED_DEFAULT once
+const SPEED_SCALE = 2;                                                          // saved-options version of the scale (older saves used 2..10)
+const approachFor = (speed) => Math.round(10000 / (2 + 1.6 * speed));
 let APPROACH_TIME = approachFor(SPEED_DEFAULT);
 const HIT_WINDOWS = { PERFECT: 40, GREAT: 80, GOOD: 130, BAD: 200 };
 const MAX_WINDOW = HIT_WINDOWS.BAD;
@@ -260,10 +263,14 @@ try {
   if (typeof o.sfx === 'number') OPT.sfx = Math.max(0, Math.min(1, o.sfx));
   if (typeof o.vib === 'boolean') OPT.vib = o.vib;
   if (typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
-  if (typeof o.speed === 'number' && isFinite(o.speed)) OPT.speed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(o.speed / SPEED_STEP) * SPEED_STEP));
+  // players saved before the reset version start at the new default (4); after that their own choice is kept
+  if (o.speedReset === SPEED_RESET_VER && typeof o.speed === 'number' && isFinite(o.speed)) {
+    const sp = o.speedScale === SPEED_SCALE ? o.speed : (o.speed - 2) / 1.6;     // an older save used the 2..10 scale: convert it so the speed feels the same
+    OPT.speed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(sp / SPEED_STEP) * SPEED_STEP));
+  }
 } catch (e) { /* storage blocked or damaged: defaults */ }
 APPROACH_TIME = approachFor(OPT.speed);                      // apply the saved Note Speed
-function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) { /* storage blocked */ } }
+function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER }, OPT))); } catch (e) { /* storage blocked */ } }
 
 // THREE looks:
 //   GRAPHICS OFF (default) = the light look: no beat glow / beams / shake, few particles, 1x playfield.
@@ -4665,7 +4672,7 @@ optionEl.innerHTML = `
       <div class="osd-note n1"></div>
       <div class="osd-note n2"></div>
     </div>
-    <div class="opt-hint opt-speed-hint">Higher = notes fall faster. Only changes how it looks: timing and score stay the same.</div>
+    <div class="opt-hint opt-speed-hint">Higher = notes fall faster (timing stays the same).</div>
     <div class="opt-row" id="opt-vib-row">
       <span class="opt-label">Vibration</span>
       <button type="button" class="opt-toggle" id="opt-vib" role="switch"></button>
