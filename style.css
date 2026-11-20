@@ -1009,6 +1009,8 @@ body[data-tier="4"] #score {
   height: auto;
   object-fit: contain;
   display: block;
+  position: relative;
+  top: -30px;
   animation: title-bounce 3s ease-in-out infinite;
 }
 @keyframes title-bounce {
@@ -1021,7 +1023,7 @@ body[data-tier="4"] #score {
   z-index: 10;
 }
 #play-btn .btn-gif {
-  height: 180px !important;
+  height: 72px !important;
   width: auto !important;
   flex-shrink: 0 !important;
   display: block;
@@ -1266,7 +1268,7 @@ body[data-tier="4"] #score {
   .desk-paper { padding: 30px 16px 60px; max-width: 90vw; }
   #title-gif { max-width: 85vw !important; }
   #play-btn { margin-top: -30px; }
-  #play-btn .btn-gif { height: 140px !important; }
+  #play-btn .btn-gif { height: 56px !important; }
   #pick-song-gif { max-width: 65vw !important; margin-top: -6px; }
 
   #song-grid { padding: 20px 16px 30px; gap: 16px; }
@@ -1359,13 +1361,14 @@ body[data-tier="4"] #score {
     max-width: 50vw !important;
     max-height: 55vh !important;
     height: auto;
+    top: 0;
   }
   #play-btn {
     margin-top: 0;
     position: relative;
     z-index: 10;
   }
-  #play-btn .btn-gif { height: 130px !important; }
+  #play-btn .btn-gif { height: 52px !important; }
   .pin-tl, .pin-tr { display: none; }
   .credit { bottom: 6px; font-size: 10px; }
 
