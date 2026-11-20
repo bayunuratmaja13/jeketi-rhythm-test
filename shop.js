@@ -41,6 +41,8 @@
   // how many card slots a song shows: every member the song lists (its `only` list plus its `guest`), max MAX_LINEUP.
   // Songs with no `only` list keep the full MAX_LINEUP slots. Nothing extra to set per song.
   function slotCount(song) {
+    const fixed = song && Math.floor(Number(song.slots));          // optional `slots: 4` in songs.js caps the lineup (works with or without `only`)
+    if (fixed > 0) return Math.min(MAX_LINEUP, fixed);
     const only = songOnly(song);
     if (!only) return MAX_LINEUP;
     const ids = new Set(only);
@@ -81,6 +83,7 @@
     bernadya: { id: 'bernadya', name: 'Bernadya', team: 'Special', color: '#ff6ad5', front: 'images/cards/bernadya.webp', back: 'images/cards/love_back.webp', guest: true },
     tasya: { id: 'tasya', name: 'Tasya', caption: 'Tasya Tety', team: 'Special', color: '#ff6ad5', front: 'images/cards/tasya.webp', back: 'images/cards/love_back.webp', guest: true },
     pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
+    shani: { id: 'shani', name: 'Shani', caption: 'Kak Ci Shani', team: 'Special', color: '#ff6ad5', front: 'images/cards/shani.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
@@ -159,8 +162,11 @@
     }
     return set;
   }
+  // Songs with fewer slots than MAX_LINEUP scale their per-card bonuses by MAX_LINEUP / slots, so a full set of equal-tier cards
+  // gives the same total bonus on a 2-slot song as on a 12-slot song (every song can reach S with the same difficulty).
   function calc(ids, song, centerId) {
     const oshi = getOshi(), set = songSet(song);
+    const slots = Math.max(1, slotCount(song)), f = MAX_LINEUP / slots;
     let cards = 0, oshiExtra = 0, match = 0;
     const teams = {};
     ids.forEach(id => {
@@ -175,9 +181,11 @@
     });
     let teamId = null, teamN = 0;
     Object.keys(teams).forEach(k => { if (teams[k] > teamN) { teamN = teams[k]; teamId = k; } });
-    const teamPct = teamN >= 5 ? TEAM_BONUS[5] : (TEAM_BONUS[teamN] || 0);
+    const teamEq = (slots < MAX_LINEUP && teamN >= 2) ? teamN * f : (slots < MAX_LINEUP ? 0 : teamN);   // team size measured against a 12-card lineup (needs 2+ real cards)
+    const teamPct = teamEq >= 5 ? TEAM_BONUS[5] : (TEAM_BONUS[Math.floor(teamEq)] || 0);
     const r = (v) => Math.round(v * 10) / 10;
     const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (CENTER_BONUS[bestT(centerId)] || 0) : 0;   // CENTER: stacks with the oshi bonus
+    cards *= f; oshiExtra *= f; match *= f;
     const total = cards + oshiExtra + match + teamPct + ctr;
     return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, center: r(ctr), total: r(total) };
   }
@@ -519,7 +527,8 @@
     }
     sqBar.style.setProperty('--sq-n', slots);       // how many cells the bar holds, so the CSS can centre them on the whole screen
     const tmName = tm ? tm.toUpperCase() : '';
-    const capHTML = 'HIGHEST CARDS EQUIPPED' + (on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>');
+    const duet = !!(curSong && curSong.duet) && gn.length > 0;
+    const capHTML = 'HIGHEST CARDS EQUIPPED' + (duet ? ' <em>· DUET WITH ' + esc(gn.join(' & ')) + '</em>' : on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>');
     const tagHTML = ids.length ? 'TEAM <b>+' + bo.total + '%</b> <small>' + ids.length + '/' + slots + '</small>' : (on ? 'NO CARDS OF THE CHOSEN MEMBERS YET · OPEN A PACK IN THE SHOP' : tm ? 'NO ' + esc(tmName) + ' CARDS YET · OPEN A PACK IN THE SHOP' : 'NO CARDS YET · OPEN A PACK IN THE SHOP');
     if (capHTML !== sqCapHTML) { sqCapHTML = capHTML; sqCap.innerHTML = capHTML; }
     if (tagHTML !== sqTagHTML) { sqTagHTML = tagHTML; sqTag.innerHTML = tagHTML; }

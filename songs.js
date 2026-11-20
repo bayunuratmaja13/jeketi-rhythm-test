@@ -6,11 +6,20 @@ console.log('songs.js loaded');
 //   previewStart: second where the song-select preview starts (default 15)
 //   preview:      set to false to disable the preview for that song
 //   volume:       music loudness for this song (default 1; 1.2 = 20% louder; above 1 uses a gain node)
-//   fx:           gameplay effect that replaces the sakura petals: 'moon' or 'sparkler' (registered in SONG_FX in game.js)
-//   theme:        'crimson' | 'white' -> petals, lights, hit effects, track and atmosphere turn crimson red (notes change only from 100 combo; see THEMES in game.js)
+//   fx:           gameplay effect that replaces the sakura petals: 'moon', 'sparkler' or 'lightning' (registered in SONG_FX in game.js)
+//   theme:        'crimson' | 'white' | 'popfight' -> petals, lights, hit effects, track and atmosphere turn crimson red (notes change only from 100 combo; see THEMES in game.js)
 //   petalText:    a word that flies around like the sakura petals, instead of petals (e.g. 'oaoeeee')
 //   team:         'dream' | 'love' | 'passion' -> only that team's cards are equipped
 //                 (leave it out, or use null, to allow every member's cards)
+//   petalFruit:   true -> fruits fly around instead of petals; glow from 50 combo, all turn into avocados at 100, avocados glow from 200
+//   petalChoco:   true -> chocolate bars fly around instead of petals; no colour change, just more of them from 100 and 200 combo
+//   petalNotes:   true -> musical notes fly around instead of petals, with the same colour changes as the petals
+//   petalSpell:   true -> orange wand-spell sparkles twinkle in the background instead of petals, more at 100 and 200 combo (Magic Hour)
+//   coldMist:     true -> from 100 combo the stage turns subtly cold (Magic Hour)
+//   petalIndo:    true -> the Indonesian flag and a skull emoji fly around instead of petals (no colour change; glow from 100 combo, more from 200)
+//   mascot:       'grasshopper' -> a giant grasshopper waves its arms in the top right corner of the screen
+//   slots:        how many cards are equipped for this song (1-12, default 12). The highest-tier owned cards fill them.
+//   duet:         true -> the equipped card bar says "DUET WITH <guest>" instead of "ALL MEMBERS WITH <guest>"
 window.SONGS = [
   {
     id: 'ayo_senyumlah',
@@ -104,6 +113,7 @@ window.SONGS = [
     title: 'GO AND FIGHT!',
     artist: 'JKT48',
     team: null,
+    theme: 'popfight',
     only: ['michie', 'lia', 'lana', 'elin', 'fritzy', 'ella', 'gracie', 'greesel', 'lyn', 'christy', 'fiony', 'freya'],
     audio: 'music/go_and_fight.ogg',
     chart: 'charts/go_and_fight.js',
@@ -158,8 +168,10 @@ window.SONGS = [
     only: ['marsha', 'christy', 'feni', 'fiony', 'freya', 'gita', 'jessi', 'kathrina', 'muthe'],
     audio: 'music/magic_hour.ogg',
     chart: 'charts/magic_hour.js',
+    petalSpell: true,    // orange sparkles twinkle in the background instead of petals
+    coldMist: true,      // 100 combo: subtle cold atmosphere (200 combo: a little colder)
     cover: 'images/magic_hour.webp',
-    volume: 1.8
+    volume: 2
   },
     {
     id: 'langit_biru_cinta_searah',
@@ -335,6 +347,15 @@ window.SONGS = [
     cover: 'images/cara_ceroboh_untuk_mencinta.webp'
   },
     {
+    id: 'cara_meminum_ramune',
+    title: 'Cara Meminum Ramune',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/cara_meminum_ramune.ogg',
+    chart: 'charts/cara_meminum_ramune.js',
+    cover: 'images/ramune.webp'
+  },
+    {
     id: 'balerina_dalam_sepi',
     title: 'Balerina dalam Sepi',
     artist: 'JKT48',
@@ -344,5 +365,163 @@ window.SONGS = [
     audio: 'music/balerina_dalam_sepi.ogg',
     chart: 'charts/balerina_dalam_sepi.js',
     cover: 'images/ramune.webp'
+  },
+    {
+    id: 'burung_unta_si_pembohong',
+    title: 'Burung Unta si Pembohong',
+    artist: 'JKT48',
+    team: null,
+    slots: 4,
+    audio: 'music/burung_unta_si_pembohong.ogg',
+    chart: 'charts/burung_unta_si_pembohong.js',
+    cover: 'images/ramune.webp'
+  },
+    {
+    id: 'finland_miracle',
+    title: 'Finland Miracle',
+    artist: 'JKT48',
+    team: null,
+    slots: 3,
+    audio: 'music/finland_miracle.ogg',
+    chart: 'charts/finland_miracle.js',
+    cover: 'images/ramune.webp'
+  },
+  {
+    id: 'rapsodi',
+    title: 'Rapsodi',
+    artist: 'JKT48',
+    team: null,
+    guest: 'shani',
+    theme: 'white',
+    audio: 'music/rapsodi.ogg',
+    chart: 'charts/rapsodi.js',
+    cover: 'images/rapsodi.webp'
+  },
+    {
+    id: 'menanti',
+    title: 'Menanti',
+    artist: 'JKT48',
+    team: null,
+    slots: 2,
+    duet: true,
+    guest: 'shani',
+    audio: 'music/menanti.ogg',
+    chart: 'charts/menanti.js',
+    cover: 'images/rapsodi.webp'
+  },
+    {
+    id: 'sweet___bitter',
+    title: 'Sweet & Bitter',
+    artist: 'JKT48',
+    team: null,
+    petalChoco: true,
+    audio: 'music/sweet_&_bitter.ogg',
+    chart: 'charts/sweet___bitter.js',
+    cover: 'images/rapsodi.webp'
+  },
+    {
+    id: 'relax',
+    title: 'Relax!',
+    artist: 'JKT48',
+    team: null,
+    slots: 3,
+    audio: 'music/relax.ogg',
+    chart: 'charts/relax.js',
+    cover: 'images/relax.webp'
+  },
+    {
+    id: 'bukan_alpukat',
+    title: 'Bukan Alpukat...',
+    artist: 'JKT48',
+    team: null,
+    slots: 2,
+    petalFruit: true,
+    audio: 'music/bukan_alpukat.ogg',
+    chart: 'charts/bukan_alpukat.js',
+    cover: 'images/relax.webp'
+  },
+   {
+    id: 'fajar_sang_idola',
+    title: 'Fajar Sang Idola',
+    artist: 'JKT48',
+    team: null,
+    petalNotes: true,
+    audio: 'music/fajar_sang_idola.ogg',
+    chart: 'charts/fajar_sang_idola.js',
+    cover: 'images/fajar_sang_idola.webp'
+  },
+    {
+    id: 'bersama_sama_semuanya',
+    title: 'Bersama-sama Semuanya',
+    artist: 'JKT48',
+    team: null,
+    petalIndo: true,
+    audio: 'music/bersama_sama_semuanya.ogg',
+    chart: 'charts/bersama_sama_semuanya.js',
+    cover: 'images/fajar_sang_idola.webp'
+  },
+    {
+    id: 'sobakasu_no_kiss',
+    title: 'Sobakasu no Kiss',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/sobakasu_no_kiss.ogg',
+    chart: 'charts/sobakasu_no_kiss.js',
+    cover: 'images/fajar_sang_idola.webp'
+  },
+    {
+    id: 'high_tension',
+    title: 'High Tension',
+    artist: 'JKT48',
+    team: null,
+    fx: 'lightning',
+    audio: 'music/high_tension.ogg',
+    chart: 'charts/high_tension.js',
+    cover: 'images/high_tension.webp'
+  },
+    {
+    id: 'kenyataan_yang_ternoda',
+    title: 'Kenyataan yang Ternoda',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/kenyataan_yang_ternoda.ogg',
+    chart: 'charts/kenyataan_yang_ternoda.js',
+    cover: 'images/high_tension.webp'
+  },
+  {
+    id: 'after_rain',
+    title: 'After Rain',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/after_rain.ogg',
+    chart: 'charts/after_rain.js',
+    cover: 'images/high_tension.webp'
+  },
+    {
+    id: 'musim_yang_selanjutnya',
+    title: 'Musim yang Selanjutnya',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/musim_yang_selanjutnya.ogg',
+    chart: 'charts/musim_yang_selanjutnya.js',
+    cover: 'images/high_tension.webp'
+  },
+    {
+    id: 'everyday_kachuusha',
+    title: 'Everyday, Kachuusha',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/everyday_kachuusha.ogg',
+    chart: 'charts/everyday_kachuusha.js',
+    cover: 'images/kachuusha.webp'
+  },
+    {
+    id: 'seesaw_game_penuh_air_mata',
+    title: 'Seesaw Game Penuh Air Mata',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/seesaw_game_penuh_air_mata.ogg',
+    chart: 'charts/seesaw_game_penuh_air_mata.js',
+    cover: 'images/kachuusha.webp'
   }
 ];
