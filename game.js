@@ -142,8 +142,10 @@ const btnGoBack = document.getElementById('btn-go-back');
 // Player-facing speed 0 .. 10 in 0.5 steps (Option card). 0 = the slowest a note can fall (5000 ms, the old "2"),
 // 5 = the old maximum (1000 ms), 10 = even faster (about 556 ms). Each step is +1.6 on the old scale: old = 2 + 1.6 * speed.
 // Hit windows and score do NOT depend on it: it only changes how early you can see a note.
-const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 4;      // 4 = default for everyone (old scale 8.4, about 1190 ms)
+const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 3;      // 4 = default for everyone (old scale 8.4, about 1190 ms)
 const SPEED_RESET_VER = 1;                                                      // bump this number to force every player back to SPEED_DEFAULT once
+const GFX_RESET_VER = 1;                                                        // bump this number to force every player's Graphics option back to ON (GFX_DEFAULT) once
+const GFX_DEFAULT = true;                                                       // Graphics is ON by default for everyone
 const SPEED_SCALE = 2;                                                          // saved-options version of the scale (older saves used 2..10)
 const approachFor = (speed) => Math.round(10000 / (2 + 1.6 * speed));
 let APPROACH_TIME = approachFor(SPEED_DEFAULT);
@@ -256,13 +258,14 @@ let spikeUntil = 0;                   // after a sudden long frame (phone notifi
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
 // ---------- PLAYER OPTIONS (saved on the device) ----------
 const OPT_KEY = 'jeketi.options';
-const OPT = { music: 1, sfx: 1, vib: true, gfx: false, speed: SPEED_DEFAULT };      // gfx: OFF by default
+const OPT = { music: 1, sfx: 1, vib: true, gfx: GFX_DEFAULT, speed: SPEED_DEFAULT };      // gfx: ON by default
 try {
   const o = JSON.parse(localStorage.getItem(OPT_KEY) || '{}');
   if (typeof o.music === 'number') OPT.music = Math.max(0, Math.min(1, o.music));
   if (typeof o.sfx === 'number') OPT.sfx = Math.max(0, Math.min(1, o.sfx));
   if (typeof o.vib === 'boolean') OPT.vib = o.vib;
-  if (typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
+  // players saved before the reset version start with Graphics ON; after that their own choice is kept
+  if (o.gfxReset === GFX_RESET_VER && typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
   // players saved before the reset version start at the new default (4); after that their own choice is kept
   if (o.speedReset === SPEED_RESET_VER && typeof o.speed === 'number' && isFinite(o.speed)) {
     const sp = o.speedScale === SPEED_SCALE ? o.speed : (o.speed - 2) / 1.6;     // an older save used the 2..10 scale: convert it so the speed feels the same
@@ -270,11 +273,11 @@ try {
   }
 } catch (e) { /* storage blocked or damaged: defaults */ }
 APPROACH_TIME = approachFor(OPT.speed);                      // apply the saved Note Speed
-function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER }, OPT))); } catch (e) { /* storage blocked */ } }
+function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER, gfxReset: GFX_RESET_VER }, OPT))); } catch (e) { /* storage blocked */ } }
 
 // THREE looks:
-//   GRAPHICS OFF (default) = the light look: no beat glow / beams / shake, few particles, 1x playfield.
-//   GRAPHICS ON            = the full look the game had before the light pass (beat glow, beams, shake, full particles, sharper playfield).
+//   GRAPHICS OFF           = the light look: no beat glow / beams / shake, few particles, 1x playfield.
+//   GRAPHICS ON (default)  = the full look the game had before the light pass (beat glow, beams, shake, full particles, sharper playfield).
 //   LITE                   = even lighter, adaptive, ALWAYS available whatever the graphics option says (kicks in when the frame rate
 //                            drops, or right after a long frame): no particles / rings / hit-flash / tier glow, no petals,
 //                            flat hold bodies, slower ambience, playfield below 1x.
