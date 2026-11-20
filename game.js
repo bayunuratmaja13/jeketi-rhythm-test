@@ -138,7 +138,12 @@ const btnGoPlayAgain = document.getElementById('btn-go-play-again');
 const btnGoBack = document.getElementById('btn-go-back');
 
 // ---------- CONSTANTS ----------
-const APPROACH_TIME = 2000;
+// NOTE SPEED: how long a note takes to travel from the top of the track to the hit line.
+// Player-facing speed 2.0 .. 10.0 (Option card). approach ms = 10000 / speed, so 5.0 = 2000 ms = the old fixed speed.
+// Hit windows and score do NOT depend on it: it only changes how early you can see a note.
+const SPEED_MIN = 2, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 5;
+const approachFor = (speed) => Math.round(10000 / speed);
+let APPROACH_TIME = approachFor(SPEED_DEFAULT);
 const HIT_WINDOWS = { PERFECT: 40, GREAT: 80, GOOD: 130, BAD: 200 };
 const MAX_WINDOW = HIT_WINDOWS.BAD;
 const KEY_TO_LANE = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
@@ -248,14 +253,16 @@ let spikeUntil = 0;                   // after a sudden long frame (phone notifi
 const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
 // ---------- PLAYER OPTIONS (saved on the device) ----------
 const OPT_KEY = 'jeketi.options';
-const OPT = { music: 1, sfx: 1, vib: true, gfx: false };      // gfx: OFF by default
+const OPT = { music: 1, sfx: 1, vib: true, gfx: false, speed: SPEED_DEFAULT };      // gfx: OFF by default
 try {
   const o = JSON.parse(localStorage.getItem(OPT_KEY) || '{}');
   if (typeof o.music === 'number') OPT.music = Math.max(0, Math.min(1, o.music));
   if (typeof o.sfx === 'number') OPT.sfx = Math.max(0, Math.min(1, o.sfx));
   if (typeof o.vib === 'boolean') OPT.vib = o.vib;
   if (typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
+  if (typeof o.speed === 'number' && isFinite(o.speed)) OPT.speed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(o.speed / SPEED_STEP) * SPEED_STEP));
 } catch (e) { /* storage blocked or damaged: defaults */ }
+APPROACH_TIME = approachFor(OPT.speed);                      // apply the saved Note Speed
 function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) { /* storage blocked */ } }
 
 // THREE looks:
@@ -4647,6 +4654,18 @@ optionEl.innerHTML = `
       <input id="opt-sfx" type="range" min="0" max="100" step="5">
       <output class="opt-val" id="opt-sfx-v"></output>
     </div>
+    <div class="opt-row">
+      <label class="opt-label" for="opt-speed">Note Speed</label>
+      <input id="opt-speed" type="range" min="${SPEED_MIN}" max="${SPEED_MAX}" step="${SPEED_STEP}">
+      <output class="opt-val" id="opt-speed-v"></output>
+    </div>
+    <div class="opt-speed-demo" id="opt-speed-demo" aria-hidden="true">
+      <div class="osd-lanes"><i></i><i></i><i></i></div>
+      <div class="osd-line"></div>
+      <div class="osd-note n1"></div>
+      <div class="osd-note n2"></div>
+    </div>
+    <div class="opt-hint opt-speed-hint">Higher = notes fall faster. Only changes how it looks: timing and score stay the same.</div>
     <div class="opt-row" id="opt-vib-row">
       <span class="opt-label">Vibration</span>
       <button type="button" class="opt-toggle" id="opt-vib" role="switch"></button>
@@ -4662,20 +4681,47 @@ document.body.appendChild(optionEl);
 const optMusic = optionEl.querySelector('#opt-music'), optMusicV = optionEl.querySelector('#opt-music-v');
 const optSfx = optionEl.querySelector('#opt-sfx'), optSfxV = optionEl.querySelector('#opt-sfx-v');
 const optVib = optionEl.querySelector('#opt-vib'), optGfx = optionEl.querySelector('#opt-gfx');
+const optSpeed = optionEl.querySelector('#opt-speed'), optSpeedV = optionEl.querySelector('#opt-speed-v');
+const speedDemo = optionEl.querySelector('#opt-speed-demo'), speedDemoNotes = speedDemo.querySelectorAll('.osd-note');
+let speedAnims = [];
+
+// Live preview: two notes fall in a mini track using the SAME perspective formula as the real playfield (timeToScale),
+// and take exactly as long as a real note would (approachFor). Runs only while the Option card is open (Web Animations, no per-frame JS).
+function stopSpeedDemo() { speedAnims.forEach(a => a.cancel()); speedAnims = []; }
+function startSpeedDemo() {
+  stopSpeedDemo();
+  if (reduceMotion || !speedDemoNotes[0] || !speedDemoNotes[0].animate) return;
+  const H = speedDemo.clientHeight;
+  if (!H) return;
+  const hitY = H - 12;                                   // the hit line sits 12px above the bottom (see CSS .osd-line)
+  const ms = approachFor(OPT.speed), frames = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12, sc = timeToScale(t);
+    frames.push({
+      transform: 'translateY(' + (((sc - S_FAR) / (1 - S_FAR)) * hitY).toFixed(1) + 'px) scale(' + sc.toFixed(3) + ')',
+      opacity: Math.min(1, t / 0.12),                    // same fade-in as the real notes
+    });
+  }
+  speedDemoNotes.forEach((el, k) => {
+    speedAnims.push(el.animate(frames, { duration: ms, iterations: Infinity, delay: -k * ms / 2 }));   // 2nd note starts half a trip later
+  });
+}
 optionEl.querySelector('#opt-vib-row').style.display = navigator.vibrate ? '' : 'none';   // no vibration motor (computers): no switch
 
 function syncOptions() {
   optMusic.value = Math.round(OPT.music * 100); optMusicV.textContent = Math.round(OPT.music * 100) + '%';
   optSfx.value = Math.round(OPT.sfx * 100); optSfxV.textContent = Math.round(OPT.sfx * 100) + '%';
+  optSpeed.value = OPT.speed; optSpeedV.textContent = OPT.speed.toFixed(1);
   for (const [b, on] of [[optVib, OPT.vib], [optGfx, OPT.gfx]]) { b.setAttribute('aria-checked', on ? 'true' : 'false'); b.textContent = on ? 'ON' : 'OFF'; }
 }
 function openOptions() {
   syncOptions();
   optionEl.classList.remove('show'); void optionEl.offsetWidth;
   optionEl.classList.add('show');
+  startSpeedDemo();
   setTimeout(() => optionEl.querySelector('.opt-done').focus({ preventScroll: true }), 40);
 }
-function closeOptions() { optionEl.classList.remove('show'); }
+function closeOptions() { optionEl.classList.remove('show'); stopSpeedDemo(); }
 
 document.getElementById('option-btn').addEventListener('click', openOptions);
 optionEl.querySelector('.opt-done').addEventListener('click', closeOptions);
@@ -4685,6 +4731,13 @@ optMusic.addEventListener('input', () => { OPT.music = optMusic.value / 100; opt
 optSfx.addEventListener('input', () => {
   OPT.sfx = optSfx.value / 100; optSfxV.textContent = optSfx.value + '%'; saveOpt();
   if (audioCtx && audioCtx.sfxBus) audioCtx.sfxBus.gain.value = SFX_VOLUME * OPT.sfx;
+});
+optSpeed.addEventListener('input', () => {
+  OPT.speed = Number(optSpeed.value);
+  APPROACH_TIME = approachFor(OPT.speed);               // used by the next song (Option is only reachable from song select)
+  optSpeedV.textContent = OPT.speed.toFixed(1);
+  saveOpt();
+  startSpeedDemo();
 });
 optSfx.addEventListener('change', () => { try { ensureAudio(); UI_SND.chip(1); } catch (e) { /* audio unavailable */ } });   // a blip so the new level can be heard
 optVib.addEventListener('click', () => { OPT.vib = !OPT.vib; saveOpt(); syncOptions(); if (OPT.vib) buzz(30); });

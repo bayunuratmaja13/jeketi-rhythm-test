@@ -2458,7 +2458,7 @@ body[data-tier="4"] #tier-glow { animation: none; }
   padding: 11px 0;
   border-top: 1px dashed rgba(0, 0, 0, 0.2);
 }
-.opt-label { flex: 0 0 5.6em; font: 800 19px/1.1 'Fredoka', var(--font-game), sans-serif; letter-spacing: .04em; }
+.opt-label { flex: 0 0 6.6em; font: 800 19px/1.1 'Fredoka', var(--font-game), sans-serif; letter-spacing: .04em; }
 .opt-row input[type="range"] { flex: 1; min-width: 0; height: 30px; accent-color: #4aa8e8; cursor: pointer; touch-action: pan-y; }
 .opt-val { flex: 0 0 3em; text-align: right; font: 800 16px/1 'Fredoka', var(--font-game), sans-serif; }
 .opt-toggle {
@@ -2472,6 +2472,29 @@ body[data-tier="4"] #tier-glow { animation: none; }
   color: #fff; text-shadow: 0 2px 0 rgba(20, 70, 130, .35);
   background: linear-gradient(180deg, #8fd3ff, #4aa8e8);
   border-color: rgba(20, 70, 130, .25);
+}
+/* NOTE SPEED live preview: a mini track, two notes fall to the line at the real speed */
+.opt-speed-demo {
+  position: relative; overflow: hidden;
+  height: 84px; margin: 2px auto 0; width: min(240px, 100%);
+  border: 1px solid rgba(0, 0, 0, .25); border-radius: 6px;
+  background: linear-gradient(180deg, rgba(34, 12, 60, .05), rgba(70, 18, 80, .55));
+}
+.osd-lanes { position: absolute; inset: 0; display: flex; }
+.osd-lanes i { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 170, 215, .3); }
+.osd-lanes i:nth-child(1) { left: 25%; } .osd-lanes i:nth-child(2) { left: 50%; } .osd-lanes i:nth-child(3) { left: 75%; }
+.osd-line { position: absolute; left: 0; right: 0; bottom: 12px; height: 3px; background: rgba(255, 205, 230, .9); box-shadow: 0 0 8px rgba(255, 107, 166, .8); }
+.osd-note {
+  position: absolute; top: -5px; width: 20%; height: 10px; border-radius: 6px;
+  background: linear-gradient(180deg, #ffd2e6, #ff6ba6);
+  will-change: transform, opacity; opacity: 0;
+}
+.osd-note.n1 { left: 5%; }
+.osd-note.n2 { left: 55%; background: linear-gradient(180deg, #d2eaff, #4aa8e8); }
+.opt-speed-hint { padding-top: 8px; padding-bottom: 6px; }
+@media (max-height: 500px) {
+  .opt-speed-demo { height: 46px; }
+  .opt-speed-hint { display: none; }
 }
 .opt-hint { padding: 4px 0 14px; font: 700 13px/1.35 var(--font-text); opacity: .65; }
 .opt-done { display: flex; margin: 0 auto; padding: 4px 8px; }
