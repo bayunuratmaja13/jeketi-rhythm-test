@@ -159,7 +159,7 @@ const TIER_STEPS = [50, 100, 200, 480]; // combo needed for tier 1..4 (also the 
 const COMBO_SHOW_FROM = 10;           // combo counter appears from here
 
 const JUDGE = {
-  PERFECT: { name: 'PERFECT', points: 100, color: '#ffcc00', beam: '#ffcc33', kick: 0.35 },
+  PERFECT: { name: 'PERFECT', points: 100, color: '#ffcc00', beam: '#ffcc33', kick: 0.45 },
   GREAT:   { name: 'GREAT',   points: 70,  color: '#5dbcf2', beam: '#4da8ff', kick: 0.25 },
   GOOD:    { name: 'GOOD',    points: 40,  color: '#3cb54a', beam: '#66d9a8', kick: 0.15 },
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
@@ -203,7 +203,7 @@ let stats = { PERFECT: 0, GREAT: 0, GOOD: 0, BAD: 0, MISS: 0 };
 let judgedCount = 0;
 let missCount = 0;
 let missLimit = 20;
-const PERFECTS_PER_HEAL = 10;         // every 10 PERFECTs win back 1 miss (only counted while at least 1 miss is on the bar)
+const PERFECTS_PER_HEAL = 50;         // every 50 PERFECTs win back 1 miss (only counted while at least 1 miss is on the bar)
 let healCount = 0;
 let scoreMult = 1;                    // card bonus for this run (1 = none)
 let scoreNorm = 1;                    // per-song scale (BASE_MAX_SCORE / the song's perfect-run total)
@@ -1878,6 +1878,8 @@ const beamG = [null, null, null, null], beamGC = ['', '', '', ''], beamGV = [-1,
 let layoutVer = 0;                                                                                // bumps whenever the field is re-laid-out
 const fxRings = [];
 const fxParts = [];
+const fxFlares = [];                       // PERFECT / GREAT hit flares (a glow on the receptor, PERFECT also shoots a light column up the lane)
+const FLARE_SPR = { perfect: null, great: null, col: null };
 const fxPops = [];                         // quick "pop" of a note that was just hit
 const FX_COL = { perfect: '#ffcc33', great: '#4da8ff', good: '#66d9a8' };
 const NOTE_COLS = [
@@ -2053,6 +2055,40 @@ function buildSprites() {
     g.globalAlpha = 1;
     NOTE_SPR[i] = { cv, w: w + 2 * pad, h: h + 2 * pad };
   });
+  buildFlares();
+}
+
+// Flare sprites are painted once (and again when a song theme changes the colours). Drawing one is a single drawImage.
+function buildFlares() {
+  const glow = (hex) => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 96;
+    const g = cv.getContext('2d'), gr = g.createRadialGradient(48, 48, 0, 48, 48, 48);
+    gr.addColorStop(0, rgbaOf(hex, 0.55));
+    gr.addColorStop(0.25, rgbaOf(hex, 0.32));
+    gr.addColorStop(0.6, rgbaOf(hex, 0.1));
+    gr.addColorStop(1, rgbaOf(hex, 0));
+    g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+    return cv;
+  };
+  FLARE_SPR.perfect = glow(fxColor('perfect'));
+  FLARE_SPR.great = glow(fxColor('great'));
+  const col = document.createElement('canvas'); col.width = 48; col.height = 192;      // light column: bright at the bottom, gone at the top, soft at the sides
+  const g = col.getContext('2d');
+  const v = g.createLinearGradient(0, 192, 0, 0);
+  v.addColorStop(0, rgbaOf(fxColor('perfect'), 0.5)); v.addColorStop(0.4, rgbaOf(fxColor('perfect'), 0.2)); v.addColorStop(1, rgbaOf(fxColor('perfect'), 0));
+  g.fillStyle = v; g.fillRect(0, 0, 48, 192);
+  g.globalCompositeOperation = 'destination-in';
+  const hz = g.createLinearGradient(0, 0, 48, 0);
+  hz.addColorStop(0, 'rgba(0,0,0,0)'); hz.addColorStop(0.5, 'rgba(0,0,0,1)'); hz.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = hz; g.fillRect(0, 0, 48, 192);
+  FLARE_SPR.col = col;
+}
+
+function spawnFlare(lane, name) {
+  const big = name === 'PERFECT';
+  if (!big && name !== 'GREAT') return;
+  if (fxFlares.length >= 10) fxFlares.shift();
+  fxFlares.push({ lane, t0: performance.now(), big });
 }
 
 function drawStatic() {
@@ -2174,7 +2210,7 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          if (fxLite()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // lite: flat body, no gradient built per frame
+          if (!OPT.gfx || fxLite()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // lite: flat body, no gradient built per frame
           else {
             const gr = c.createLinearGradient(0, yT, 0, yH);
             gr.addColorStop(0, colr.h0);
@@ -2212,6 +2248,26 @@ function drawField(now, dt) {
   }
   c.globalAlpha = 1;
 
+  // PERFECT / GREAT flares (additive glow on the receptor; PERFECT also sends a light column up the lane)
+  if (fxFlares.length && FLARE_SPR.perfect) {
+    c.globalCompositeOperation = 'lighter';
+    for (let i = fxFlares.length - 1; i >= 0; i--) {
+      const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 380 : 260);
+      if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
+      const x = laneX(f.lane, 1), inv = 1 - age;
+      if (f.big) {
+        const ch = F.hitY * 0.32 * (0.5 + 0.5 * age), cw = F.noteW * 0.6 * (1 - 0.3 * age);
+        c.globalAlpha = inv * inv * 0.4;
+        c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
+      }
+      const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
+      c.globalAlpha = (f.big ? 0.5 : 0.32) * inv * inv;
+      c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
+    }
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+  }
+
   // rings
   for (let i = fxRings.length - 1; i >= 0; i--) {
     const r = fxRings[i], age = (wall - r.t0) / 500;
@@ -2241,7 +2297,8 @@ function drawField(now, dt) {
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function spawnShockwave(laneIndex, judgement, count) {
-  const n = fxLite() ? 0 : fxLight() ? 1 : Math.min(count, 3);
+  const isP = String(judgement).toLowerCase() === 'perfect';
+  const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 3);   // PERFECT always gets a double ring, even in the light look
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
     if (fxRings.length >= 14) fxRings.shift();
@@ -2250,7 +2307,8 @@ function spawnShockwave(laneIndex, judgement, count) {
 }
 
 function spawnParticles(laneIndex, judgement, count) {
-  const n = fxLite() ? 0 : Math.round(count * (fxLight() ? 0.4 : 1) * (COARSE ? 0.6 : 1));
+  const isP = String(judgement).toLowerCase() === 'perfect';
+  const n = fxLite() ? 0 : Math.round(count * (fxLight() ? (isP ? 0.8 : 0.4) : 1) * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 48; i++) {
@@ -3692,14 +3750,24 @@ function showJudgement(text, color) {
   judgementEl.textContent = text;
   judgementEl.style.color = color;
   const miss = text === 'MISS' || text === 'BAD';
+  const isP = text === 'PERFECT', isG = text === 'GREAT';
+  // PERFECT glows gold and punches in big; GREAT gets a smaller glow and a smaller punch. (glow is skipped in lite mode)
+  judgementEl.style.textShadow = fxLite() ? '' : isP ? '0 0 10px ' + color + ', 0 0 24px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
   if (judgeAnim) judgeAnim.cancel();
-  // no tilt, no travel: it appears in place, holds for a beat, fades out
-  judgeAnim = judgementEl.animate([
-    { transform: 'translateX(-50%) scale(1.12)', opacity: 0 },
-    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.15 },
-    { transform: 'translateX(-50%) scale(1)', opacity: 1, offset: 0.6 },
-    { transform: 'translateX(-50%) scale(1)', opacity: 0 },
-  ], { duration: miss ? 480 : 400, easing: 'ease-out' });
+  const s0 = isP ? 1.75 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
+  judgeAnim = judgementEl.animate(isP ? [
+    { transform: T + s0 + ')', opacity: 0 },
+    { transform: T + '1)', opacity: 1, offset: 0.14 },
+    { transform: T + '1.14)', opacity: 1, offset: 0.26 },
+    { transform: T + '1)', opacity: 1, offset: 0.4 },
+    { transform: T + '1)', opacity: 1, offset: 0.65 },
+    { transform: T + '1)', opacity: 0 },
+  ] : [
+    { transform: T + s0 + ')', opacity: 0 },
+    { transform: T + '1)', opacity: 1, offset: 0.15 },
+    { transform: T + '1)', opacity: 1, offset: 0.6 },
+    { transform: T + '1)', opacity: 0 },
+  ], { duration: miss ? 480 : isP ? 480 : 400, easing: 'ease-out' });
 }
 
 // Shows EARLY / LATE for anything that is not PERFECT, so players can see how to improve
@@ -3762,7 +3830,7 @@ function clearNotes() {
     n.el = null;
   }
   active = [];
-  fxPops.length = 0; fxRings.length = 0; fxParts.length = 0;
+  fxPops.length = 0; fxRings.length = 0; fxParts.length = 0; fxFlares.length = 0;
 }
 
 function buildQueue(chart) {
@@ -3911,6 +3979,7 @@ function judgeTap(n, signedDiff) {
   if (name === 'PERFECT' && window.Shop) Shop.pulse();
   spawnShockwave(lane, name, ringCount);
   spawnParticles(lane, name, particleCount);
+  spawnFlare(lane, name);
 
   // (no screen shake on ordinary taps: it was under 1 px and cost an animation per hit; shakes stay for milestones, holds and misses)
   buzz(name === 'PERFECT' ? 15 : 10);
@@ -3939,6 +4008,7 @@ function startHold(n, diffMs, signedDiff) {
   playHitSound(name, combo);
   kick = Math.min(0.7, kick + j.kick);
   spawnShockwave(lane, name === 'BAD' ? 'miss' : name, 1);
+  spawnFlare(lane, name);
   spawnParticles(lane, name === 'BAD' ? 'miss' : name, 3);
   popScore();
   buzz(12);
@@ -3975,6 +4045,7 @@ function completeHold(n) {
 
   const tier = getTier(combo);
   spawnShockwave(lane, 'perfect', 1 + Math.min(tier, 2));
+  spawnFlare(lane, 'PERFECT');
   spawnParticles(lane, 'perfect', 6 + tier);
   shakeScreen(1.2 + tier * 0.25);
 
@@ -4672,7 +4743,7 @@ optionEl.innerHTML = `
       <div class="osd-note n1"></div>
       <div class="osd-note n2"></div>
     </div>
-    <div class="opt-hint opt-speed-hint">Higher = notes fall faster (timing stays the same).</div>
+    <div class="opt-hint opt-speed-hint">Higher = notes fall faster (timing and score stay the same).</div>
     <div class="opt-row" id="opt-vib-row">
       <span class="opt-label">Vibration</span>
       <button type="button" class="opt-toggle" id="opt-vib" role="switch"></button>
