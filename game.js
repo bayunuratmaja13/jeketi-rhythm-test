@@ -4019,7 +4019,7 @@ function judgeTap(n, signedDiff) {
   spawnFlare(lane, name);
 
   // (no screen shake on ordinary taps: it was under 1 px and cost an animation per hit; shakes stay for milestones, holds and misses)
-  buzz(name === 'PERFECT' ? 22 : 10);
+  // no vibration on normal taps (PERFECT / GREAT / GOOD); only the every-10-PERFECTs burst, holds and BAD / MISS still vibrate
 
   handleComboIncrement();
   removeNoteAnimated(n);
