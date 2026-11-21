@@ -239,19 +239,22 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .op-car {
   --ph: calc(100dvh - 62px);
   --pw: calc(var(--ph) * .75);
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: clamp(10px, 3vw, 26px);
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0;
   overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   padding: 0 calc(50% - var(--pw) / 2); touch-action: pan-x;
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 .op-car::-webkit-scrollbar { display: none; }
 .op-item { flex: none; width: var(--pw); height: var(--ph); scroll-snap-align: center; cursor: pointer; transform: scale(.74); opacity: .5; transition: transform .28s cubic-bezier(.3,1.3,.5,1), opacity .25s; will-change: transform; }
-.op-item.sel { transform: scale(1); opacity: 1; cursor: default; }
-.op-pic { position: relative; width: 100%; height: 100%; border-radius: 16px; overflow: hidden; background: var(--tc); box-shadow: 0 10px 26px rgba(0,0,0,.5); }
-.op-item.sel .op-pic { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--tc), 0 0 34px 8px color-mix(in srgb, var(--tc) 70%, transparent), 0 12px 30px rgba(0,0,0,.55); }
-.op-pic img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; }
-.op-pic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 70%, rgba(0,0,0,.35)); pointer-events: none; }
-.op-ph { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: linear-gradient(160deg, var(--tc), #2a1230); text-align: center; }
+.op-item + .op-item { margin-left: calc(var(--pw) * -.2); }   /* members sit closer together */
+.op-item.sel { transform: scale(1); opacity: 1; cursor: default; z-index: 2; }   /* on top of the neighbours that overlap it */
+.op-pic { position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: calc(var(--pw) * .04); border-radius: calc(var(--pw) * .075); overflow: hidden;
+  background: linear-gradient(135deg, #fff 0%, color-mix(in srgb, var(--tc) 70%, #fff) 28%, var(--tc) 50%, color-mix(in srgb, var(--tc) 70%, #fff) 74%, #fff 100%);
+  box-shadow: 0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.55); }
+.op-item.sel .op-pic { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--tc), 0 0 34px 8px color-mix(in srgb, var(--tc) 70%, transparent), 0 12px 30px rgba(0,0,0,.55); }
+.op-pic img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; border-radius: calc(var(--pw) * .05); box-shadow: 0 0 0 calc(var(--pw) * .009) rgba(10,4,16,.75); }
+.op-pic::after { content: ''; position: absolute; inset: calc(var(--pw) * .04); border-radius: calc(var(--pw) * .05); background: linear-gradient(180deg, transparent 70%, rgba(0,0,0,.35)); pointer-events: none; }
+.op-ph { border-radius: calc(var(--pw) * .05); width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: linear-gradient(160deg, var(--tc), #2a1230); text-align: center; }
 .op-ph b { font: 800 clamp(18px, 5dvh, 28px)/1.1 var(--font-impact); } .op-ph small { opacity: .8; font-weight: 600; }
 
 .op-arrow { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: 3px solid #fff; background: rgba(10,5,20,.55); color: #fff; font-size: 16px; cursor: pointer; }

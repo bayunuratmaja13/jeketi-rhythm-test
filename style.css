@@ -940,7 +940,7 @@ body[data-tier="4"] #score {
   position: relative;
   border: 1px solid rgba(0,0,0,0.1);
   box-shadow: 8px 15px 35px rgba(0,0,0,0.5);
-  transform: rotate(-1deg);
+  transform: rotate(-1deg) scale(1.5);   /* title card is 50% bigger (back to 1 on phones, see media queries) */
 }
 .desk-paper::before {
   content: '';
@@ -1265,7 +1265,7 @@ body[data-tier="4"] #score {
   #judgement { font-size: 42px; letter-spacing: 2px; }
   .lane-label { font-size: 18px; }
 
-  .desk-paper { padding: 30px 16px 60px; max-width: 90vw; }
+  .desk-paper { padding: 30px 16px 60px; max-width: 90vw; transform: rotate(-1deg); }
   #title-gif { max-width: 85vw !important; }
   #play-btn { margin-top: -30px; }
   #play-btn .btn-gif { height: 56px !important; }
@@ -1349,6 +1349,7 @@ body[data-tier="4"] #score {
     max-width: 900px;
     padding: 20px 40px;
     min-height: auto;
+    transform: rotate(-1deg);
   }
   .title-content {
     flex-direction: row;
