@@ -76,7 +76,7 @@
   // ---------- GUEST CARDS ----------
   // Special featured-artist cards (not members, not collectable): they appear automatically in the squad bar of any song that
   // lists them (in its `only: [...]` or `guest: '...'` in songs.js). Look = SS card, badge says R, scores like SS (see GUEST_TIER).
-  // Art: images/cards/<id>.webp.  To add another guest, add a line here.
+  // Art: images/cards/<id>.webp.  To add another guest, add a line here. Optional  label: 'GM'  changes the grade letter on that guest's card (scoring stays the same).
   const GUEST_TIER = 4;                          // index into Cards.TIERS: 4 = SS (design + score)
   const GUEST_LABEL = 'R';
   const GUESTS = {
@@ -85,6 +85,7 @@
     pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
     shani: { id: 'shani', name: 'Shani', caption: 'Kak Ci Shani', team: 'Special', color: '#ff6ad5', front: 'images/cards/shani.webp', back: 'images/cards/love_back.webp', guest: true },
     sisca: { id: 'sisca', name: 'Sisca', caption: 'Phi Sisca', team: 'Special', color: '#ff6ad5', front: 'images/cards/sisca.webp', back: 'images/cards/love_back.webp', guest: true },
+    melody: { id: 'melody', name: 'Melody', label: 'GM', team: 'Special', color: '#ff6ad5', front: 'images/cards/melody.webp', back: 'images/cards/love_back.webp', guest: true },     // label: the grade letter on her card (default R); scoring is still GUEST_TIER
     yona: { id: 'yona', name: 'Yona', team: 'Special', color: '#ff6ad5', front: 'images/cards/yona.webp', back: 'images/cards/love_back.webp', guest: true },
     zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
   };
@@ -93,7 +94,7 @@
   const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));          // tier index a card counts as
   function mkCard(id, ti) {                      // a card element for a member or a guest (guests get the R badge)
     const m = member(id), el = C().makeCard(m, C().TIERS[ti], true);
-    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { b.textContent = GUEST_LABEL; b.dataset.t = GUEST_LABEL; } }     // data-t is what the big letter is drawn from
+    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { const lb = m.label || GUEST_LABEL; b.textContent = lb; b.dataset.t = lb; } }     // data-t is what the big letter is drawn from
     return el;
   }
   function songGuests(song) {                    // guest ids this song features

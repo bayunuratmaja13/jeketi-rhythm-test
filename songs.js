@@ -571,9 +571,28 @@ window.SONGS = [
     title: 'To be continued',
     artist: 'JKT48',
     team: null,
-    guest: 'yona',
     audio: 'music/to_be_continued.ogg',
     chart: 'charts/to_be_continued.js',
     cover: 'images/saka_agari.webp'
+  },
+    {
+    id: 'telapak_tangan',
+    title: 'Telapak Tangan',
+    artist: 'JKT48',
+    team: null,
+    guest: 'yona',
+    audio: 'music/telapak_tangan.ogg',
+    chart: 'charts/telapak_tangan.js',
+    cover: 'images/saka_agari.webp'
+  },
+    {
+    id: 'dirimu_melody',
+    title: 'Dirimu Melody',
+    artist: 'JKT48',
+    team: null,
+    guest: 'melody',
+    audio: 'music/dirimu_melody.ogg',
+    chart: 'charts/dirimu_melody.js',
+    cover: 'images/dirimu_melody.webp'
   }
 ];
