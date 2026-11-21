@@ -1754,6 +1754,26 @@ body[data-tier="4"] #score {
 }
 #song-grid .song-cover-fallback { font-size: calc(var(--cw) * 0.3); }
 
+/* grade stamp of the player's saved best run, bottom-left of the song's cover (only songs that have been played) */
+.song-stamp {
+  position: absolute; left: calc(var(--ss) * -0.15); bottom: calc(var(--ss) * -0.5); z-index: 3;   /* on the cover's bottom-left corner, nudged out over the card padding, half of it over the title area */
+  --ss: clamp(31px, calc(var(--cw, 150px) * 0.24), 77px);
+  width: var(--ss); height: var(--ss); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui); font-size: calc(var(--ss) * 0.62); line-height: 1;
+  border: calc(var(--ss) * 0.08) double currentColor; transform: rotate(-10deg);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+#song-grid .song-cover { overflow: visible; }                      /* so the stamp can hang over the cover's edge */
+#song-grid .song-cover img, #song-grid .song-cover-fallback { border-radius: inherit; }
+.song-stamp.g-SS { color: #d9980a; font-size: calc(var(--ss) * 0.44); letter-spacing: -1px; box-shadow: 0 0 8px rgba(255, 204, 51, 0.8), 0 1px 4px rgba(0, 0, 0, 0.35); }
+.song-stamp.g-S { color: var(--red); }
+.song-stamp.g-A { color: var(--green); }
+.song-stamp.g-B { color: var(--blue); }
+.song-stamp.g-C { color: #777; }
+
 #song-grid .song-info { flex: none; margin-top: -8px; }          /* text sits closer to the cover */
 #song-grid .song-card-title {
   font-family: 'Fredoka', 'Baloo 2', 'Arial Rounded MT Bold', sans-serif;

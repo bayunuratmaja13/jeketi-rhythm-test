@@ -633,9 +633,29 @@ function buildMenu() {
   updateCardBests();
 }
 
-// best scores are shown in the equipped-cards bar now (shop.js), not on the song cards
+// best scores are shown in the equipped-cards bar now (shop.js); the song cards only carry the grade stamp of the saved best run
 function updateCardBests() {
   if (window.Shop && Shop.renderBest) Shop.renderBest();
+  updateCardStamps();
+}
+
+// grade stamp (bottom-left of the cover) for every song this player has played: the grade of their saved best run, nothing if never played
+function updateCardStamps() {
+  songGrid.querySelectorAll('.song-card').forEach(card => {
+    const song = card._song;
+    const cover = card.querySelector('.song-cover');
+    if (!song || !cover) return;
+    const best = loadBest(song.id);
+    const g = best && best.score > 0 ? (GRADE_RANK[best.grade] ? best.grade : 'C') : null;
+    let st = cover.querySelector('.song-stamp');
+    if (!g) { if (st) st.remove(); return; }
+    if (!st) {
+      st = document.createElement('div');
+      cover.appendChild(st);
+    }
+    st.className = 'song-stamp g-' + g;
+    st.textContent = g;
+  });
 }
 
 function selectCard(card, song, fast) {
