@@ -84,6 +84,9 @@
     tasya: { id: 'tasya', name: 'Tasya', caption: 'Tasya Tety', team: 'Special', color: '#ff6ad5', front: 'images/cards/tasya.webp', back: 'images/cards/love_back.webp', guest: true },
     pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
     shani: { id: 'shani', name: 'Shani', caption: 'Kak Ci Shani', team: 'Special', color: '#ff6ad5', front: 'images/cards/shani.webp', back: 'images/cards/love_back.webp', guest: true },
+    sisca: { id: 'sisca', name: 'Sisca', caption: 'Phi Sisca', team: 'Special', color: '#ff6ad5', front: 'images/cards/sisca.webp', back: 'images/cards/love_back.webp', guest: true },
+    yona: { id: 'yona', name: 'Yona', team: 'Special', color: '#ff6ad5', front: 'images/cards/yona.webp', back: 'images/cards/love_back.webp', guest: true },
+    zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));

@@ -17,6 +17,7 @@ console.log('songs.js loaded');
 //   petalSpell:   true -> orange wand-spell sparkles twinkle in the background instead of petals, more at 100 and 200 combo (Magic Hour)
 //   coldMist:     true -> from 100 combo the stage turns subtly cold (Magic Hour)
 //   petalIndo:    true -> the Indonesian flag and a skull emoji fly around instead of petals (no colour change; glow from 100 combo, more from 200)
+//   petalRoach:   true -> cockroaches fly around instead of petals (no colour change; amber glow from 100 combo, more from 200)
 //   mascot:       'grasshopper' -> a giant grasshopper waves its arms in the top right corner of the screen
 //   slots:        how many cards are equipped for this song (1-12, default 12). The highest-tier owned cards fill them.
 //   duet:         true -> the equipped card bar says "DUET WITH <guest>" instead of "ALL MEMBERS WITH <guest>"
@@ -202,6 +203,16 @@ window.SONGS = [
     audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.ogg',
     chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
     cover: 'images/must_be_now.webp'
+  },
+    {
+    id: 'eureka_milik_kita',
+    title: 'Eureka Milik Kita',
+    artist: 'JKT48',
+    team: null,
+    guest: 'zee',
+    audio: 'music/eureka_milik_kita.ogg',
+    chart: 'charts/eureka_milik_kita.js',
+    cover: 'images/jiwaru_days.webp'
   },
     {
     id: 'jiwaru_days',
@@ -523,5 +534,46 @@ window.SONGS = [
     audio: 'music/seesaw_game_penuh_air_mata.ogg',
     chart: 'charts/seesaw_game_penuh_air_mata.js',
     cover: 'images/kachuusha.webp'
+  },
+    {
+    id: 'uza',
+    title: 'UZA',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/uza.ogg',
+    chart: 'charts/uza.js',
+    cover: 'images/uza.webp'
+  },
+    {
+    id: 'saka_agari',
+    title: 'Saka Agari',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/saka_agari.ogg',
+    chart: 'charts/saka_agari.js',
+    cover: 'images/saka_agari.webp'
+  },
+    {
+    id: 'balada_serangga',
+    title: 'Balada Serangga',
+    artist: 'JKT48',
+    team: null,
+    slots: 2,
+    duet: true,
+    guest: 'sisca',
+    petalRoach: true,
+    audio: 'music/balada_serangga.ogg',
+    chart: 'charts/balada_serangga.js',
+    cover: 'images/saka_agari.webp'
+  },
+    {
+    id: 'to_be_continued',
+    title: 'To be continued',
+    artist: 'JKT48',
+    team: null,
+    guest: 'yona',
+    audio: 'music/to_be_continued.ogg',
+    chart: 'charts/to_be_continued.js',
+    cover: 'images/saka_agari.webp'
   }
 ];

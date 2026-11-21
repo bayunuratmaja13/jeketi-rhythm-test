@@ -2597,12 +2597,12 @@ const petals = (() => {
     }
     return c;
   }
-  function glowIcon(src, blur, passes) {
+  function glowIcon(src, blur, passes, col) {
     const c = document.createElement('canvas');
     c.width = c.height = 56;
     const g = c.getContext ? c.getContext('2d') : null;
     if (!g) return c;
-    g.shadowColor = 'rgba(255,255,255,0.95)'; g.shadowBlur = blur;
+    g.shadowColor = col || 'rgba(255,255,255,0.95)'; g.shadowBlur = blur;
     for (let i = 0; i < passes; i++) g.drawImage(src, 0, 0);
     g.shadowBlur = 0;
     g.drawImage(src, 0, 0);
@@ -2614,6 +2614,62 @@ const petals = (() => {
     indoSets.push(base);
     indoSets.push(base.map(s => glowIcon(s, 7, 1)));
     indoSets.push(base.map(s => glowIcon(s, 14, 2)));
+  }
+  // ROACH MODE (songs.js:  petalRoach: true): the petals become cockroaches. They never change colour;
+  //   combo < 100: plain | 100+: they glow (amber) | 200+: they glow more. Drawn in code (the roach emoji is missing on older Windows), painted once, drawn exactly like petals.
+  let roachMode = false;
+  const ROACH_SET = [0, 0, 1, 2, 2];                     // tier -> sprite set (0 plain, 1 glow, 2 stronger glow)
+  const roachSets = [];
+  function paintRoach(kind) {                            // 56x56 canvas, origin in the middle, head pointing up; kind 0 / 1 only differ in the antennae
+    const c = document.createElement('canvas');
+    c.width = c.height = 56;
+    const g = c.getContext ? c.getContext('2d') : null;
+    if (!g) return c;
+    g.translate(28, 29);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    const legs = (col, lw) => {                          // 3 legs on each side, bent outwards
+      g.strokeStyle = col; g.lineWidth = lw;
+      [[-5, -9, 4], [-6, 0, 7], [-5, 8, 10]].forEach(l => {
+        for (let s = -1; s <= 1; s += 2) {
+          g.beginPath(); g.moveTo(s * 5, l[1]); g.lineTo(s * 12, l[1] + (l[2] - 6) * 0.6 - 3); g.lineTo(s * 16, l[1] + l[2] * 0.5); g.stroke();
+        }
+      });
+    };
+    const ants = (col, lw) => {                          // two whip-like antennae
+      g.strokeStyle = col; g.lineWidth = lw;
+      const sw = kind ? 1 : -1;
+      g.beginPath(); g.moveTo(-2, -13); g.quadraticCurveTo(-9, -22, -10 + sw * 3, -26); g.stroke();
+      g.beginPath(); g.moveTo(2, -13); g.quadraticCurveTo(9, -22, 10 + sw * 3, -26); g.stroke();
+    };
+    const body = (col) => {
+      g.fillStyle = col;
+      g.beginPath(); g.ellipse(0, 3, 8.5, 13, 0, 0, Math.PI * 2); g.fill();      // abdomen + wings
+      g.beginPath(); g.ellipse(0, -9, 6.2, 4.6, 0, 0, Math.PI * 2); g.fill();    // head shield
+      g.beginPath(); g.ellipse(0, -13, 3.2, 3, 0, 0, Math.PI * 2); g.fill();     // head
+    };
+    g.globalAlpha = 0.45;                                // soft dark outline so it reads on any background
+    legs('rgba(40,10,60,1)', 4.2); ants('rgba(40,10,60,1)', 3.4);
+    g.save(); g.translate(0, 0); g.scale(1.18, 1.1); body('rgba(40,10,60,1)'); g.restore();
+    g.globalAlpha = 1;
+    legs('#4a2610', 2); ants('#4a2610', 1.5);
+    body('#6b3b1b');
+    g.fillStyle = '#93582b';                             // glossy head shield
+    g.beginPath(); g.ellipse(0, -9, 5, 3.4, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#3d1f0d'; g.lineWidth = 1.3;        // wing seam + wing edges
+    g.beginPath(); g.moveTo(0, -4); g.lineTo(0, 15); g.stroke();
+    g.beginPath(); g.moveTo(-6.5, 0); g.quadraticCurveTo(-8, 9, -3, 15); g.stroke();
+    g.beginPath(); g.moveTo(6.5, 0); g.quadraticCurveTo(8, 9, 3, 15); g.stroke();
+    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';        // shine
+    g.beginPath(); g.ellipse(-3.2, 3, 1.8, 6, 0.1, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 1;
+    return c;
+  }
+  function buildRoach() {
+    roachSets.length = 0;
+    const base = [paintRoach(0), paintRoach(1)];
+    roachSets.push(base);
+    roachSets.push(base.map(s => glowIcon(s, 8, 1, 'rgba(255,190,90,0.95)')));
+    roachSets.push(base.map(s => glowIcon(s, 16, 2, 'rgba(255,200,100,1)')));
   }
   function makeBead(color) {                             // a round candy bead like the ones on the cover: painted once, then reused like the petals
     const c = document.createElement('canvas');
@@ -2754,6 +2810,7 @@ const petals = (() => {
     if (chocoMode) { chocoSprites.length = 0; chocoSprites.push(makeChoco(0), makeChoco(1)); return; }
     if (fruitMode) { buildFruit(); return; }
     if (indoMode) { buildIndo(); return; }
+    if (roachMode) { buildRoach(); return; }
     if (noteMode) { noteSprites.length = 0; COLORS.forEach(c => noteSprites.push([makeNote(c, 0), makeNote(c, 1)])); return; }
     textMode = !!text;
     COLORS.forEach(c => sprites.push(text ? makeTextSprite(c, text) : shape === 'feather' ? makeFeather(c) : shape === 'bead' ? makeBead(c) : makeSprite(c)));
@@ -2802,6 +2859,11 @@ const petals = (() => {
       on = !!on;
       if (on === spellMode) return;
       spellMode = on; spl.length = 0; buildSprites(curText);
+    },
+    setRoach(on) {                                       // true = cockroaches instead of petals (petalRoach in songs.js)
+      on = !!on;
+      if (on === roachMode) return;
+      roachMode = on; buildSprites(curText);
     },
     setIndo(on) {                                        // true = Indonesian flag + skull (petalIndo in songs.js)
       on = !!on;
@@ -2867,7 +2929,7 @@ const petals = (() => {
         const cos = Math.cos(ang) * p.s * dpr, sin = Math.sin(ang) * p.s * dpr;
         ctx.globalAlpha = p.a;
         ctx.setTransform(cos, sin, -sin, cos, p.x * dpr, p.y * dpr);
-        const sp = chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];   // fruits follow the live combo tier, so they all change at once
+        const sp = roachMode ? roachSets[ROACH_SET[tier]][p.kind & 1] : chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];   // fruits follow the live combo tier, so they all change at once
         ctx.drawImage(sp, -sp.width / 2, -sp.height / 2);
       }
       ctx.globalAlpha = 1;
@@ -4300,6 +4362,7 @@ function startPlayback() {
   petals.setChoco(currentSong && currentSong.petalChoco);
   petals.setNotes(currentSong && currentSong.petalNotes);
   petals.setIndo(currentSong && currentSong.petalIndo);
+  petals.setRoach(currentSong && currentSong.petalRoach);
   petals.setText(currentSong && currentSong.petalText);
   petals.setSpell(currentSong && currentSong.petalSpell);
   applySongFx(currentSong);
