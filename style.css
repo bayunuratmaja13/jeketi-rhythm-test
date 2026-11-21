@@ -1710,6 +1710,14 @@ body[data-tier="4"] #score {
   scrollbar-width: none;
 }
 #song-grid::-webkit-scrollbar { display: none; }
+/* PC mouse: the carousel can be grabbed and dragged */
+@media (hover: hover) and (pointer: fine) {
+  #song-grid { cursor: grab; }
+  #song-grid .song-card { cursor: grab; }
+  #song-grid .card-play-btn { cursor: pointer; }
+  #song-grid.dragging, #song-grid.dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+}
+#song-grid img { -webkit-user-drag: none; user-select: none; }
 
 #song-grid .song-card {
   --f: 0;

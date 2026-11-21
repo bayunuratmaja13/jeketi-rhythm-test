@@ -659,9 +659,7 @@ function updateCardStamps() {
 }
 
 function selectCard(card, song, fast) {
-  document.querySelectorAll('.song-card.selected').forEach(c => {
-    if (c !== card) c.classList.remove('selected');
-  });
+  if (selectedCardEl && selectedCardEl !== card) selectedCardEl.classList.remove('selected');   // only the previous card can carry the class: no document-wide query
   card.classList.add('selected');                       // no forced reflow: the class swap is the only synchronous work
   selectedSong = song;
   selectedCardEl = card;
@@ -675,7 +673,16 @@ function selectCard(card, song, fast) {
   if (window.Shop && Shop.setSong) Shop.setSong(song);
   stopPreview();
   clearTimeout(previewDelay);
-  previewDelay = setTimeout(() => { if (selectedSong === song) startPreview(song); }, fast ? 30 : 260);   // no audio loading mid-scroll
+  previewDelay = setTimeout(() => {
+    if (selectedSong !== song) return;
+    startPreview(song);
+    // the next / previous songs' short preview clips are fetched in idle time, so scrolling on starts their audio without a download wait
+    (window.requestIdleCallback || setTimeout)(() => {
+      if (selectedSong !== song) return;
+      const cards = carouselCards(), i = cards.indexOf(selectedCardEl);
+      [i + 1, i - 1, i + 2, i - 2].forEach(j => { const c = cards[j]; if (i >= 0 && c && c._song && c._song.previewAudio) warmPreview(c._song); });
+    });
+  }, fast ? 30 : 260);   // no audio loading mid-scroll
   // the player is dwelling on this song: read its chart ahead and keep its audio on the device
   clearTimeout(storeDelay);
   storeDelay = setTimeout(() => { if (selectedSong === song) { Store.prefetchChart(song); Store.keepAudio(song); } }, 1800);
@@ -736,12 +743,18 @@ function updateCarouselFocus() {
 }
 // while the carousel is moving, body gets .carousel-scrolling so the endless glow / shimmer animations pause (CSS) and
 // background polling waits; everything resumes a moment after it stops
-let scrollIdle = 0;
+let scrollIdle = 0, lastScrollAt = 0;
+function scrollIdleCheck() {                                  // one timer re-arms itself until the carousel has been still for 240 ms
+  const rest = 240 - (performance.now() - lastScrollAt);
+  if (rest > 8) { scrollIdle = setTimeout(scrollIdleCheck, rest); return; }
+  scrollIdle = 0;
+  document.body.classList.remove('carousel-scrolling');
+}
 function markScrolling() {
-  const cl = document.body.classList;
-  if (!cl.contains('carousel-scrolling')) cl.add('carousel-scrolling');
-  clearTimeout(scrollIdle);
-  scrollIdle = setTimeout(() => cl.remove('carousel-scrolling'), 240);
+  lastScrollAt = performance.now();
+  if (scrollIdle) return;                                     // already marked and waiting: nothing to clear or re-create
+  document.body.classList.add('carousel-scrolling');
+  scrollIdle = setTimeout(scrollIdleCheck, 240);
 }
 
 function settleCarousel() {
@@ -888,6 +901,63 @@ songGrid.addEventListener('wheel', (e) => {
   lastWheelStep = t;
   stepCarousel(d > 0 ? 1 : -1);
 }, { passive: false });
+
+// PC browsers: grab the carousel with the mouse and drag it (touch screens already scroll natively).
+// A drag follows the cursor 1:1, keeps a little momentum after release (the wheel's glide), and picks the song under the middle once
+// it stops, exactly like the wheel. A plain click (no real movement) still selects / plays a card as before.
+const DRAG_START_PX = 6;          // movement before a press counts as a drag (below that it is just a click)
+const DRAG_MOMENTUM_MS = 260;     // how far a flick keeps going: release speed (px/ms) x this
+let mouseDrag = null;             // { id, x0, left0, on, samples: [[time, x], ...] }
+songGrid.addEventListener('dragstart', (e) => e.preventDefault());           // no ghost image of a cover / card being dragged
+songGrid.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('.card-play-btn')) return;
+  if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0; }            // grabbing a gliding carousel stops it under the cursor
+  mouseDrag = { id: e.pointerId, x0: e.clientX, left0: songGrid.scrollLeft, on: false, samples: [[e.timeStamp, e.clientX]], max: 0, cx: e.clientX, raf: 0 };
+});
+songGrid.addEventListener('pointermove', (e) => {
+  const d = mouseDrag;
+  if (!d || e.pointerId !== d.id) return;
+  if (!d.on) {
+    if (Math.abs(e.clientX - d.x0) < DRAG_START_PX) return;
+    d.on = true;
+    d.left0 = songGrid.scrollLeft; d.x0 = e.clientX;                         // start from where the drag really began: no jump
+    d.max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);        // measured once, not on every mouse move
+    clearTimeout(wheelTimer);
+    if (!wheelBrowsing) beginWheelBrowse();                                  // un-highlight, stop the preview, no snapping while dragging
+    try { songGrid.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    songGrid.classList.add('dragging');
+    markScrolling();
+  }
+  d.cx = e.clientX;
+  if (!d.raf) d.raf = requestAnimationFrame(() => { d.raf = 0; applyDrag(d); });   // a fast mouse sends far more moves than frames: write the scroll position once per frame
+  d.samples.push([e.timeStamp, e.clientX]);
+  while (d.samples.length > 2 && e.timeStamp - d.samples[0][0] > 100) d.samples.shift();   // only the last ~100 ms count for the release speed
+});
+function applyDrag(d) {
+  songGrid.scrollLeft = Math.max(0, Math.min(d.max, d.left0 - (d.cx - d.x0)));
+  wheelTarget = songGrid.scrollLeft;
+}
+function endMouseDrag(e) {
+  const d = mouseDrag;
+  if (!d || e.pointerId !== d.id) return;
+  mouseDrag = null;
+  if (!d.on) return;                                                         // never became a drag: the click goes through
+  if (d.raf) { cancelAnimationFrame(d.raf); d.raf = 0; }
+  applyDrag(d);                                                              // land exactly where the cursor was released  songGrid.classList.remove('dragging');
+  try { songGrid.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };    // the click that ends a drag must not select / play a card
+  songGrid.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => songGrid.removeEventListener('click', swallow, true), 0);
+  const a = d.samples[0], b = d.samples[d.samples.length - 1];
+  const v = b[0] > a[0] && e.type === 'pointerup' ? (b[1] - a[1]) / (b[0] - a[0]) : 0;   // px per ms, + = dragged right
+  const max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);
+  wheelTarget = Math.max(0, Math.min(max, songGrid.scrollLeft - v * DRAG_MOMENTUM_MS));
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelGlide);               // glide out, then finishWheelBrowse picks the song in the middle
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(finishWheelBrowse, 60);
+}
+songGrid.addEventListener('pointerup', endMouseDrag);
+songGrid.addEventListener('pointercancel', endMouseDrag);
 
 window.addEventListener('resize', () => {
   if (menuScreen.style.display === 'none') return;
