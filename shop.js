@@ -503,6 +503,10 @@
       confirmEl.querySelector('.oc-no').addEventListener('click', closeConfirm);
       confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) closeConfirm(); });
       document.body.appendChild(confirmEl);
+      const tt = confirmEl.querySelector('.oc-title'), bx = confirmEl.querySelector('.oc-box');   // keep the question on one line: shrink the font until it fits the box
+      const avail = bx.clientWidth - parseFloat(getComputedStyle(bx).paddingLeft) - parseFloat(getComputedStyle(bx).paddingRight);
+      let fs = parseFloat(getComputedStyle(tt).fontSize), guard = 0;
+      while (avail > 0 && tt.scrollWidth > avail && fs > 10 && guard++ < 60) { fs -= 1; tt.style.fontSize = fs + 'px'; }
       snd('hover');
       confirmEl.querySelector('.oc-yes').focus({ preventScroll: true });
     });
