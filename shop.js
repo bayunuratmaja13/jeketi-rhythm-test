@@ -444,6 +444,12 @@
     ov.querySelector('.op-arrow.r').addEventListener('click', () => goTo(idx + 1));
     const onKey = (e) => {
       if (!ov.isConnected) return;
+      if (confirmEl) {                               // the confirmation pop up is open: Enter = YES, Escape = NO, arrows are ignored
+        e.preventDefault(); e.stopPropagation();
+        if (e.code === 'Enter') confirmEl.querySelector('.oc-yes').click();
+        else if (e.code === 'Escape') confirmEl.querySelector('.oc-no').click();
+        return;
+      }
       if (e.code === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); goTo(idx - 1); }
       else if (e.code === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); goTo(idx + 1); }
       else if (e.code === 'Enter') { e.preventDefault(); e.stopPropagation(); ok.click(); }
@@ -483,9 +489,25 @@
       car.classList.remove('snap');
     };
 
+    // "THIS IS MY OSHI" first asks PICK (MEMBER) AS YOUR OSHI? -> YES confirms, NO goes back to browsing
+    let confirmEl = null;
+    const closeConfirm = () => { if (confirmEl) { confirmEl.remove(); confirmEl = null; } };
     ok.addEventListener('click', () => {
       const m = list[idx];
-      if (!m || done_) return;
+      if (!m || done_ || confirmEl) return;
+      confirmEl = h('div', 'oshi-confirm');
+      confirmEl.innerHTML =
+        '<div class="oc-box" role="dialog" aria-modal="true"><div class="oc-title">PICK <b>' + esc(m.name.toUpperCase()) + '</b> AS YOUR OSHI?</div>' +
+        '<div class="oc-btns"><button type="button" class="sh-btn gold oc-yes">YES</button><button type="button" class="sh-btn alt oc-no">NO</button></div></div>';
+      confirmEl.querySelector('.oc-yes').addEventListener('click', () => { closeConfirm(); choose(m); });
+      confirmEl.querySelector('.oc-no').addEventListener('click', closeConfirm);
+      confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) closeConfirm(); });
+      document.body.appendChild(confirmEl);
+      snd('hover');
+      confirmEl.querySelector('.oc-yes').focus({ preventScroll: true });
+    });
+    const choose = (m) => {
+      if (done_) return;
       done_ = true;
       setOshi(m.id); snd('fanfare');
       try { if (navigator.vibrate) navigator.vibrate([20, 30, 60]); } catch (e) { /* no haptics */ }
@@ -507,7 +529,7 @@
         ov.classList.add('out'); setTimeout(() => ov.remove(), 280);
         if (done) done();
       }, 750);
-    });
+    };
     build();
   }
 

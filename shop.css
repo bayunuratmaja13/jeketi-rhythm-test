@@ -257,12 +257,15 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .op-ph b { font: 800 clamp(18px, 5dvh, 28px)/1.1 var(--font-impact); } .op-ph small { opacity: .8; font-weight: 600; }
 
 .op-arrow { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: 3px solid #fff; background: rgba(10,5,20,.55); color: #fff; font-size: 16px; cursor: pointer; }
-/* arrows hug the highlighted card: card edge = 50% - sw/2 +- pw/2 (same centre the fan and the panel use) */
-.op-arrow.l { left: calc(50% - var(--sw) / 2 - var(--pw) / 2 - 52px); }
-.op-arrow.r { left: calc(50% - var(--sw) / 2 + var(--pw) / 2 + 8px); }
+/* arrows sit on the outer edges of the picker, outside the fanned cards */
+.op-arrow { z-index: 4; }
+.op-arrow.l { left: 0; }
+.op-arrow.r { left: auto; right: 0; }
 .op-arrow:active { transform: scale(.92); }
 
-.op-side { position: absolute; top: 50%; transform: translateY(-50%); left: calc(50% - var(--sw) / 2 + var(--pw) / 2 + 62px); width: var(--sw); box-sizing: border-box; padding: 18px 22px; border-radius: 22px;
+/* info box: right side of the picker, drawn on top of the unselected cards (just inside the right arrow).
+   pointer-events: none so a swipe that starts on the box still scrolls the fan; only the button is tappable. */
+.op-side { position: absolute; top: 50%; transform: translateY(-50%); left: auto; right: 54px; width: var(--sw); box-sizing: border-box; padding: 18px 22px; border-radius: 22px; pointer-events: none;
   background: color-mix(in srgb, var(--tc) 16%, rgba(13,4,22,.72)); box-shadow: 0 8px 24px rgba(0,0,0,.45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; z-index: 2; }
 .op-count { font: 700 12px/1 'Fredoka', sans-serif; letter-spacing: .15em; opacity: .75; }
@@ -271,7 +274,7 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 @keyframes op-pop { from { transform: translateX(14px) scale(.85); opacity: 0; } }
 .op-team span { display: inline-block; padding: 5px 12px; border-radius: 999px; background: var(--tc); color: #fff; font: 800 13px/1 'Fredoka', sans-serif; box-shadow: 0 2px 0 rgba(0,0,0,.3); text-shadow: 0 1px 0 rgba(0,0,0,.3); }
 .op-hint { font: 600 clamp(11px, 2.8dvh, 13px)/1.3 'Fredoka', sans-serif; opacity: .75; }
-.op-ok { width: 100%; min-height: 48px; font-size: clamp(14px, 3.6dvh, 18px); animation: op-glow 1.6s ease-in-out infinite; }
+.op-ok { pointer-events: auto; width: 100%; min-height: 48px; font-size: clamp(14px, 3.6dvh, 18px); animation: op-glow 1.6s ease-in-out infinite; }
 @keyframes op-glow { 0%, 100% { box-shadow: 0 4px 0 #a86f00, 0 0 0 rgba(255,210,60,0); } 50% { box-shadow: 0 4px 0 #a86f00, 0 0 22px rgba(255,210,60,.8); } }
 .op-burst { position: fixed; z-index: 5; color: #ff5d93; font-style: normal; pointer-events: none; text-shadow: 0 0 8px #fff; }
 .oshi-pick.chosen .op-item:not(.sel) { opacity: .15; }
@@ -284,11 +287,20 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
   .op-filters button { padding: 7px 14px; font-size: 16px; }
   .op-main { flex-direction: column; }
   .op-main { --ph: calc(100dvh - 330px); --sw: 0px; }
-  .op-side { position: static; transform: none; left: auto; padding: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .op-side { position: static; transform: none; left: auto; right: auto; padding: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .op-side { width: 100%; align-items: center; text-align: center; }
   .op-arrow.l { left: 0; }
   .op-arrow.r { left: auto; right: 0; }
 }
+
+/* oshi confirmation pop up (above the picker) */
+.oshi-confirm { position: fixed; inset: 0; z-index: 1600; display: flex; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;
+  background: rgba(5, 2, 10, .72); touch-action: manipulation; user-select: none; -webkit-user-select: none; font-family: 'Fredoka', var(--font-game), sans-serif; animation: fade-in .18s ease-out; }
+.oc-box { width: min(90vw, 440px); box-sizing: border-box; padding: 18px 18px 16px; border-radius: 16px; text-align: center; background: var(--paper); color: #3a2140; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.oc-title { font: 900 clamp(18px, 5.2dvh, 28px)/1.15 var(--font-impact); }
+.oc-title b { color: #e0488a; }
+.oc-btns { display: flex; gap: 12px; justify-content: center; margin-top: clamp(10px, 2.6dvh, 16px); }
+.oc-btns .sh-btn { flex: 1; max-width: 160px; }
 
 /* ---------- combine: orbit, charge, explode ---------- */
 .cmb { overflow: hidden; }
