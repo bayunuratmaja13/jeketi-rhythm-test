@@ -203,6 +203,7 @@ let laneHead = [0, 0, 0, 0];
 let score = 0, combo = 0, maxCombo = 0, displayScore = 0;
 let stats = { PERFECT: 0, GREAT: 0, GOOD: 0, BAD: 0, MISS: 0 };
 let judgedCount = 0;
+let perfectStreak = 0;                // PERFECTs in a row (every 10th sets off a burst on all four lanes)
 let missCount = 0;
 let missLimit = 20;
 const PERFECTS_PER_HEAL = 50;         // every 50 PERFECTs win back 1 miss (only counted while at least 1 miss is on the bar)
@@ -243,7 +244,8 @@ let lowLock = false, lowFlips = 0;    // after two relapses in one run, low-fx s
 const WEAK_DEVICE = COARSE && ((navigator.deviceMemory && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
 let weakTried = false;
 let shownScoreInt = -1;
-let judgeAnim = null, timingAnim = null, bannerAnim = null;   // kept so a new one can cancel the old one without getAnimations() (which forces a style recalculation)
+let judgeAnim = null, timingAnim = null, bannerAnim = null;
+let perfectTilt = 1;   // kept so a new one can cancel the old one without getAnimations() (which forces a style recalculation)
 let lastPopScore = 0, lastPopCombo = 0, lastBuzz = 0;
 let accFx = 0, accBeat = 0;                                  // ambient effects run at ~30 fps, one per frame (staggered)
 const NUM_FMT = new Intl.NumberFormat();                     // same output as toLocaleString(), but built once
@@ -1882,7 +1884,7 @@ let layoutVer = 0;                                                              
 const fxRings = [];
 const fxParts = [];
 const fxFlares = [];                       // PERFECT / GREAT hit flares (a glow on the receptor, PERFECT also shoots a light column up the lane)
-const FLARE_SPR = { perfect: null, great: null, col: null };
+const FLARE_SPR = { perfect: null, great: null, col: null, core: null };
 const fxPops = [];                         // quick "pop" of a note that was just hit
 const FX_COL = { perfect: '#ffcc33', great: '#4da8ff', good: '#66d9a8' };
 const NOTE_COLS = [
@@ -1934,23 +1936,23 @@ const THEMES = {
 // Palette from the cover: turquoise #35c9cf, hot pink #ff4fa3, soft pink #ff9fc7, cream #ffe9a8. Same cost as the other themes (one static layer, sprites painted once).
 const popNote = (top, bot, glow, lo) => ({ top, bot, glow, hi: 'rgba(255,255,255,0.4)', lo, hex: bot });
 THEMES.popfight = {
-  // CALM VERSION: the first pass was too bright. Darker teal sky, faint rays, a deep-rose runway, muted note colours and soft glows.
-  // The combo tiers now only change the note colour a little (muted gold -> apricot -> pale mint); nothing gets brighter or whiter, and the background no longer grows with the combo.
-  hex: '#e0629f', lane: '#e8b2d0',
-  atmo: 'repeating-conic-gradient(from 0deg at 50% 36%,rgba(255,95,175,0.10) 0deg 8deg,rgba(255,160,205,0.04) 8deg 16deg,rgba(255,255,255,0) 16deg 24deg),' +
-        'radial-gradient(ellipse at 50% 30%,rgba(28,125,140,0.66) 0%,rgba(20,100,122,0.74) 50%,rgba(12,62,92,0.84) 100%)',
-  pulse: 'radial-gradient(ellipse at 50% 62%,rgba(255,130,195,0.2),rgba(255,79,163,0) 70%)', flash: 'rgba(255,150,205,0.1)',
+  // PASTEL VERSION: a lighter, softer take on the calm version. Pastel turquoise sky fading to lavender, faint pink rays, a lighter rose runway,
+  // pastel notes (turquoise -> butter yellow -> peach -> lilac) and soft candy petals. Still one static layer, sprites painted once, and it does not grow with the combo.
+  hex: '#f59cc6', lane: '#f7c6dd',
+  atmo: 'repeating-conic-gradient(from 0deg at 50% 36%,rgba(255,175,218,0.16) 0deg 8deg,rgba(255,215,238,0.07) 8deg 16deg,rgba(255,255,255,0) 16deg 24deg),' +
+        'radial-gradient(ellipse at 50% 30%,rgba(130,222,222,0.62) 0%,rgba(104,196,212,0.66) 50%,rgba(122,152,208,0.74) 100%)',
+  pulse: 'radial-gradient(ellipse at 50% 62%,rgba(255,175,218,0.3),rgba(255,150,205,0) 70%)', flash: 'rgba(255,195,228,0.16)',
   notes: [
-    popNote('#9fe6e4', '#1fb0b7', 'rgba(30,180,188,0.6)', 'rgba(0,60,90,0.55)'),         // turquoise
-    popNote('#8fdcd8', '#dcb25a', 'rgba(220,178,90,0.5)', 'rgba(110,70,0,0.55)'),        // 100 combo: muted gold
-    popNote('#f0d29a', '#e69f4c', 'rgba(230,159,76,0.55)', 'rgba(120,60,0,0.55)'),       // 200 combo: soft apricot
-    popNote('#e4f1f0', '#bfdedc', 'rgba(190,222,220,0.5)', 'rgba(40,80,100,0.5)')],      // 480 combo: pale mint (not white)
-  fx: { perfect: '#e6cd8a', great: '#2fb0b5', good: '#c9dede' },
-  petals: ['#d96aa3', '#2fb0b5', '#e0c98c', '#c9487f', '#63b9ba'], petalShape: 'bead',
-  track: ['rgba(150,40,100,0.3)', 'rgba(170,36,108,0.62)', 'rgba(158,32,100,0.78)'],     // deep rose runway
-  edge: 'rgba(120,225,225,0.22)', rail: 'rgba(130,215,215,0.6)', railGlow: 'rgba(40,180,190,0.45)',
-  padLine: 'rgba(250,225,235,0.5)', recStroke: 'rgba(255,235,245,0.45)',
-  atmoOpacity: [0.8, 0.8, 0.8, 0.8, 0.8],                                                  // flat: the sky never gets stronger
+    popNote('#c9f4f1', '#4fcfd0', 'rgba(80,205,208,0.65)', 'rgba(20,100,130,0.45)'),     // pastel turquoise
+    popNote('#fff4c8', '#f6d56e', 'rgba(246,213,110,0.6)', 'rgba(150,100,0,0.45)'),      // 100 combo: butter yellow
+    popNote('#ffe3d1', '#ffab8a', 'rgba(255,171,138,0.6)', 'rgba(150,70,30,0.45)'),      // 200 combo: peach
+    popNote('#f2ecff', '#cbbff6', 'rgba(203,191,246,0.6)', 'rgba(70,60,130,0.45)')],     // 480 combo: lilac (soft, not white)
+  fx: { perfect: '#ffe58f', great: '#6fd9dd', good: '#d9f3ee' },
+  petals: ['#ffb3d4', '#7fe0e0', '#ffe6a3', '#ff9cc8', '#a8e6e8'], petalShape: 'bead',
+  track: ['rgba(210,90,160,0.28)', 'rgba(215,95,165,0.55)', 'rgba(205,85,155,0.7)'],     // lighter rose runway
+  edge: 'rgba(170,240,240,0.3)', rail: 'rgba(190,240,240,0.75)', railGlow: 'rgba(110,220,225,0.55)',
+  padLine: 'rgba(255,235,245,0.65)', recStroke: 'rgba(255,240,248,0.6)',
+  atmoOpacity: [0.9, 0.9, 0.9, 0.9, 0.9],                                                  // flat: the sky never gets stronger
 };
 let TH = null;                                                              // active theme (null = default look)
 let COLS_NOW = NOTE_COLS;                                                   // cached, so the draw loop never builds arrays
@@ -2075,6 +2077,7 @@ function buildFlares() {
   };
   FLARE_SPR.perfect = glow(fxColor('perfect'));
   FLARE_SPR.great = glow(fxColor('great'));
+  FLARE_SPR.core = glow('#ffffff');                       // PERFECT: a white-hot centre on top of the coloured glow
   const col = document.createElement('canvas'); col.width = 48; col.height = 192;      // light column: bright at the bottom, gone at the top, soft at the sides
   const g = col.getContext('2d');
   const v = g.createLinearGradient(0, 192, 0, 0);
@@ -2255,17 +2258,22 @@ function drawField(now, dt) {
   if (fxFlares.length && FLARE_SPR.perfect) {
     c.globalCompositeOperation = 'lighter';
     for (let i = fxFlares.length - 1; i >= 0; i--) {
-      const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 380 : 260);
+      const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 470 : 260);
       if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
       const x = laneX(f.lane, 1), inv = 1 - age;
       if (f.big) {
-        const ch = F.hitY * 0.32 * (0.5 + 0.5 * age), cw = F.noteW * 0.6 * (1 - 0.3 * age);
-        c.globalAlpha = inv * inv * 0.4;
+        const ch = F.hitY * 0.46 * (0.5 + 0.5 * age), cw = F.noteW * 0.68 * (1 - 0.3 * age);
+        c.globalAlpha = inv * inv * 0.55;
         c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
       }
       const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
-      c.globalAlpha = (f.big ? 0.5 : 0.32) * inv * inv;
+      c.globalAlpha = (f.big ? 0.7 : 0.32) * inv * inv;
       c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
+      if (f.big && FLARE_SPR.core) {                       // quick white flash in the middle of a PERFECT
+        const cz = F.noteW * (0.7 + 0.5 * age), ci = 1 - age;
+        c.globalAlpha = 0.6 * ci * ci * ci;
+        c.drawImage(FLARE_SPR.core, x - cz / 2, F.hitY - cz * 0.35, cz, cz * 0.7);
+      }
     }
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
@@ -2276,10 +2284,10 @@ function drawField(now, dt) {
     const r = fxRings[i], age = (wall - r.t0) / 500;
     if (age >= 1) { fxRings[i] = fxRings[fxRings.length - 1]; fxRings.pop(); continue; }
     if (age < 0) continue;
-    const k = 1 + 1.4 * age;
+    const k = (1 + 1.4 * age) * (r.m || 1);
     const w = F.noteW * 1.04 * k, h = F.recH * k;
     c.globalAlpha = age < 0.4 ? 1 - age * 0.75 : 0.7 * (1 - (age - 0.4) / 0.6);
-    c.strokeStyle = r.col; c.lineWidth = 2.5;
+    c.strokeStyle = r.col; c.lineWidth = r.lw || 2.5;
     rr(c, laneX(r.lane, 1) - w / 2, F.hitY - h / 2, w, h, h * 0.4);
     c.stroke();
   }
@@ -2291,7 +2299,15 @@ function drawField(now, dt) {
     c.globalAlpha = 1 - age;
     c.fillStyle = p.col;
     c.beginPath();
-    c.arc(p.x + Math.cos(p.a) * p.d * e, p.y + Math.sin(p.a) * p.d * e, p.r * (1 - 0.7 * age), 0, 6.2832);
+    const px = p.x + Math.cos(p.a) * p.d * e, py = p.y + Math.sin(p.a) * p.d * e;
+    if (p.star) {                                                        // 4-point sparkle (PERFECT)
+      const sr = p.r * 1.9 * (1 - 0.65 * age);
+      c.moveTo(px, py - sr);
+      c.quadraticCurveTo(px, py, px + sr, py);
+      c.quadraticCurveTo(px, py, px, py + sr);
+      c.quadraticCurveTo(px, py, px - sr, py);
+      c.quadraticCurveTo(px, py, px, py - sr);
+    } else c.arc(px, py, p.r * (1 - 0.7 * age), 0, 6.2832);
     c.fill();
   }
   c.globalAlpha = 1;
@@ -2304,8 +2320,12 @@ function spawnShockwave(laneIndex, judgement, count) {
   const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 3);   // PERFECT always gets a double ring, even in the light look
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
-    if (fxRings.length >= 14) fxRings.shift();
+    if (fxRings.length >= 18) fxRings.shift();
     fxRings.push({ lane: laneIndex, col, t0: t + i * 70 });
+  }
+  if (isP && n > 0) {                                                        // PERFECT only: one more big, thick, white ring that spreads wider than the rest
+    if (fxRings.length >= 18) fxRings.shift();
+    fxRings.push({ lane: laneIndex, col: '#ffffff', t0: t, m: 1.7, lw: 3.5 });
   }
 }
 
@@ -2314,12 +2334,14 @@ function spawnParticles(laneIndex, judgement, count) {
   const n = fxLite() ? 0 : Math.round(count * (fxLight() ? (isP ? 0.8 : 0.4) : 1) * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
-  for (let i = 0; i < n && fxParts.length < 48; i++) {
+  for (let i = 0; i < n && fxParts.length < 64; i++) {
     fxParts.push({
-      x, y, col, t0: t,
+      x, y, t0: t,
+      col: isP && (i & 1) ? '#ffffff' : col,
       a: (Math.PI * 2 * i / n) + Math.random() * 0.4,
-      d: (60 + Math.random() * 70) * sc,
-      r: 4.5,
+      d: (60 + Math.random() * (isP ? 100 : 70)) * sc * (isP ? 1.25 : 1),
+      r: isP ? 5.5 : 4.5,
+      star: isP,
     });
   }
 }
@@ -3755,22 +3777,25 @@ function showJudgement(text, color) {
   const miss = text === 'MISS' || text === 'BAD';
   const isP = text === 'PERFECT', isG = text === 'GREAT';
   // PERFECT glows gold and punches in big; GREAT gets a smaller glow and a smaller punch. (glow is skipped in lite mode)
-  judgementEl.style.textShadow = fxLite() ? '' : isP ? '0 0 10px ' + color + ', 0 0 24px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
+  judgementEl.style.textShadow = fxLite() ? '' : isP ? '0 0 4px #fff, 0 0 12px ' + color + ', 0 0 26px ' + color + ', 0 0 46px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
   if (judgeAnim) judgeAnim.cancel();
-  const s0 = isP ? 1.75 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
+  const s0 = isP ? 2.1 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
+  perfectTilt = -perfectTilt;                                          // each PERFECT tilts the other way, so a streak wiggles instead of repeating the same pop
+  const pt = (s, r) => 'translateX(-50%) scale(' + s + ') rotate(' + r + 'deg)';
   judgeAnim = judgementEl.animate(isP ? [
-    { transform: T + s0 + ')', opacity: 0 },
-    { transform: T + '1)', opacity: 1, offset: 0.14 },
-    { transform: T + '1.14)', opacity: 1, offset: 0.26 },
-    { transform: T + '1)', opacity: 1, offset: 0.4 },
-    { transform: T + '1)', opacity: 1, offset: 0.65 },
-    { transform: T + '1)', opacity: 0 },
+    { transform: pt(s0, perfectTilt * 3), opacity: 0, filter: 'brightness(2.4)' },
+    { transform: pt(0.94, 0), opacity: 1, offset: 0.12, filter: 'brightness(2.2)' },
+    { transform: pt(1.3, -perfectTilt), opacity: 1, offset: 0.24, filter: 'brightness(1.6)' },
+    { transform: pt(1.0, 0), opacity: 1, offset: 0.38, filter: 'brightness(1.15)' },
+    { transform: pt(1.06, 0), opacity: 1, offset: 0.5, filter: 'brightness(1.3)' },
+    { transform: pt(1.0, 0), opacity: 1, offset: 0.68, filter: 'brightness(1)' },
+    { transform: pt(1.0, 0), opacity: 0, filter: 'brightness(1)' },
   ] : [
     { transform: T + s0 + ')', opacity: 0 },
     { transform: T + '1)', opacity: 1, offset: 0.15 },
     { transform: T + '1)', opacity: 1, offset: 0.6 },
     { transform: T + '1)', opacity: 0 },
-  ], { duration: miss ? 480 : isP ? 480 : 400, easing: 'ease-out' });
+  ], { duration: miss ? 480 : isP ? 560 : 400, easing: 'ease-out' });
 }
 
 // Shows EARLY / LATE for anything that is not PERFECT, so players can see how to improve
@@ -3931,6 +3956,14 @@ function laneUp(lane) {
 }
 
 // ---------- JUDGEMENT ----------
+// Every 10th PERFECT in a row: a burst on all four lanes + a quick screen flash. Any other judgement (or a miss) resets the streak.
+function perfectStreakStep(name) {
+  if (name !== 'PERFECT') { perfectStreak = 0; return; }
+  if (++perfectStreak % 10 !== 0 || fxLite()) return;
+  for (let l = 0; l < 4; l++) { spawnShockwave(l, 'perfect', 1); spawnFlare(l, 'PERFECT'); }
+  if (!fxLight()) triggerScreenFlash();
+  buzz(30);
+}
 function classify(diffMs) {
   if (diffMs <= HIT_WINDOWS.PERFECT) return JUDGE.PERFECT;
   if (diffMs <= HIT_WINDOWS.GREAT) return JUDGE.GREAT;
@@ -3948,6 +3981,7 @@ function judgeTap(n, signedDiff) {
   stats[name]++;
   judgedCount++;
   if (name === 'PERFECT') healFromPerfect();
+  perfectStreakStep(name);
 
   combo++;                                               // a BAD never breaks the combo: it counts like any other hit
   maxCombo = Math.max(maxCombo, combo);
@@ -3977,7 +4011,7 @@ function judgeTap(n, signedDiff) {
 
   const tier = getTier(combo);
   const ringCount = name === 'PERFECT' ? 1 + Math.min(tier, 2) : 1;
-  const particleCount = name === 'PERFECT' ? 6 + tier : (name === 'GREAT' ? 4 + Math.floor(tier / 2) : 3);
+  const particleCount = name === 'PERFECT' ? 8 + tier * 2 : (name === 'GREAT' ? 4 + Math.floor(tier / 2) : 3);
 
   if (name === 'PERFECT' && window.Shop) Shop.pulse();
   spawnShockwave(lane, name, ringCount);
@@ -3985,7 +4019,7 @@ function judgeTap(n, signedDiff) {
   spawnFlare(lane, name);
 
   // (no screen shake on ordinary taps: it was under 1 px and cost an animation per hit; shakes stay for milestones, holds and misses)
-  buzz(name === 'PERFECT' ? 15 : 10);
+  buzz(name === 'PERFECT' ? 22 : 10);
 
   handleComboIncrement();
   removeNoteAnimated(n);
@@ -3997,6 +4031,7 @@ function startHold(n, diffMs, signedDiff) {
   const name = j.name;
 
   addScore(j.points);
+  perfectStreakStep(name === 'BAD' ? 'MISS' : name);
   n.headJ = name;
   n.holding = true;
   n.lastTick = Math.round(getSongTime());
@@ -4061,6 +4096,7 @@ function completeHold(n) {
 function breakCombo(missSoundShake) {
   const brokenCombo = combo;
   combo = 0;
+  perfectStreak = 0;
   missCount++;
   stats.MISS++;
   judgedCount++;
@@ -4098,6 +4134,7 @@ function resetRunState() {
   kick = 0;
   stats = { PERFECT: 0, GREAT: 0, GOOD: 0, BAD: 0, MISS: 0 };
   judgedCount = 0;
+  perfectStreak = 0;
   lastCountdownNum = 0;
   frameEma = 16.7;
   perfBad = perfGood = 0;
