@@ -92,8 +92,8 @@
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
   const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));          // tier index a card counts as
-  function mkCard(id, ti, lite) {                // a card element for a member or a guest (guests get the R badge); lite = squad-bar card without a back face
-    const m = member(id), el = C().makeCard(m, C().TIERS[ti], true, false, lite);
+  function mkCard(id, ti) {                      // a card element for a member or a guest (guests get the R badge)
+    const m = member(id), el = C().makeCard(m, C().TIERS[ti], true);
     if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { const lb = m.label || GUEST_LABEL; b.textContent = lb; b.dataset.t = lb; } }     // data-t is what the big letter is drawn from
     return el;
   }
@@ -480,10 +480,11 @@
     const ti = bestT(id), key = id + ':' + ti;
     let el = sqCache.get(key);
     if (!el) {
-      el = mkCard(id, ti, true);
+      el = mkCard(id, ti);
       el.style.setProperty('--cw', 'var(--sq-cw)');
       el.style.pointerEvents = 'none';
       el.classList.add('flat');
+      const bk = el.querySelector('.tc-back'); if (bk) bk.remove();      // never flipped: no back face to decode or composite
       sqCache.set(key, el);
     }
     return el;
@@ -492,8 +493,7 @@
   // pre-build and pre-decode every owned card in the background so the first scroll to a new loadout is also smooth
   function warmSquad() {
     if (!window.Cards || !C().ownedIds) return;
-    const first = new Set(autoLineup(curSong));              // the current song's lineup is warmed first, then everything else owned
-    const q = C().ownedIds().slice().sort((a, b) => (first.has(b) ? 1 : 0) - (first.has(a) ? 1 : 0));
+    const q = C().ownedIds().slice();
     const step = (dl) => {
       let n = 0;
       while (q.length && n < 3 && (!dl || !dl.timeRemaining || dl.timeRemaining() > 4)) {
@@ -509,9 +509,7 @@
     const ids = autoLineup(curSong), slots = slotCount(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => (GUESTS[g].caption || GUESTS[g].name).toUpperCase()), bo = calc(ids, curSong);
     // identical loadout + markers to what is already on screen? then do not touch the cards at all
     const sig = [ids.map(id => id + ':' + bestT(id)).join(','), oshi || '', ids.filter(id => set.has(id)).join(','), tm || '', on ? 'only' : '', slots].join('|');
-    let changed = false;
     if (sig !== sqSig || !sqGrid.firstChild) {
-      changed = true;
       sqSig = sig;
       const frag = document.createDocumentFragment();
       for (let i = 0; i < slots; i++) {
@@ -536,11 +534,11 @@
     const duet = !!(curSong && curSong.duet) && gn.length > 0;
     const capHTML = 'HIGHEST CARDS EQUIPPED' + (duet ? ' <em>· DUET WITH ' + esc(gn.join(' & ')) + '</em>' : on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>');
     const tagHTML = ids.length ? 'TEAM <b>+' + bo.total + '%</b> <small>' + ids.length + '/' + slots + '</small>' : (on ? 'NO CARDS OF THE CHOSEN MEMBERS YET · OPEN A PACK IN THE SHOP' : tm ? 'NO ' + esc(tmName) + ' CARDS YET · OPEN A PACK IN THE SHOP' : 'NO CARDS YET · OPEN A PACK IN THE SHOP');
-    if (capHTML !== sqCapHTML) { sqCapHTML = capHTML; sqCap.innerHTML = capHTML; changed = true; }
-    if (tagHTML !== sqTagHTML) { sqTagHTML = tagHTML; sqTag.innerHTML = tagHTML; changed = true; }
+    if (capHTML !== sqCapHTML) { sqCapHTML = capHTML; sqCap.innerHTML = capHTML; }
+    if (tagHTML !== sqTagHTML) { sqTagHTML = tagHTML; sqTag.innerHTML = tagHTML; }
     sqTag.classList.toggle('none', !ids.length);
     renderBest();
-    if (changed) measureSquad();                    // measuring forces a layout: skip it when nothing on the bar changed
+    measureSquad();
   }
   // the selected song's saved best score, in the left part of the bar (loadBest() lives in game.js)
   let sqBestHTML = '';
@@ -586,38 +584,14 @@
     syncSquad();
   })();
   // optional: call Shop.setSong(song) when the selected song changes so the ♪ marks and bonus follow it
-  // song changed: song selection never waits for the cards. The BEST SCORE panel (text only) updates instantly; the cards are
-  // prepared separately: cards that are already built swap in on the next frame, missing ones are built a couple per idle slice and
-  // decoded first, and the bar keeps showing the previous cards until the new ones are ready (no blanks). Choosing another song
-  // meanwhile drops the unfinished work (sqTok), so rapid clicking only ever finishes the last song.
-  let sqRaf = 0, sqTok = 0;
-  function prepareSquad(tok) {
-    if (tok !== sqTok || !sqOn || cpick) return;
-    const need = autoLineup(curSong).filter(id => !sqCache.has(id + ':' + bestT(id)));
-    if (!need.length) { renderSquad(); return; }                 // everything cached: one cheap swap
-    const pending = [];
-    let i = 0;
-    const step = (dl) => {
-      if (tok !== sqTok || !sqOn || cpick) return;               // another song was chosen: abandon this one
-      let n = 0;
-      while (i < need.length && n < 2 && (!dl || !dl.timeRemaining || dl.timeRemaining() > 4)) {
-        try { sqCardEl(need[i]).querySelectorAll('img').forEach(im => { if (im.decode) pending.push(im.decode().catch(() => {})); }); } catch (e) { /* ignore */ }
-        i++; n++;
-      }
-      if (i < need.length) { idle(step); return; }
-      // all built: wait for the art to decode (at most 350 ms), then swap everything in at once
-      Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 350))]).then(() => { if (tok === sqTok && sqOn && !cpick) renderSquad(); });
-    };
-    idle(step);
-  }
+  // song changed: let the carousel finish moving first, then update the bar (rapid swipes only render the last one)
   function setSong(song) {
     if (cpick) return;                           // a CENTER pick is open: the bar stays on the song being picked for
     curSong = song || null;
     if (!sqOn) return;
-    renderBest();
-    sqTok++;
-    if (sqRaf) return;                           // rapid clicks: one frame callback, it reads the latest song
-    sqRaf = requestAnimationFrame(() => { sqRaf = 0; prepareSquad(sqTok); });
+    clearTimeout(sqTimer);
+    // wait for the carousel to settle, then do the update in idle time (and only if the loadout really changed)
+    sqTimer = setTimeout(() => idle(() => { if (sqOn && !document.body.classList.contains('carousel-scrolling')) renderSquad(); else if (sqOn) setSong(curSong); }), 220);
   }
   // ============================================================
   //  CENTER PICK
