@@ -701,8 +701,8 @@ body[data-tier="4"] #score {
   bottom: -8px;
   background: radial-gradient(
     ellipse at center,
-    rgba(229, 57, 53, 0.5) 0%,
-    rgba(229, 57, 53, 0.2) 50%,
+    rgba(229, 57, 53, 0.26) 0%,
+    rgba(229, 57, 53, 0.1) 50%,
     transparent 100%
   );
   opacity: 0;
@@ -718,8 +718,8 @@ body[data-tier="4"] #score {
 #miss-flash.bad {
   background: radial-gradient(
     ellipse at center,
-    rgba(255, 152, 0, 0.42) 0%,
-    rgba(255, 152, 0, 0.15) 50%,
+    rgba(255, 152, 0, 0.22) 0%,
+    rgba(255, 152, 0, 0.08) 50%,
     transparent 100%
   );
 }
@@ -2347,10 +2347,13 @@ body[data-tier="4"] #tier-glow { animation: none; }
 #results .results-card .gif-btn { padding: 2px 4px; }
 #results .results-card .btn-gif { height: clamp(64px, 16vh, 124px); }
 
-/* game over: same buttons, same size as the result card */
-#game-over .gameover-buttons { gap: 10px; margin-top: 2px; flex-wrap: nowrap; }
-#game-over .gameover-card .gif-btn { padding: 2px 4px; }
-#game-over .gameover-card .btn-gif { height: clamp(64px, 16vh, 124px); }
+/* game over: buttons share the card's width instead of overflowing it (was a horizontal scrollbar on laptops).
+   Each button gets half the row; the gif scales down to fit it, capped by the same height clamp as before. */
+#game-over .gameover-card { max-width: min(540px, 94vw); padding-left: 40px; padding-right: 40px; overflow-x: hidden; }
+#game-over .gameover-cover { width: clamp(56px, 12vh, 104px); height: clamp(56px, 12vh, 104px); margin-bottom: 8px; }
+#game-over .gameover-buttons { gap: 10px; margin-top: 2px; flex-wrap: nowrap; width: 100%; }
+#game-over .gameover-card .gif-btn { flex: 1 1 0; min-width: 0; padding: 2px 4px; }
+#game-over .gameover-card .btn-gif { width: 100%; height: auto; max-height: clamp(64px, 16vh, 124px); object-fit: contain; }
 
 /* equipped cards: bigger, 6 per row, a second row is centred under the first */
 #results .eq-strip { --eqw: clamp(28px, 8vh, 62px); margin: 8px auto 0; }

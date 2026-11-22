@@ -52,28 +52,6 @@ const comboNumEl = comboEl.querySelector('.combo-num');
 // Early / late indicator
 const timingEl = mk('div', 'timing');
 
-// "HOLD!" indicator: stays on screen for as long as at least one hold note is being held, hides on release
-const holdEl = mk('div', 'hold-indicator');
-holdEl.textContent = 'HOLD!';
-Object.assign(holdEl.style, {
-  position: 'fixed', left: '50%', transform: 'translateX(-50%)', zIndex: '30',
-  font: '800 clamp(20px, 4.5vw, 34px) system-ui, sans-serif', letterSpacing: '0.06em',
-  color: '#ff66a3', textShadow: '0 0 8px #ff66a3, 0 2px 0 rgba(0,0,0,0.35)',
-  pointerEvents: 'none', display: 'none'
-});
-let holdShown = false;
-function setHoldIndicator(on) {
-  if (on === holdShown) return;
-  holdShown = on;
-  if (on) {
-    const r = judgementEl.getBoundingClientRect();
-    holdEl.style.top = Math.round(r.bottom + 10) + 'px';   // just under the PERFECT / GREAT text
-    holdEl.style.display = '';
-  } else {
-    holdEl.style.display = 'none';
-  }
-}
-
 // Tier-up banner
 const tierBanner = mk('div', 'tier-banner');
 tierBanner.innerHTML = '<div class="tb-title"></div><div class="tb-sub"></div>';
@@ -553,7 +531,6 @@ function hideTransientHud() {
   document.body.classList.remove('intro-hud', 'intro-hud-in');
   if (introLoadingEl) introLoadingEl.style.display = 'none';
   timingEl.style.opacity = 0;
-  setHoldIndicator(false);
   tierBanner.getAnimations().forEach(a => a.cancel());
   judgementEl.getAnimations().forEach(a => a.cancel());
 }
@@ -1470,7 +1447,6 @@ function pauseGame() {
     pauseStartWall = performance.now();
   }
   mode = 'paused';
-  setHoldIndicator(false);
   if (window.Shop) Shop.setCheerPaused(true);
   music.pause();
   countdownEl.classList.remove('show');
@@ -2541,7 +2517,8 @@ function flashLane(i) { laneFlashUntil[i] = performance.now() + 160; }
 
 function flashJudgementLine(laneIndex, judgement) {
   const j = String(judgement).toLowerCase();
-  laneHitColor[laneIndex] = j === 'miss' ? '#e53935' : fxColor(j);
+  if (j === 'miss') return;     // no red bar on the judgement line for misses (it cost frames)
+  laneHitColor[laneIndex] = fxColor(j);
   laneHitUntil[laneIndex] = performance.now() + 180;
 }
 
@@ -2562,7 +2539,7 @@ function triggerScreenFlash() {
 function triggerMissFlash(kind) {
   missFlash.classList.toggle('bad', kind === 'bad');
   missFlash.classList.add('active');
-  setTimeout(() => missFlash.classList.remove('active'), kind === 'bad' ? 130 : 180);
+  setTimeout(() => missFlash.classList.remove('active'), kind === 'bad' ? 100 : 130);   // shorter than before: lighter flash
 }
 
 // Subtle screen shake: small, short, capped, and no forced reflow
@@ -4616,17 +4593,13 @@ function startHold(n, diffMs, signedDiff) {
   addScore(j.points);
   perfectStreakStep(name === 'BAD' ? 'MISS' : name);
   n.headJ = name;
-  n.headColor = j.color;          // shown only if the hold is completed
-  n.headSigned = signedDiff;
   n.holding = true;
   n.lastTick = Math.round(getSongTime());
   if (n.el) n.el.classList.add('holding');
 
   updateScoreboard();
-  judgementEl.getAnimations().forEach(a => a.cancel());   // clear any earlier judgement text
-  judgementEl.style.opacity = 0;
-  timingEl.style.opacity = 0;
-  setHoldIndicator(true);         // head hit and held: HOLD! stays up until release / completion
+  showJudgement(name, j.color);
+  showTiming(name, signedDiff);
   flashLane(lane);
   flashJudgementLine(lane, name === 'BAD' ? 'miss' : name);
   beamHit(lane, name);
@@ -4655,10 +4628,7 @@ function completeHold(n) {
   judgedCount++;
   if ((n.headJ || 'PERFECT') === 'PERFECT') healFromPerfect();
 
-  judgementEl.style.opacity = '';
-  setHoldIndicator(false);
-  showJudgement(n.headJ || 'PERFECT', n.headColor || '#ffd34d');
-  showTiming(n.headJ || 'PERFECT', n.headSigned || 0);
+  timingEl.style.opacity = 0;
   updateScoreboard();
   flashLane(lane);
   flashJudgementLine(lane, 'perfect');
@@ -5671,11 +5641,6 @@ function update(ts) {
     }
 
   }
-
-  // "HOLD!" is visible only while a hold note is actually being held
-  let anyHeld = false;
-  for (let i = 0; i < active.length; i++) { if (active[i].holding && !active[i].judged) { anyHeld = true; break; } }
-  setHoldIndicator(anyHeld);
 
   // 3) HUD: score counts up smoothly instead of jumping
   if (displayScore !== score) {
