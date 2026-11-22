@@ -809,7 +809,7 @@
     return w;
   }
   function setPos(w, pos) { w.className = w.className.replace(/\s*pos-\w+/, '') + ' pos-' + pos; }
-  function layoutCheer() {
+  function layoutCheer(initial) {
     const ids = cheer.ids, n = ids.length, i = cheer.i;
     const want = new Map();
     want.set(ids[i], 'c');
@@ -818,7 +818,17 @@
     want.forEach((pos, id) => {
       const w = cheerCard(id);
       clearTimeout(w._rm);
-      if (!w.parentNode) { setPos(w, 'fr'); hud.appendChild(w); void w.offsetWidth; }
+      w._want = pos;
+      if (!w.parentNode) {
+        setPos(w, 'fr'); hud.appendChild(w);
+        if (initial) void w.offsetWidth;                 // before the song starts a forced layout is harmless
+        else {                                           // during the song: NO forced layout. Let the browser draw the start position
+          const tok = w._tok = (w._tok || 0) + 1;        // once (two frames), then slide the card to its real place
+          requestAnimationFrame(() => requestAnimationFrame(() => { if (w._tok === tok && w.parentNode) setPos(w, w._want); }));
+          return;
+        }
+      }
+      w._tok = (w._tok || 0) + 1;                        // cancels a slide that was still waiting for its frames
       setPos(w, pos);
     });
     Array.from(hud.querySelectorAll('.cc-card')).forEach(w => {
@@ -839,6 +849,20 @@
     }
     cheer.timer = setTimeout(cheerLoop, 3800 - tier * 450);
   }
+  // Build every cheer card (and decode its picture) during the intro, one per tick, so the first rotation in the song
+  // does not have to create a card, decode an image or promote a layer. The cards on stage get their first animate() too.
+  function cheerWarm(c) {
+    let k = 0;
+    const next = () => {
+      if (cheer !== c || k >= c.ids.length) return;
+      const w = cheerCard(c.ids[k++]);
+      try { w.querySelectorAll('img').forEach(im => { if (im.decode) im.decode().catch(() => {}); }); } catch (e) { /* ignore */ }
+      const p = w.parentNode && w.querySelector('.cc-pulse');
+      if (p && p.animate) { try { p.animate([{ transform: 'scale(1)' }, { transform: 'scale(1)' }], { duration: 30 }); } catch (e) { /* ignore */ } }
+      setTimeout(next, 50);
+    };
+    next();
+  }
   function pulseEl(w, k) {
     const p = w && w.querySelector('.cc-pulse');
     if (p) p.animate([{ transform: 'scale(1)' }, { transform: 'scale(' + k + ')', offset: .35 }, { transform: 'scale(1)' }], { duration: 230, easing: 'ease-out' });
@@ -850,8 +874,9 @@
     hud.innerHTML = '<b class="cc-bonus">+' + r.bonus + '%</b>';
     cheer = { ids: r.cards.map(c => c.id), center: r.center || null, i: 0, els: new Map(), timer: 0 };
     document.body.appendChild(hud);
-    layoutCheer();
+    layoutCheer(true);
     cheer.timer = setTimeout(cheerLoop, 3800);
+    { const mine = cheer; setTimeout(() => cheerWarm(mine), 250); }
   }
   function hideHud() {
     if (cheer) clearTimeout(cheer.timer);

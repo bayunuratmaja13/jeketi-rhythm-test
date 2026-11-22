@@ -6,6 +6,8 @@
  *  - images, fonts, charts: shown instantly from the device
  *  - song audio: saved in full (by the downloader, or once the player lingers on a song), then served from the device,
  *    including the range requests <audio> makes.
+ *  - "pack-abort": the game asks this worker to stop every download in flight (pack files and keep-audio) the moment a song
+ *    starts, so nothing competes with the song. Nothing half-saved is ever kept; downloader.js simply tries again after the song.
  *  - NEW: "pack" downloads. downloader.js asks this worker to fetch a list of files one by one (pack-fetch) and to
  *    report which files are still missing (pack-status). Pack images and charts live in their own cache (PACK) that
  *    game updates do NOT clear, so players don't re-download everything every time you bump version.js.
@@ -22,6 +24,8 @@ const PACK_VERSION = 'p1';         // bump ONLY if you replace an image under th
 const MEDIA = 'jeketi-media-' + GAME_V;
 const AUDIO = 'jeketi-audio-' + AUDIO_VERSION;
 const PACK = 'jeketi-pack-' + PACK_VERSION;
+const packCtl = new Set();         // AbortControllers of the downloads in flight (pack-fetch and keep-audio)
+function abortDownloads() { packCtl.forEach((c) => { try { c.abort(); } catch (err) { /* ignore */ } }); packCtl.clear(); }
 const MAX_SONGS = 500;             // oldest saved songs are dropped beyond this (was 30: too small for a full download)
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -42,7 +46,8 @@ const keyOf = (u) => new Request(u.origin + u.pathname);       // cache key with
 self.addEventListener('message', (e) => {
   const d = e.data || {};
   const port = e.ports && e.ports[0];
-  if (d.type === 'keep-audio' && d.url) e.waitUntil(keepAudio(d.url));
+  if (d.type === 'pack-abort') { abortDownloads(); if (port) port.postMessage({ ok: true }); }
+  else if (d.type === 'keep-audio' && d.url) e.waitUntil(keepAudio(d.url));
   else if (d.type === 'pack-status' && Array.isArray(d.urls)) e.waitUntil(packStatus(d.urls).then((r) => port && port.postMessage(r)));
   else if (d.type === 'pack-fetch' && d.url) e.waitUntil(packFetch(d.url).then((r) => port && port.postMessage(r)));
 });
@@ -53,16 +58,19 @@ async function trimAudio(cache) {
 }
 
 async function keepAudio(url) {
+  const ac = new AbortController();
+  packCtl.add(ac);
   try {
     const u = new URL(url);
     if (u.origin !== location.origin) return;
     const cache = await caches.open(AUDIO), key = keyOf(u);
     if (await cache.match(key)) return;
-    const res = await fetch(u.href, { cache: 'no-store' });     // no Range header: the whole file
+    const res = await fetch(u.href, { cache: 'no-store', signal: ac.signal });     // no Range header: the whole file
     if (!res.ok || res.status !== 200) return;
     await cache.put(key, res);
     await trimAudio(cache);
-  } catch (err) { /* offline or blocked: audio simply streams as usual */ }
+  } catch (err) { /* offline, blocked or stopped because a song started: audio simply streams as usual */ }
+  finally { packCtl.delete(ac); }
 }
 
 // ---- pack downloads (see downloader.js) ----
@@ -81,19 +89,22 @@ async function packStatus(urls) {
 }
 
 async function packFetch(url) {
+  const ac = new AbortController();
+  packCtl.add(ac);
   try {
     const u = new URL(url);
     if (u.origin !== location.origin) return { ok: false };
     if (await isSaved(u)) return { ok: true, skipped: true, bytes: 0 };
     const audio = isAudio(u);
-    const res = await fetch(u.href, audio ? { cache: 'no-store' } : undefined);
+    const res = await fetch(u.href, audio ? { cache: 'no-store', signal: ac.signal } : { signal: ac.signal });
     if (!res.ok || res.status !== 200) return { ok: false };
     const bytes = Number(res.headers.get('content-length')) || 0;
     const cache = await caches.open(audio ? AUDIO : PACK);
     await cache.put(keyOf(u), res);                              // only stored when the whole file arrived
     if (audio) await trimAudio(cache);
     return { ok: true, bytes };
-  } catch (err) { return { ok: false }; }                        // offline / interrupted: nothing half-saved, the caller retries
+  } catch (err) { return { ok: false, aborted: ac.signal.aborted }; }   // offline / interrupted / stopped by pack-abort: nothing half-saved, the caller retries
+  finally { packCtl.delete(ac); }
 }
 
 // range requests from a saved song. A Blob slice is read lazily, so the whole song is not copied into memory

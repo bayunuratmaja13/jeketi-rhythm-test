@@ -190,6 +190,10 @@ const STORE_PREFIX = 'jeketi.best.';
 
 // ---------- STATE ----------
 let mode = 'idle'; // idle | starting | playing | paused | countdown | resuming | gameover
+// A song is being started but `mode` is still 'idle' (the chart is loading). Together with mode this is the one answer to
+// "is the player in a song right now?": downloader.js uses it to pause background downloads, Store.keepAudio to not start new ones.
+let songStarting = false, songStartingAt = 0;
+function playBusy() { return (songStarting && performance.now() - songStartingAt < 60000) || mode !== 'idle'; }   // the 60 s limit: a stuck flag can never block downloads for good
 let currentSong = null;
 let selectedSong = null;
 let currentChart = [];
@@ -226,7 +230,7 @@ let introShow = false;                // true during the 3-2-1 before a song: dr
 
 // interpolated audio clock
 let anchorAudio = 0, anchorPerf = 0, lastAudioRaw = -1;
-let smoothT = 0, smoothPerf = 0;
+let smoothT = 0, smoothPerf = 0, errSince = 0;   // errSince: when |err| first went above CLOCK_BIG_MS (0 = it is not above now)
 
 let countdownEnd = 0, lastCountdownNum = 0;
 let audioCtx = null;
@@ -238,11 +242,12 @@ let lastBeatOpacity = -1;
 
 // adaptive quality
 let songFx = null;                    // per-song gameplay effect (see SONG_FX); replaces the sakura petals while active
-let lowFx = false, frameEma = 16.7, perfBad = 0, perfGood = 0;
-let lowLock = false, lowFlips = 0;    // after two relapses in one run, low-fx stays on until the run ends (no flip-flopping)
-// weak phones (little RAM / few cores) start their first run already in light mode; it can still switch back if the phone copes
+let frameEma = 16.7;
+// QUALITY LADDER (see the block above applyGfx): qRung 0 = full look ... 3 = lite. qLowRes = the playfield bitmap is the small one for THIS song
+// (the resolution only ever changes between songs: reallocating the canvases mid-song is a visible hitch).
+let qRung = 0, qLowRes = false;
+// weak phones (little RAM / few cores): only a first guess for the starting rung of a device that has no saved rung yet
 const WEAK_DEVICE = COARSE && ((navigator.deviceMemory && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
-let weakTried = false;
 let shownScoreInt = -1;
 let judgeAnim = null, timingAnim = null, bannerAnim = null;
 let perfectTilt = 1;   // kept so a new one can cancel the old one without getAnimations() (which forces a style recalculation)
@@ -256,8 +261,6 @@ function buzz(ms) {                                          // phone vibration 
   lastBuzz = t;
   navigator.vibrate(ms);
 }
-let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
-const SPIKE_FRAME_MS = 80, SPIKE_LIGHT_MS = 1200;
 // ---------- PLAYER OPTIONS (saved on the device) ----------
 const OPT_KEY = 'jeketi.options';
 const OPT = { music: 1, sfx: 1, vib: true, gfx: GFX_DEFAULT, speed: SPEED_DEFAULT };      // gfx: ON by default
@@ -280,32 +283,41 @@ function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.a
 // THREE looks:
 //   GRAPHICS OFF           = the light look: no beat glow / beams / shake, few particles, 1x playfield.
 //   GRAPHICS ON (default)  = the full look the game had before the light pass (beat glow, beams, shake, full particles, sharper playfield).
-//   LITE                   = even lighter, adaptive, ALWAYS available whatever the graphics option says (kicks in when the frame rate
-//                            drops, or right after a long frame): no particles / rings / hit-flash / tier glow, no petals,
-//                            flat hold bodies, slower ambience, playfield below 1x.
-const LITE_DPR = 0.75;                 // playfield resolution in lite mode
-function fxLight() { return !OPT.gfx || fxLite(); }    // "light look": graphics off, or lite on top of anything
-function fxLite() { return lowFx || performance.now() < spikeUntil; }
+//   LITE (rung R3)        = even lighter, adaptive, ALWAYS available whatever the graphics option says. It is the LAST rung of the quality
+//                            ladder (R0 full, R1 nearly invisible trims, R2 lighter hit effects, R3 lite): no particles / rings / hit-flash /
+//                            tier glow, no petals, flat hold bodies, slower ambience. A song that STARTS on R3 also uses a smaller playfield bitmap.
+const LITE_DPR = 0.75;                 // playfield resolution for a song that starts on the lite rung (R3)
+// The quality ladder (rung = qRung):  R0 full  ->  R1 nearly invisible trims  ->  R2 lighter hit effects  ->  R3 lite.
+function fxLite() { return qRung >= 3; }                  // R3: no particles / rings / hit flash / tier glow, no petals ...
+function fxLight() { return !OPT.gfx || qRung >= 2; }     // "light look": graphics off, or rung 2 and up
+function fxMid() { return !OPT.gfx || qRung >= 1; }       // R1 and up: no beat glow, no shake, calmer ambience
 
 // start-up smoothness
 const CLOCK_SNAP_MS = 400;             // song clock only JUMPS to the audio when they differ by more than this (was 120: a weak phone's audio start-up often wobbles more than that)
-const CLOCK_MAX_SLEW = 0.12;           // below that it catches up gradually: notes never run more than 12% faster / slower than real time
+const CLOCK_MAX_SLEW = 0.12;           // FAST catch-up (only for a big gap that lasts): notes never run more than 12% faster / slower than real time
+// two-speed correction: the audio's time reports are noisy, so small gaps are mostly ignored (notes keep a steady speed)
+const CLOCK_DEAD_MS = 12;              // gaps smaller than this are not corrected at all
+const CLOCK_SLOW_GAIN = 0.01;          // gentle correction per 16.7 ms frame (time constant about 1.5 s)
+const CLOCK_SLOW_SLEW = 0.02;          // gentle correction never changes the note speed by more than 2%
+const CLOCK_FAST_GAIN = 0.1;           // fast correction per 16.7 ms frame (the old behaviour)
+const CLOCK_BIG_MS = 60;               // a gap this big ...
+const CLOCK_BIG_HOLD_MS = 250;         // ... that lasts this long switches to the fast correction
 const WARMUP_MS = 2000;                // first seconds of a song: audio start-up jank alone must not flip the quality mode mid-song
 let playBeganAt = 0, introFrames = 0;
 
 // add ?debug to the game's address to see a small clock / frame readout in the bottom-left corner (for finding stutter)
 const DBG = /[?&]debug\b/.test(location.search);
-const dbg = { snaps: 0, maxErr: 0, long: 0, worst: 0, last: 0 };
+const dbg = { snaps: 0, maxErr: 0, fast: 0, long: 0, worst: 0, last: 0 };
 const dbgEl = document.createElement('div');
 dbgEl.style.cssText = 'position:fixed;bottom:8px;left:8px;color:#0f0;font:10px/1.4 monospace;z-index:999;white-space:pre;background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:6px;pointer-events:none;display:' + (DBG ? 'block' : 'none') + ';';
 document.body.appendChild(dbgEl);
-function dbgReset() { dbg.snaps = 0; dbg.maxErr = 0; dbg.long = 0; dbg.worst = 0; dbg.last = 0; }
+function dbgReset() { dbg.snaps = 0; dbg.maxErr = 0; dbg.fast = 0; dbg.long = 0; dbg.worst = 0; dbg.last = 0; }
 function dbgTick(dt) {
   if (performance.now() - playBeganAt < 10000) { if (dt > 33) dbg.long++; if (dt > dbg.worst) dbg.worst = dt; }
   const t = performance.now();
   if (t - dbg.last < 400) return;
   dbg.last = t;
-  dbgEl.textContent = 'first 10 s of the song\nclock jumps: ' + dbg.snaps + '   worst clock error: ' + Math.round(dbg.maxErr) + ' ms\nslow frames (>33 ms): ' + dbg.long + '   worst: ' + Math.round(dbg.worst) + ' ms\nmode: ' + (lowFx ? 'lite' : 'normal');
+  dbgEl.textContent = 'first 10 s of the song\nclock jumps: ' + dbg.snaps + '   worst clock error: ' + Math.round(dbg.maxErr) + ' ms   fast-catch-up frames: ' + dbg.fast + '\nslow frames (>33 ms): ' + dbg.long + '   worst: ' + Math.round(dbg.worst) + ' ms\nnow, whole song: rung R' + qRung + (qLowRes ? ' (small canvas)' : '') + '   p95 frame (5 s): ' + qP95.toFixed(1) + ' ms';
 }
 
 const hitBarTimers = [null, null, null, null];
@@ -321,6 +333,7 @@ function resetClock() {
   anchorPerf = performance.now();
   smoothT = raw;
   smoothPerf = anchorPerf;
+  errSince = 0;
 }
 
 // Audio currentTime updates in coarse steps on many browsers, which makes notes judder.
@@ -342,9 +355,22 @@ function getSongTime() {
     let t = smoothT + dt;
     const err = est - t;
     if (DBG && performance.now() - playBeganAt < 10000 && Math.abs(err) > dbg.maxErr) dbg.maxErr = Math.abs(err);
-    if (Math.abs(err) > CLOCK_SNAP_MS) { t = est; if (DBG) dbg.snaps++; }
+    const aerr = Math.abs(err);
+    if (aerr > CLOCK_SNAP_MS) { t = est; errSince = 0; if (DBG) dbg.snaps++; }
     else {
-      const corr = err * 0.1 * Math.min(1, dt / 16.7), lim = dt * CLOCK_MAX_SLEW;
+      // how long has the gap been bigger than CLOCK_BIG_MS?
+      if (aerr >= CLOCK_BIG_MS) { if (!errSince) errSince = p; } else errSince = 0;
+      const k = Math.min(1, dt / 16.7);
+      let corr, lim;
+      if (errSince && p - errSince >= CLOCK_BIG_HOLD_MS) {
+        // a real, lasting offset: chase it quickly (same as before)
+        corr = err * CLOCK_FAST_GAIN * k; lim = dt * CLOCK_MAX_SLEW;
+        if (DBG && p - playBeganAt < 10000) dbg.fast++;
+      } else {
+        // small gap, or a big one that may just be noise: barely move (dead zone, then a gentle pull)
+        const e = aerr <= CLOCK_DEAD_MS ? 0 : (err > 0 ? err - CLOCK_DEAD_MS : err + CLOCK_DEAD_MS);
+        corr = e * CLOCK_SLOW_GAIN * k; lim = dt * CLOCK_SLOW_SLEW;
+      }
       t += corr > lim ? lim : corr < -lim ? -lim : corr;
     }
     smoothT = t;
@@ -1023,6 +1049,7 @@ const Store = (() => {
   }
   function keepAudio(song) {
     if (!song || !song.audio || warmedAudio.has(song.audio)) return;
+    if (playBusy()) return;                          // never start a download while a song is starting or playing
     warmedAudio.add(song.audio);
     try {
       const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
@@ -1064,6 +1091,8 @@ function proceedSong(song) {
   go();
 }
 async function startSong(song) {
+  songStarting = true; songStartingAt = performance.now();   // from now on (chart loading included) nothing may download in the background
+  window.dispatchEvent(new Event('jeketi:busy'));    // downloader.js stops an in-flight song download right away
   stopPreview();
   currentSong = song;
   lastPlayedId = song.id;
@@ -1074,8 +1103,10 @@ async function startSong(song) {
     const chart = await loadChartFor(song);
     currentChart = chart;
     music.src = song.audio;
-    startPlayback();
+    startPlayback();                                 // sets mode = 'starting' synchronously: mode now covers the busy state
+    songStarting = false;
   } catch (err) {
+    songStarting = false;
     setStatus('ERROR: ' + err.message);
     alert('Could not load song:\n\n' + err.message);
     currentSong = null;
@@ -2112,8 +2143,8 @@ function layoutField() {
   if (!W || !H) return;
   const F = FIELD;
   // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
-  const dprCap = lowFx ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
-  const pxCap = lowFx ? 0.55e6 : OPT.gfx ? (COARSE ? 1.0e6 : 1.2e6) : 1.0e6, dprMin = lowFx ? 0.5 : 1;
+  const dprCap = qLowRes ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
+  const pxCap = qLowRes ? 0.55e6 : OPT.gfx ? (COARSE ? 1.0e6 : 1.2e6) : 1.0e6, dprMin = qLowRes ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
   while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);   // never paint a huge bitmap
   layoutVer++;
@@ -2339,7 +2370,7 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          if (!OPT.gfx || fxLite()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // lite: flat body, no gradient built per frame
+          if (fxLight()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // R2 and up (or Graphics off): flat body, no gradient built per frame
           else {
             const gr = c.createLinearGradient(0, yT, 0, yH);       // original look: each hold fades from clear at its tail to solid at its head
             gr.addColorStop(0, colr.h0);
@@ -2384,7 +2415,7 @@ function drawField(now, dt) {
       const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 470 : 260);
       if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
       const x = laneX(f.lane, 1), inv = 1 - age;
-      if (f.big) {
+      if (f.big && qRung < 2) {                                 // R2 and up: no light column
         const ch = F.hitY * 0.46 * (0.5 + 0.5 * age), cw = F.noteW * 0.68 * (1 - 0.3 * age);
         c.globalAlpha = inv * inv * 0.55;
         c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
@@ -2392,7 +2423,7 @@ function drawField(now, dt) {
       const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
       c.globalAlpha = (f.big ? 0.7 : 0.32) * inv * inv;
       c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
-      if (f.big && FLARE_SPR.core) {                       // quick white flash in the middle of a PERFECT
+      if (f.big && FLARE_SPR.core && qRung < 2) {              // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
         const cz = F.noteW * (0.7 + 0.5 * age), ci = 1 - age;
         c.globalAlpha = 0.6 * ci * ci * ci;
         c.drawImage(FLARE_SPR.core, x - cz / 2, F.hitY - cz * 0.35, cz, cz * 0.7);
@@ -2466,7 +2497,8 @@ function spawnShockwave(laneIndex, judgement, count) {
 
 function spawnParticles(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  const n = fxLite() ? 0 : Math.round(count * (fxLight() ? (isP ? 0.8 : 0.4) : 1) * (COARSE ? 0.6 : 1));
+  const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : 1;             // R2: half the particles
+  const n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 64; i++) {
@@ -2512,7 +2544,7 @@ function triggerMissFlash(kind) {
 // Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
-  if (fxLight()) return;                       // light mode: no shaking at all
+  if (fxMid()) return;                         // R1 and up: no shaking at all
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
@@ -3931,7 +3963,7 @@ const magicFx = (() => {
     hide() { if (!root) return; reset(); root.style.display = 'none'; },
     setCombo(c) {
       if (!root || root.style.display === 'none') return;
-      const lite = typeof lowFx !== 'undefined' && lowFx;
+      const lite = fxLite();
       if (lite !== liteShown) { liteShown = lite; root.classList.toggle('mgl', lite); }
       const l = c >= TIER_STEPS[2] ? 2 : c >= TIER_STEPS[1] ? 1 : 0;
       if (l === lv) return;
@@ -4087,51 +4119,111 @@ function songFxUpdate(dt) {
   try { songFx.update(dt); } catch (e) { console.warn('song effect failed', e); clearSongFx(); }
 }
 
-function setLowFx(v) {
-  lowFx = v;
-  perfBad = perfGood = 0;
-  petals.setQuality(v ? 0 : OPT.gfx ? 1 : 0.3);
-  document.body.classList.toggle('low-fx', !OPT.gfx || v);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
-  document.body.classList.toggle('lite-fx', v);        // CSS (injected below): hides the hit flash and tier glow
-  if (v) {
-    beatPulse.style.opacity = 0; lastBeatOpacity = 0;
-    fxParts.length = 0; fxRings.length = 0; fxPops.length = 0;
-  }
-  setStatus(status.textContent.split('\n')[0] + (v ? '\nlite-fx mode' : ''));
-  measureLane();                                       // light mode also renders the playfield at 1x resolution (one small hitch at the switch)
+// ============================================================
+//  QUALITY LADDER  (replaces the old all-or-nothing "lite" switch)
+//   R0 = Graphics ON, full look
+//   R1 = nearly invisible: ambience at ~20 fps and half the petals, no beat glow, no screen shake, cheer sparks off, cheer aura frozen
+//   R2 = lighter hit effects: 1 ring (PERFECT 2), half the particles, flares without light column / core, flat hold bodies, no glow text
+//   R3 = lite (the old lite look). Only R3 is "lite"; it is the LAST rung.
+//  It steps down one rung when the 95th-percentile frame time over the last ~5 s is above Q_DOWN_P95, and up one rung only after
+//  ~20 s at a good p95 (with a longer wait, and finally no more going up, if going up keeps failing).
+//  The canvas resolution never changes in a song: qLowRes is decided in qBegin() when a song starts, from the rung saved on this device.
+// ============================================================
+const Q_MAX = 3, Q_KEY = 'jeketi.q';
+const Q_WINDOW_MS = 5000, Q_EVAL_MS = 500, Q_MIN_SAMPLES = 60;
+const Q_DOWN_P95 = 20, Q_UP_P95 = 18.5;           // ms. between the two: stay where we are
+const Q_UP_AFTER_MS = 20000, Q_RELAPSE_MS = 30000, Q_SAVE_AFTER_MS = 15000;
+const Q_BUF = 720;
+const qT = new Float64Array(Q_BUF), qD = new Float32Array(Q_BUF), qScratch = new Float32Array(Q_BUF);
+let qN = 0, qHead = 0, qLastEval = 0, qP95 = 0;
+let qRungSince = 0, qGoodSince = 0, qUpWait = Q_UP_AFTER_MS, qLastUpAt = 0, qRelapse = 0, qUpBlocked = false, qSaved = -1;
+
+function qLoad() {
+  try { const v = parseInt(localStorage.getItem(Q_KEY), 10); return v >= 0 && v <= Q_MAX ? v : -1; } catch (e) { return -1; }
+}
+function qSave() {
+  qSaved = qRung;
+  try { localStorage.setItem(Q_KEY, String(qRung)); } catch (e) { /* storage blocked */ }
 }
 
-// Applies the Graphics option (called at start and whenever the player flips it). Lite mode (setLowFx) sits on top of both settings.
+// CSS classes + petal amount for the current rung. Cheap, and it never touches the canvases.
+function qApply() {
+  const b = document.body;
+  b.classList.toggle('low-fx', !OPT.gfx || qRung >= 3);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
+  b.classList.toggle('lite-fx', qRung >= 3);              // CSS (injected below): hides the hit flash and tier glow
+  b.classList.toggle('q1', qRung >= 1);                   // CSS (injected below): no beat glow, no cheer sparks, frozen cheer aura
+  const rq = [1, 0.5, 0.3, 0][qRung];                     // petals / ambience amount
+  petals.setQuality(OPT.gfx ? rq : Math.min(0.3, rq));
+  if (qRung >= 1) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; }
+}
+
+// A song is about to start: pick the rung to start at (the saved one for this device) and the canvas size that goes with it.
+function qBegin() {
+  const saved = qLoad();
+  qRung = saved >= 0 ? saved : WEAK_DEVICE ? 2 : 0;
+  qSaved = saved;
+  qLowRes = qRung >= 3;
+  qN = 0; qHead = 0; qLastEval = 0; qP95 = 0;
+  qRungSince = performance.now(); qGoodSince = 0;
+  qUpWait = Q_UP_AFTER_MS; qLastUpAt = 0; qRelapse = 0; qUpBlocked = false;
+  qApply();
+}
+
+function qSetRung(r, now) {
+  r = Math.max(0, Math.min(Q_MAX, r));
+  if (r === qRung) return;
+  if (r > qRung) {                                        // quality goes DOWN
+    if (qLastUpAt && now - qLastUpAt < Q_RELAPSE_MS) {    // we went up a moment ago and it did not hold: wait longer, and after two relapses stop going up
+      qUpWait = Math.min(qUpWait * 2, 120000);
+      if (++qRelapse >= 2) qUpBlocked = true;
+    }
+  } else qLastUpAt = now;
+  qRung = r; qRungSince = now; qGoodSince = 0;
+  qN = 0; qHead = 0;                                      // judge the new rung on fresh frames only
+  qApply();
+  setStatus(status.textContent.split('\n')[0] + (qRung >= 3 ? '\nlite-fx mode' : ''));
+}
+
+function qEvaluate(now) {
+  let n = 0, oldest = now;
+  for (let i = 0; i < qN; i++) {
+    if (qT[i] >= now - Q_WINDOW_MS) { qScratch[n++] = qD[i]; if (qT[i] < oldest) oldest = qT[i]; }
+  }
+  if (n < Q_MIN_SAMPLES || now - oldest < Q_WINDOW_MS * 0.8) return;     // not enough fresh frames yet
+  const s = qScratch.subarray(0, n); s.sort();
+  const p95 = qP95 = s[Math.floor(0.95 * (n - 1))];
+  if (p95 > Q_DOWN_P95) { qGoodSince = 0; if (qRung < Q_MAX) { qSetRung(qRung + 1, now); return; } }
+  else if (qRung > 0 && !qUpBlocked && p95 <= Q_UP_P95) {
+    if (!qGoodSince) qGoodSince = now;
+    else if (now - qGoodSince >= qUpWait) { qSetRung(qRung - 1, now); return; }
+  } else qGoodSince = 0;
+  if (qRung !== qSaved && now - qRungSince >= Q_SAVE_AFTER_MS) qSave();   // a rung that held for a while is what the next song starts at
+}
+
+// Watches the frame time. Called every frame of a song.
+function trackPerformance(dt) {
+  const now = performance.now();
+  frameEma += (Math.min(dt, 80) - frameEma) * 0.05;
+  if (now - playBeganAt < WARMUP_MS || document.hidden) return;           // first 2 s: audio start-up jank alone must not move the ladder
+  qT[qHead] = now; qD[qHead] = dt; qHead = (qHead + 1) % Q_BUF; if (qN < Q_BUF) qN++;
+  if (now - qLastEval < Q_EVAL_MS) return;
+  qLastEval = now;
+  qEvaluate(now);
+}
+
+// Applies the Graphics option (called at start and whenever the player flips it). The ladder sits on top of it.
 function applyGfx() {
-  document.body.classList.toggle('low-fx', !OPT.gfx || lowFx);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
-  petals.setQuality(lowFx ? 0 : OPT.gfx ? 1 : 0.3);
+  qApply();
   if (!OPT.gfx) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; fxParts.length = 0; fxRings.length = 0; fxPops.length = 0; }
   measureLane();                                                  // playfield resolution depends on it
 }
 applyGfx();
 (function addLiteStyles() {
   const st = document.createElement('style');
-  st.textContent = 'body.lite-fx #screen-flash, body.lite-fx #tier-glow { display: none !important; }';
+  st.textContent = 'body.lite-fx #screen-flash, body.lite-fx #tier-glow { display: none !important; }' +
+    'body.q1 #beat-pulse { display: none; } body.q1 .cc-spark { display: none !important; } body.q1 .cc-aura { animation: none !important; }';
   document.head.appendChild(st);
 })();
-
-// Watches the frame rate. If the device struggles, it drops from normal to lite mode on its own.
-function trackPerformance(dt) {
-  if (dt > SPIKE_FRAME_MS && performance.now() - playBeganAt >= WARMUP_MS) {            // one very long frame: the phone was busy elsewhere. Go light right away and let it recover
-    spikeUntil = performance.now() + SPIKE_LIGHT_MS;
-    fxParts.length = 0; fxRings.length = 0;
-    beatPulse.style.opacity = 0; lastBeatOpacity = 0;
-  } else {
-    frameEma += (Math.min(dt, SPIKE_FRAME_MS) - frameEma) * 0.05;
-  }
-  if (!lowFx) {
-    // below ~48 fps for about one second -> light mode (it used to wait for ~38 fps and 1.5 s)
-    if (performance.now() - playBeganAt < WARMUP_MS) perfBad = 0;     // first 2 s: no resize / mode switch while the audio is still starting up
-    else if (frameEma > 23) { if (++perfBad > 80) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
-  } else if (!lowLock) {
-    if (frameEma < 17.5) { if (++perfGood > 600) setLowFx(false); } else perfGood = 0;
-  }
-}
 
 // ---------- NUMBER POPS ----------
 function popScore() {
@@ -4243,7 +4335,7 @@ function showJudgement(text, color) {
   const miss = text === 'MISS' || text === 'BAD';
   const isP = text === 'PERFECT', isG = text === 'GREAT';
   // PERFECT glows gold and punches in big; GREAT gets a smaller glow and a smaller punch. (glow is skipped in lite mode)
-  judgementEl.style.textShadow = fxLite() ? '' : isP ? '0 0 4px #fff, 0 0 12px ' + color + ', 0 0 26px ' + color + ', 0 0 46px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
+  judgementEl.style.textShadow = qRung >= 2 ? '' : isP ? '0 0 4px #fff, 0 0 12px ' + color + ', 0 0 26px ' + color + ', 0 0 46px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
   if (judgeAnim) judgeAnim.cancel();
   const s0 = isP ? 2.1 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
   perfectTilt = -perfectTilt;                                          // each PERFECT tilts the other way, so a streak wiggles instead of repeating the same pop
@@ -4604,8 +4696,6 @@ function resetRunState() {
   perfectStreak = 0;
   lastCountdownNum = 0;
   frameEma = 16.7;
-  perfBad = perfGood = 0;
-  lowLock = false; lowFlips = 0;
   shownScoreInt = -1;
   accFx = accBeat = 0;
   lastFrameT = 0;
@@ -4690,10 +4780,70 @@ function prewarmHud() {
   still(judgementEl, 'translateX(-50%)'); still(timingEl, 'translateX(-50%)'); still(tierBanner, 'translateX(-50%)');
   still(scoreEl, 'scale(1)'); still(comboEl, 'translateX(-50%) scale(1)');
 }
-// If the phone is clearly struggling while the notes only stand still, go lite NOW (before the song), so the playfield
-// resize does not hitch in the middle of the first notes.
+// ---- WARM-UP: pay every first-use cost during the get-ready intro / 3-2-1, not on the first hit of the song ----
+// Sound: build the same kinds of nodes the game sounds use (oscillator types, compressor, filter, noise buffer) once, at
+// an inaudible level (about -80 dB), so the first real sound is not the first use of any of it.
+function warmAudio() {
+  try {
+    ensureAudio();
+    const A = audioCtx, t = A.currentTime;
+    const comp = A.createDynamicsCompressor();          // playComboSound makes one of these per sound
+    comp.connect(A.destination);
+    const g = A.createGain(); g.gain.value = 0.00005; g.connect(comp);
+    ['sine', 'triangle', 'sawtooth', 'square'].forEach((type) => {
+      const o = A.createOscillator(); o.type = type; o.frequency.value = 440; o.connect(g); o.start(t); o.stop(t + 0.03);
+    });
+    uTone(440, { vol: 0.00011, dur: 0.03, type: 'triangle', lp: 3000 });        // the tone + low-pass path of the UI / tap sounds
+    uNoise({ vol: 0.0002, dur: 0.02, type: 'highpass', from: 4500 });           // fills the shared noise buffer (empty-tap / miss sounds)
+    setTimeout(() => { try { comp.disconnect(); g.disconnect(); } catch (e) { /* ignore */ } }, 400);
+  } catch (e) { /* audio unavailable */ }
+}
+// Hit effects: run the spawn code once (JIT, particle sprites for every colour), then, inside the next frame and AFTER
+// drawField, stamp every effect sprite once at ~0.3% opacity, so the first drawImage / additive blend / ring stroke has
+// already happened when the first PERFECT does. The next frame's drawField clears the canvas, so nothing stays on screen.
+let warmFxPending = false;
+function warmFx() {
+  if (mode !== 'starting' || fxLite()) return;
+  try {
+    spawnShockwave(1, 'perfect', 2); spawnShockwave(2, 'great', 2);
+    spawnParticles(1, 'perfect', 8); spawnParticles(2, 'great', 6); spawnParticles(3, 'good', 4);
+    spawnFlare(1, 'PERFECT'); spawnFlare(2, 'GREAT');
+    fxRings.length = 0; fxParts.length = 0; fxFlares.length = 0; fxPops.length = 0;   // none of these can exist before the song starts
+  } catch (e) { /* ignore */ }
+  warmFxPending = true;
+}
+function warmFxDraw() {
+  const F = FIELD, c = ctx;
+  if (!F.W || !c) return;
+  try {
+    c.save();
+    c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
+    c.globalAlpha = 0.003;
+    const x = laneX(1, 1), y = F.hitY;
+    c.strokeStyle = '#ffffff'; c.lineWidth = 3.5;                                  // ring (rounded-rect stroke)
+    rr(c, x - F.noteW * 0.9, y - F.recH, F.noteW * 1.8, F.recH * 2, F.recH * 0.8); c.stroke();
+    [fxColor('perfect'), fxColor('great'), fxColor('good'), '#ffffff'].forEach((col) => {      // every particle sprite
+      c.drawImage(particleSprite(col, false), x - 8, y - 8, 16, 16);
+      c.drawImage(particleSprite(col, true), x - 8, y - 8, 16, 16);
+    });
+    if (FLARE_SPR.perfect) {                                                       // flares: additive blend + glow / column / core sprites
+      c.globalCompositeOperation = 'lighter';
+      const sz = F.noteW;
+      c.drawImage(FLARE_SPR.col, x - sz / 4, y - sz, sz / 2, sz);
+      c.drawImage(FLARE_SPR.perfect, x - sz / 2, y - sz * 0.35, sz, sz * 0.7);
+      c.drawImage(FLARE_SPR.great, x - sz / 2, y - sz * 0.35, sz, sz * 0.7);
+      if (FLARE_SPR.core) c.drawImage(FLARE_SPR.core, x - sz / 2, y - sz * 0.35, sz, sz * 0.7);
+      c.globalCompositeOperation = 'source-over';
+    }
+    const sp = NOTE_SPR[(TH && TH.byLane) ? 1 : tierVariant()];                    // hit pop
+    if (sp) c.drawImage(sp.cv, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
+    c.restore();
+  } catch (e) { try { c.restore(); } catch (e2) { /* ignore */ } }
+}
+
+// If the phone is clearly struggling while the notes only stand still, go down ONE rung of the quality ladder now (before the song).
 function autoPickQuality() {
-  if (!lowFx && introFrames > 30 && frameEma > 21) setLowFx(true);
+  if (introFrames > 30 && frameEma > 21 && qRung < Q_MAX) qSetRung(qRung + 1, performance.now());   // one rung only; no canvas resize any more
 }
 
 const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
@@ -4702,8 +4852,9 @@ function runStartCountdown(token, done) {
   const step = () => {
     if (token !== playToken || mode !== 'starting') return;
     if (n <= 0) { countdownEl.classList.remove('show'); done(); return; }
-    if (n === 3) prewarmHud();
-    if (n === 2) autoPickQuality();
+    if (n === 3) { prewarmHud(); setTimeout(() => { if (token === playToken && mode === 'starting') warmAudio(); }, 350); }
+    if (n === 2) autoPickQuality();                  // may lower the rung: the effect warm-up comes AFTER it
+    if (n === 1) warmFx();
     countdownEl.classList.add('show');
     countdownEl.textContent = n;
     countdownEl.animate([
@@ -4776,7 +4927,7 @@ function startPlayback() {
   applySongFx(currentSong);
   applySongTheme(currentSong);
   scoreEl.textContent = 'Score: 0';
-  if (WEAK_DEVICE && !weakTried) { weakTried = true; setLowFx(true); }   // weak phone: start light, it may switch back up if it copes
+  qBegin();                                          // quality ladder: start at the rung saved for this device (a new weak phone starts at R2), and size the canvas for it
   measureLane();
 
   introNoteK = reduceMotion ? 1 : 0;
@@ -5390,7 +5541,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- LOOP ----------
 function updateBeat(now, dt) {
-  if (fxLight()) return;
+  if (fxMid()) return;                          // R1 and up: no beat glow
   let v = kick;
   kick *= Math.exp(-dt / 140);
   if (kick < 0.01) kick = 0;
@@ -5435,6 +5586,7 @@ function update(ts) {
       active.push(n);
     }
     drawField(0, dt);
+    if (warmFxPending) { warmFxPending = false; warmFxDraw(); }   // after drawField: it is flushed with this frame, then the next frame clears it
     if (songFx) songFxUpdate(dt);
     if (startArm) {                         // audio started: hand over to the playing clock as soon as the audio position really moves
       if (startArm.token !== playToken) startArm = null;
@@ -5504,7 +5656,7 @@ function update(ts) {
   // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
   //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~30 fps with graphics on, ~20 off, ~12 in lite mode)
   accFx += dt; accBeat += dt;
-  const ambT = fxLite() ? 80 : fxLight() ? 48 : 30;
+  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 50 : 30;   // petals / song effects: 33 fps, 20 fps at R1, 16 fps at R2
   if (accFx >= ambT) {
     const d = accFx; accFx = 0;
     if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals

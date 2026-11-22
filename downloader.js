@@ -137,10 +137,22 @@
     const r = await ask(sw, { type: 'pack-status', urls }, 20000);
     return r && Array.isArray(r.missing) ? r.missing : urls.slice();
   }
-  async function fetchOne(sw, url) {
+  // guard = true (step 2): while this file downloads, a song that starts stops it at once (pack-abort). The file is then tried
+  // again after the song, and that does not count as a failed attempt.
+  async function fetchOne(sw, url, guard) {
     for (let i = 0; i < 3; i++) {
-      const r = await ask(sw, { type: 'pack-fetch', url });
+      let watch = 0;
+      const stop = () => { try { sw.postMessage({ type: 'pack-abort' }); } catch (e) { /* ignore */ } };
+      if (guard) { watch = setInterval(() => { if (gameBusy()) stop(); }, 250); addEventListener('jeketi:busy', stop); }
+      let r;
+      try { r = await ask(sw, { type: 'pack-fetch', url }); }
+      finally { if (guard) { clearInterval(watch); removeEventListener('jeketi:busy', stop); } }
       if (r && r.ok) return r;
+      if (guard && r && r.aborted) {
+        quiet();
+        while (gameBusy() || document.hidden) await sleep(1500);
+        i--; continue;
+      }
       if (i < 2) await sleep(1200 * (i + 1));
       if (navigator.onLine === false) await new Promise((res) => addEventListener('online', res, { once: true }));
     }
@@ -192,7 +204,8 @@
   }
 
   // ---------- step 2 ----------
-  const gameBusy = () => { try { return typeof mode !== 'undefined' && mode !== 'idle'; } catch (e) { return false; } };
+  // "in a song" = playing / paused / starting, AND the moment a song is picked while its chart is still loading (game.js: playBusy)
+  const gameBusy = () => { try { return typeof playBusy === 'function' ? playBusy() : (typeof mode !== 'undefined' && mode !== 'idle'); } catch (e) { return false; } };
   async function lowStorage() {
     try {
       const e = await navigator.storage.estimate();
@@ -210,12 +223,12 @@
     const total = songs.length;
     let have = total - todo.length;
     for (const s of todo) {
-      while (gameBusy() || document.hidden) await sleep(2500);    // never compete with a song that is playing
+      while (gameBusy() || document.hidden) { quiet(); await sleep(2500); }    // never compete with a song that is playing (and no pill on screen during play)
       if (await lowStorage()) { say('Storage almost full: the other songs will stream instead', 6000); return; }
       say('Downloading songs… ' + have + ' / ' + total);
       let ok = true;
       for (const f of songFiles(s)) {
-        const r = await fetchOne(sw, abs(f));
+        const r = await fetchOne(sw, abs(f), true);
         if (!r.ok) { ok = false; break; }
       }
       if (ok) have++; else { say('Download paused: connection problem. It will continue next time.', 5000); return; }
