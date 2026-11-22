@@ -363,6 +363,15 @@ let lastAudioPerf = 0;
 let soundCursor = 0;
 let audioCtx = null;
 
+// Exact playback: the song is played from the SAME decoded samples the waveform is drawn from (AudioBufferSourceNode),
+// so seeking is sample-accurate and the music, the waveform and the hit clicks all share one clock (audioCtx).
+// The <audio> element is only the fallback if the file could not be decoded.
+let audioBuf = null;                 // decoded song
+let srcNode = null;                  // the node that is playing right now
+let srcStartCtx = 0;                 // audioCtx time at which the node starts playing
+let srcStartOff = 0;                 // song position (ms) the node starts from
+let bufPlaying = false;              // true while the exact engine is the one playing
+
 // count-in
 let countdownOverlay = null;
 let countdownTimer = null;
@@ -448,6 +457,7 @@ function toast(msg) {
 }
 
 function getSongMs() {
+  if (audioBuf && audioBuf.duration > 0) return audioBuf.duration * 1000;
   const d = music.duration;
   if (Number.isFinite(d) && d > 0) return d * 1000;
   let m = 0;
@@ -457,7 +467,64 @@ function getSongMs() {
 
 function curTime() { return playing ? playTime() : viewTime; }
 
+// audioCtx time of the sound that is reaching the speakers right now (output latency is taken out, so the playhead is what you HEAR)
+function heardCtxTime() {
+  const c = audioCtx;
+  const base = c.currentTime;
+  const ol = c.outputLatency;
+  const lat = Math.min((Number.isFinite(ol) && ol > 0) ? ol : (c.baseLatency || 0), 0.3);
+  if (c.getOutputTimestamp) {                                   // smoother than currentTime, which only moves in small steps
+    try {
+      const ts = c.getOutputTimestamp();
+      if (ts && ts.performanceTime > 0 && ts.contextTime > 0) {
+        const t = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+        if (Math.abs(t - (base - lat)) < 0.25) return t;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return base - lat;
+}
+
+function stopBuf() {
+  const n = srcNode;
+  srcNode = null;
+  bufPlaying = false;
+  if (!n) return;
+  n.onended = null;
+  try { n.stop(); } catch (e) { /* ignore */ }
+  try { n.disconnect(); } catch (e) { /* ignore */ }
+}
+
+// (re)starts the song from `ms`. Seeking while playing simply calls this again, there is no element seek to drift.
+function startBuf(ms) {
+  stopBuf();
+  const ctx = ensureAudioCtx();
+  if (!ctx || !audioBuf) return false;
+  const node = ctx.createBufferSource();
+  node.buffer = audioBuf;
+  node.playbackRate.value = rate;
+  node.connect(ctx.destination);
+  const when = ctx.currentTime + 0.03;                          // a tiny lead so the start lands exactly on the timeline
+  const off = Math.max(0, Math.min(ms / 1000, audioBuf.duration - 0.001));
+  node.onended = () => {                                        // the song reached its end
+    if (node !== srcNode) return;
+    srcNode = null;
+    if (playing) pausePlayback();
+  };
+  node.start(when, off);
+  srcNode = node;
+  srcStartCtx = when;
+  srcStartOff = off * 1000;
+  bufPlaying = true;
+  return true;
+}
+
 function playTime() {
+  if (bufPlaying) {
+    if (!srcNode) return songMs;
+    const p = srcStartOff + Math.max(0, heardCtxTime() - srcStartCtx) * 1000 * rate;
+    return Math.min(p, songMs);
+  }
   const a = music.currentTime * 1000;
   const now = performance.now();
   if (a !== lastAudioMs) { lastAudioMs = a; lastAudioPerf = now; }
@@ -484,6 +551,8 @@ function updateSetupButtons() {
 function loadAudioFile(file) {
   if (!file) return;
   audioFile = file;
+  stopBuf();
+  audioBuf = null;
   if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
   audioBlobUrl = URL.createObjectURL(file);
   music.src = audioBlobUrl;
@@ -616,6 +685,8 @@ async function analyzeWaveform(file) {
     const buf = await file.arrayBuffer();
     const audio = await new Promise((resolve, reject) => ac.decodeAudioData(buf, resolve, reject));
     if (token !== peakToken) return;
+    audioBuf = audio;                                          // kept: playback uses these exact samples
+    songMs = getSongMs();
     const channels = [];
     for (let i = 0; i < audio.numberOfChannels; i++) channels.push(audio.getChannelData(i));
     peaks = computePeaks(channels, audio.sampleRate, PEAK_MS);
@@ -790,6 +861,17 @@ function selectAll() {
   selection = new Set(notes.map(n => n.id));
   updateSelectionUI();
   requestRender();
+}
+
+// Select every note that is in front of the playhead (start time at or after the needle).
+function selectAhead() {
+  const t = curTime();
+  const ahead = notes.filter(n => n.time >= t);
+  if (!ahead.length) { toast('No notes ahead of the playhead'); return; }
+  selection = new Set(ahead.map(n => n.id));
+  updateSelectionUI();
+  requestRender();
+  toast('Selected ' + ahead.length + ' note' + (ahead.length === 1 ? '' : 's') + ' ahead');
 }
 
 function mirrorSelection() {
@@ -988,6 +1070,16 @@ function click(when) {
 
 function scheduleSounds() {
   if (!opts.hitSound || !audioCtx) { soundCursor = viewTime; return; }
+  if (bufPlaying && srcNode) {
+    // every click is placed on the same audio-clock timeline as the music, so it lands exactly on its note
+    const graph = srcStartOff + Math.max(0, audioCtx.currentTime - srcStartCtx) * 1000 * rate;
+    const horizon = graph + 120 * rate;
+    for (const n of notes) {
+      if (n.time >= soundCursor && n.time < horizon) click(srcStartCtx + (n.time - srcStartOff) / 1000 / rate);
+    }
+    soundCursor = horizon;
+    return;
+  }
   const horizon = viewTime + 90 * rate;
   for (const n of notes) {
     if (n.time >= soundCursor && n.time < horizon) {
@@ -1047,14 +1139,21 @@ async function startPlayback() {
     if (!ok || mode !== 'editor') { el.play.textContent = '▶'; return; }
   }
 
-  music.currentTime = viewTime / 1000;
-  music.playbackRate = rate;
-  try {
-    await music.play();
-  } catch (err) {
-    toast('Could not play the audio file');
-    el.play.textContent = '▶';
-    return;
+  const ctx = ensureAudioCtx();
+  if (audioBuf && ctx) {
+    if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) { /* ignore */ } }
+    if (startBuf(viewTime)) music.pause();
+  }
+  if (!bufPlaying) {                                            // fallback: the file could not be decoded (or is still decoding)
+    music.currentTime = viewTime / 1000;
+    music.playbackRate = rate;
+    try {
+      await music.play();
+    } catch (err) {
+      toast('Could not play the audio file');
+      el.play.textContent = '▶';
+      return;
+    }
   }
   lastAudioMs = -1;
   playing = true;
@@ -1069,6 +1168,7 @@ function pausePlayback() {
   if (!playing) return;
   viewTime = Math.min(playTime(), songMs);
   finalizeLivePresses();
+  stopBuf();
   music.pause();
   playing = false;
   endRecSession();
@@ -1084,15 +1184,21 @@ function seek(ms) {
   ms = clamp(ms, 0, songMs);
   viewTime = ms;
   if (playing) {
-    music.currentTime = ms / 1000;
-    lastAudioMs = -1;
+    if (bufPlaying) startBuf(ms);                               // exact: restarts from the sample, nothing to drift
+    else { music.currentTime = ms / 1000; lastAudioMs = -1; }
     soundCursor = ms;
   }
   requestRender();
 }
 
 el.speed.addEventListener('change', () => {
-  rate = Number(el.speed.value) || 1;
+  const newRate = Number(el.speed.value) || 1;
+  if (bufPlaying && srcNode && audioCtx) {                      // re-anchor the timeline so the position does not jump
+    const now = audioCtx.currentTime;
+    if (now > srcStartCtx) { srcStartOff += (now - srcStartCtx) * 1000 * rate; srcStartCtx = now; }
+    srcNode.playbackRate.value = newRate;
+  }
+  rate = newRate;
   music.playbackRate = rate;
   try { music.preservesPitch = true; } catch (e) { /* ignore */ }
 });
@@ -1217,7 +1323,7 @@ function frame() {
 
   if (playing) {
     viewTime = playTime();
-    if (viewTime >= songMs && music.ended) { pausePlayback(); }
+    if (viewTime >= songMs && (music.ended || (bufPlaying && !srcNode))) { pausePlayback(); }
     else scheduleSounds();
     needsRender = true;
   }
@@ -1769,6 +1875,7 @@ el.redo.addEventListener('click', redo);
 el.rec.addEventListener('click', () => setRec(!recArmed));
 el.play.addEventListener('click', togglePlay);
 el.zoom.addEventListener('input', () => setZoom(Number(el.zoom.value)));
+$('tool-ahead').addEventListener('click', selectAhead);
 $('btn-delete').addEventListener('click', deleteSelection);
 $('btn-mirror').addEventListener('click', mirrorSelection);
 $('btn-shuffle').addEventListener('click', shuffleSelection);
@@ -1847,6 +1954,7 @@ document.addEventListener('keydown', e => {
       toast('Snap ' + (opts.snap ? 'ON' : 'OFF'));
       return;
     case 'KeyM': mirrorSelection(); return;
+    case 'KeyA': selectAhead(); return;
     case 'Delete': case 'Backspace':
       e.preventDefault(); deleteSelection(); return;
     case 'Escape':

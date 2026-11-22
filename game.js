@@ -175,9 +175,9 @@ const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 // Cards then multiply it (see TIER_BONUS in shop.js), so reaching S (1,000,000) takes roughly 10 S cards plus a clean full combo.
 // NOTE: the best possible run (12 SS cards, oshi, every member in the song, perfect) is about 1,475,000; SS needs 1,400,000.
 const BASE_MAX_SCORE = 500000;
-// a grade needs BOTH its minimum score and its minimum accuracy (checked from the top down)
+// a grade needs BOTH its minimum score and its minimum accuracy (checked from the top down); SS additionally needs zero misses
 const GRADE_RULES = [
-  { g: 'SS', score: 1400000, acc: 0.98 },
+  { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },   // SS also needs ZERO misses
   { g: 'S',  score: 1000000, acc: 0.95 },
   { g: 'A',  score: 750000,  acc: 0.90 },
   { g: 'B',  score: 450000,  acc: 0.80 },
@@ -257,7 +257,7 @@ function buzz(ms) {                                          // phone vibration 
   navigator.vibrate(ms);
 }
 let spikeUntil = 0;                   // after a sudden long frame (phone notification, system pop-up): effects stay light until this time
-const SPIKE_FRAME_MS = 50, SPIKE_LIGHT_MS = 2000;
+const SPIKE_FRAME_MS = 80, SPIKE_LIGHT_MS = 1200;
 // ---------- PLAYER OPTIONS (saved on the device) ----------
 const OPT_KEY = 'jeketi.options';
 const OPT = { music: 1, sfx: 1, vib: true, gfx: GFX_DEFAULT, speed: SPEED_DEFAULT };      // gfx: ON by default
@@ -1223,7 +1223,7 @@ function calcAccuracy() {
 }
 
 function gradeFor(acc, sc) {
-  for (const r of GRADE_RULES) if (acc >= r.acc && sc >= r.score) return r.g;
+  for (const r of GRADE_RULES) if (acc >= r.acc && sc >= r.score && !(r.noMiss && stats.MISS > 0)) return r.g;
   return 'C';
 }
 
@@ -2044,6 +2044,23 @@ THEMES.popfight = {
   padLine: 'rgba(255,235,245,0.65)', recStroke: 'rgba(255,240,248,0.6)',
   atmoOpacity: [0.9, 0.9, 0.9, 0.9, 0.9],                                                  // flat: the sky never gets stronger
 };
+// BLACK & WHITE (songs.js:  theme: 'blackwhite'): the two LEFT lanes send soft white notes, the two RIGHT lanes soft black ones, and the petals are a mix of white and black.
+// Nothing here changes with the combo (the combo-based tier glow is replaced by one flat, very faint wash). byLane: notes[] is indexed by lane (0-3) instead of by combo tier.
+// Black notes get a pale rim + halo so they stay readable on the dark track. Everything is painted once into sprites, nothing extra runs per frame.
+const bwWhite = { top: '#ffffff', bot: '#e4e8f4', glow: 'rgba(235,240,255,0.5)', hi: 'rgba(255,255,255,0.85)', lo: 'rgba(120,130,170,0.35)', hex: '#e6e9f4' };
+const bwBlack = { top: '#4a4a56', bot: '#1d1d25', glow: 'rgba(225,225,240,0.5)', hi: 'rgba(255,255,255,0.3)', lo: 'rgba(0,0,0,0.55)', hex: '#5e5e6c', rim: 'rgba(235,235,248,0.65)' };
+THEMES.blackwhite = {
+  hex: '#ececf6', lane: '#ececf6', byLane: true, mixPetals: true,
+  atmo: 'linear-gradient(90deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0) 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,0.2) 100%)',
+  pulse: 'radial-gradient(ellipse at 50% 100%,rgba(235,235,245,0.2) 0%,transparent 62%)', flash: 'rgba(235,235,245,0.12)',
+  notes: [bwWhite, bwWhite, bwBlack, bwBlack],                              // lane 1, lane 2 = white; lane 3, lane 4 = black
+  fx: { perfect: '#ffffff', great: '#dcdce8', good: '#b0b0c2' },
+  petals: ['#ffffff', '#2a2a33', '#f0f0f5', '#1f1f27'],                    // white and black petals, picked at random, same at every combo
+  track: ['rgba(20,8,40,0)', 'rgba(34,12,60,0.55)', 'rgba(70,18,80,0.78)'],   // lanes keep their normal look
+  edge: 'rgba(255,170,215,0.16)', rail: 'rgba(255,196,228,0.9)', railGlow: 'rgba(255,107,166,0.9)',
+  padLine: 'rgba(255,205,230,0.85)', recStroke: 'rgba(255,107,166,0.65)',
+  atmoOpacity: [1, 1, 1, 1, 1],                                             // flat: never grows with the combo
+};
 let TH = null;                                                              // active theme (null = default look)
 let COLS_NOW = NOTE_COLS;                                                   // cached, so the draw loop never builds arrays
 const noteCols = () => COLS_NOW;
@@ -2096,7 +2113,7 @@ function layoutField() {
   const F = FIELD;
   // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
   const dprCap = lowFx ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
-  const pxCap = lowFx ? 0.55e6 : OPT.gfx ? (COARSE ? 1.3e6 : 1.7e6) : 1.0e6, dprMin = lowFx ? 0.5 : 1;
+  const pxCap = lowFx ? 0.55e6 : OPT.gfx ? (COARSE ? 1.0e6 : 1.2e6) : 1.0e6, dprMin = lowFx ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
   while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);   // never paint a huge bitmap
   layoutVer++;
@@ -2148,6 +2165,7 @@ function buildSprites() {
     g.fillStyle = c.hi; g.globalAlpha = 0.9;
     rr(g, pad + h * 0.3, pad + h * 0.1, w - h * 0.6, h * 0.15, h * 0.075); g.fill();
     g.globalAlpha = 1;
+    if (c.rim) { g.strokeStyle = c.rim; g.lineWidth = 1.6; rr(g, pad, pad, w, h, rad); g.stroke(); }   // optional pale outline (black notes)
     NOTE_SPR[i] = { cv, w: w + 2 * pad, h: h + 2 * pad };
   });
   buildFlares();
@@ -2229,6 +2247,19 @@ function drawStatic() {
   }
 }
 
+// hold-note body gradient: built once per colour set / holding state / layout instead of once per hold note per frame
+const holdG = [null, null], holdGK = ['', ''], holdGV = [-1, -1];
+function holdGradient(c, colr, holding) {
+  const k = holding ? 1 : 0, key = colr.h0 + colr.h1 + colr.h2;
+  if (!holdG[k] || holdGK[k] !== key || holdGV[k] !== layoutVer) {
+    const gr = c.createLinearGradient(0, FIELD.topY, 0, FIELD.hitY);
+    gr.addColorStop(0, colr.h0);
+    gr.addColorStop(1, holding ? colr.h2 : colr.h1);
+    holdG[k] = gr; holdGK[k] = key; holdGV[k] = layoutVer;
+  }
+  return holdG[k];
+}
+
 function drawField(now, dt) {
   const F = FIELD;
   if (!F.W) return;
@@ -2287,13 +2318,15 @@ function drawField(now, dt) {
   c.globalAlpha = 1;
 
   // notes
-  const v = tierVariant();
-  const spr = NOTE_SPR[v];
-  if (spr) {
-    const colr = noteCols()[v];
+  const LM = !!(TH && TH.byLane);                                         // black & white theme: the colour comes from the lane, not from the combo
+  const v = LM ? 0 : tierVariant();
+  const spr0 = NOTE_SPR[v];
+  if (spr0) {
+    const cols = noteCols(), colr0 = cols[v];
     for (let i = 0; i < active.length; i++) {
       const n = active[i];
       if (n.judged) continue;
+      const spr = LM ? NOTE_SPR[n.lane] : spr0, colr = LM ? cols[n.lane] : colr0;
       const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
       if (tHead < 0) continue;
       const na = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;           // fade in just under the card strip (and during the get-ready intro)
@@ -2308,7 +2341,7 @@ function drawField(now, dt) {
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
           if (!OPT.gfx || fxLite()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // lite: flat body, no gradient built per frame
           else {
-            const gr = c.createLinearGradient(0, yT, 0, yH);
+            const gr = c.createLinearGradient(0, yT, 0, yH);       // original look: each hold fades from clear at its tail to solid at its head
             gr.addColorStop(0, colr.h0);
             gr.addColorStop(1, n.holding ? colr.h2 : colr.h1);
             c.fillStyle = gr;
@@ -2387,34 +2420,46 @@ function drawField(now, dt) {
     if (age >= 1) { fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
     const e = 1 - (1 - age) * (1 - age);
     c.globalAlpha = 1 - age;
-    c.fillStyle = p.col;
-    c.beginPath();
     const px = p.x + Math.cos(p.a) * p.d * e, py = p.y + Math.sin(p.a) * p.d * e;
-    if (p.star) {                                                        // 4-point sparkle (PERFECT)
-      const sr = p.r * 1.9 * (1 - 0.65 * age);
-      c.moveTo(px, py - sr);
-      c.quadraticCurveTo(px, py, px + sr, py);
-      c.quadraticCurveTo(px, py, px, py + sr);
-      c.quadraticCurveTo(px, py, px - sr, py);
-      c.quadraticCurveTo(px, py, px, py - sr);
-    } else c.arc(px, py, p.r * (1 - 0.7 * age), 0, 6.2832);
-    c.fill();
+    const spr = particleSprite(p.col, !!p.star);                         // pre-painted once per colour, then just stamped
+    const sz = p.star ? p.r * 1.9 * (1 - 0.65 * age) * 2 : p.r * (1 - 0.7 * age) * 2 * (16 / 14);
+    c.drawImage(spr, px - sz / 2, py - sz / 2, sz, sz);
   }
   c.globalAlpha = 1;
+}
+
+const partSprCache = {};
+function particleSprite(col, star) {
+  const k = (star ? 's' : 'd') + col;
+  let s = partSprCache[k];
+  if (s) return s;
+  s = document.createElement('canvas'); s.width = s.height = 32;
+  const g = s.getContext('2d');
+  g.fillStyle = col; g.beginPath();
+  if (star) {
+    const sr = 15, m = 16;
+    g.moveTo(m, m - sr);
+    g.quadraticCurveTo(m, m, m + sr, m);
+    g.quadraticCurveTo(m, m, m, m + sr);
+    g.quadraticCurveTo(m, m, m - sr, m);
+    g.quadraticCurveTo(m, m, m, m - sr);
+  } else g.arc(16, 16, 14, 0, 6.2832);
+  g.fill();
+  return (partSprCache[k] = s);
 }
 
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function spawnShockwave(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 3);   // PERFECT always gets a double ring, even in the light look
+  const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) {
-    if (fxRings.length >= 18) fxRings.shift();
+    if (fxRings.length >= 12) fxRings.shift();
     fxRings.push({ lane: laneIndex, col, t0: t + i * 70 });
   }
   if (isP && n > 0) {                                                        // PERFECT only: one more big, thick, white ring that spreads wider than the rest
-    if (fxRings.length >= 18) fxRings.shift();
+    if (fxRings.length >= 12) fxRings.shift();
     fxRings.push({ lane: laneIndex, col: '#ffffff', t0: t, m: 1.7, lw: 3.5 });
   }
 }
@@ -2471,7 +2516,8 @@ function shakeScreen(intensity) {
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
-  shakeAnim = game.animate([
+  const shakeTarget = (mode === 'playing' || mode === 'countdown') ? playfieldEl : game;   // in a song only the playfield layer moves, so the whole screen isn't repainted
+  shakeAnim = shakeTarget.animate([
     { transform: 'translate3d(0, 0, 0)' },
     { transform: `translate3d(${-s}px, ${0.6 * s}px, 0)`, offset: 0.25 },
     { transform: `translate3d(${0.9 * s}px, ${-0.7 * s}px, 0)`, offset: 0.5 },
@@ -2487,6 +2533,15 @@ const petals = (() => {
   const ctx = cv.getContext ? cv.getContext('2d') : null;
   const DEFAULT_COLORS = ['#ffb3d1', '#ffb3d1', '#9fd0ff', '#ffe08a', '#d98cff'];
   let COLORS = DEFAULT_COLORS;
+  // SAKURA MODE (songs.js:  petalSakura: true): bright, real-sakura pink petals. The colour never changes with the combo and nothing glows; more petals simply fall at 50 / 100 / 200 / 480 combo (the normal petal counts).
+  const SAKURA_COLORS = ['#ff80b0', '#ff93bd', '#ff6fa6', '#ff9fc6'];
+  let sakuraMode = false, themeCols = null, themeShape = null, themeMix = false;
+  function applyColors() {
+    COLORS = sakuraMode ? SAKURA_COLORS : (themeCols || DEFAULT_COLORS);
+    mixPal = sakuraMode || !!(themeCols && themeMix);
+    shape = sakuraMode ? null : ((themeCols && themeShape) || null);
+  }
+  let mixPal = false;                                    // true = each petal picks a random colour from the palette (black & white theme) instead of following the combo tier
   const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
   const sprites = [];
   const list = [];
@@ -2505,6 +2560,10 @@ const petals = (() => {
     g.bezierCurveTo(-14, 3, -10, -14, 0, -8);
     g.bezierCurveTo(10, -14, 14, 3, 0, 13);
     g.fill();
+    const n = parseInt(color.slice(1), 16);
+    if (color.length === 7 && ((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11 < 90) {   // dark petal: thin pale rim so it still shows on the dark stage
+      g.globalAlpha = 0.5; g.strokeStyle = '#e8e8f2'; g.lineWidth = 1.3; g.stroke();
+    }
     g.globalAlpha = 0.5;
     g.fillStyle = '#ffffff';
     g.beginPath();
@@ -2708,7 +2767,7 @@ const petals = (() => {
   // ROACH MODE (songs.js:  petalRoach: true): the petals become cockroaches. They never change colour;
   //   combo < 100: plain | 100+: they glow (amber) | 200+: they glow more. Drawn in code (the roach emoji is missing on older Windows), painted once, drawn exactly like petals.
   let roachMode = false;
-  const ROACH_SET = [0, 0, 1, 2, 2];                     // tier -> sprite set (0 plain, 1 glow, 2 stronger glow)
+  const ROACH_SET = [0, 0, 0, 0, 0];                     // tier -> sprite set (no glow at any combo: always the plain set)
   const roachSets = [];
   function paintRoach(kind) {                            // 56x56 canvas, origin in the middle, head pointing up; kind 0 / 1 only differ in the antennae
     const c = document.createElement('canvas');
@@ -2757,9 +2816,64 @@ const petals = (() => {
   function buildRoach() {
     roachSets.length = 0;
     const base = [paintRoach(0), paintRoach(1)];
-    roachSets.push(base);
-    roachSets.push(base.map(s => glowIcon(s, 8, 1, 'rgba(255,190,90,0.95)')));
-    roachSets.push(base.map(s => glowIcon(s, 16, 2, 'rgba(255,200,100,1)')));
+    roachSets.push(base);                                // plain only: no glow sprites are built
+  }
+  // SUNFLOWER MODE (songs.js:  petalSunflower: true): the petals become sunflowers. They never change colour;
+  //   combo < 100: plain | 100+: they glow yellow | 200+: they glow more. Drawn in code, painted once, drawn exactly like petals.
+  let sunMode = false;
+  const SUN_SET = [0, 0, 0, 0, 0];                       // no glow at any combo: always the plain set
+  const SUN_N = COARSE ? [3, 3, 4, 5, 5] : [5, 5, 7, 9, 9];   // far fewer than petals (4-16 / 8-44): sunflowers are big, detailed sprites, and the count stays flat so it never gets heavier with combo
+  const sunSets = [];
+  function paintSunflower() {                            // ONE 56x56 drawing, origin in the middle. The petals differ in length, width and angle (seeded, so it looks the same every run)
+    const c = document.createElement('canvas');
+    c.width = c.height = 56;
+    const g = c.getContext ? c.getContext('2d') : null;
+    if (!g) return c;
+    g.translate(28, 28);
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const N = 15, petalsList = [];
+    for (let i = 0; i < N; i++) {
+      petalsList.push({
+        a: (Math.PI * 2 * i) / N + (rnd() - 0.5) * 0.28,            // uneven spacing
+        d: 12 + rnd() * 3.5,                                        // distance from the centre
+        rx: 5.2 + rnd() * 6.6,                                      // petal length: from short to long
+        ry: 2.4 + rnd() * 2.2,                                      // petal width
+        back: rnd() < 0.4,                                          // some petals sit behind the others (deeper gold)
+      });
+    }
+    g.fillStyle = 'rgba(40,10,60,0.4)';                  // soft dark outline so it reads on any background
+    for (const p of petalsList) {
+      g.save(); g.rotate(p.a); g.translate(p.d + 0.6, 0);
+      g.beginPath(); g.ellipse(0, 0, p.rx + 0.7, p.ry + 0.7, 0, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+    for (const pass of [true, false]) {                  // back petals first, then the front ones
+      g.fillStyle = pass ? '#f2a900' : '#ffd21f';
+      for (const p of petalsList) {
+        if (p.back !== pass) continue;
+        g.save(); g.rotate(p.a); g.translate(p.d, 0);
+        g.beginPath(); g.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2); g.fill();
+        g.restore();
+      }
+    }
+    g.fillStyle = '#6b3d12';                             // seed disc
+    g.beginPath(); g.arc(0, 0, 7.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#4a2810';
+    g.beginPath(); g.arc(0, 0, 4.4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#8f5a24';                             // seed dots
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.4, r = 1 + (i % 3) * 1.8;
+      g.beginPath(); g.arc(Math.cos(a) * r * 1.6, Math.sin(a) * r * 1.6, 0.9, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';        // shine
+    g.beginPath(); g.ellipse(-2.5, -3, 2, 1.2, -0.5, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 1;
+    return c;
+  }
+  function buildSunflower() {
+    sunSets.length = 0;
+    sunSets.push([paintSunflower()]);                    // a single sprite, no glow versions
   }
   function makeBead(color) {                             // a round candy bead like the ones on the cover: painted once, then reused like the petals
     const c = document.createElement('canvas');
@@ -2893,14 +3007,101 @@ const petals = (() => {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+  // PAPER AIRPLANE MODE (songs.js:  petalPlane: true): the petals become small paper airplanes gliding slowly across the screen.
+  //   They never change colour or glow; at 100 and 200 combo there are simply more of them (PLANE_N, same idea as the chocolate bars).
+  //   Real glide: the nose follows the flight path, the plane swoops down (faster) then flares up (slower) in a long lazy wave (a phugoid),
+  //   drifts down overall, wobbles a tiny bit, and slowly rolls (the wings squash a little). Smaller = further away = slower.
+  //   2 sprites painted once, one drawImage per plane, a handful of planes at most, nothing else per frame.
+  let planeMode = false;
+  const pln = [];
+  const planeSprites = [];
+  const PLANE_N = COARSE ? [2, 2, 3, 4, 4] : [2, 2, 4, 5, 5];   // count per combo tier (x quality): flat below 100, more at 100 (tier 2), more again at 200 (tier 3)
+  function paintPlane(kind) {                            // 72x48 canvas, origin in the middle, nose points right (+x)
+    const c = document.createElement('canvas');
+    c.width = 72; c.height = 48;
+    const g = c.getContext ? c.getContext('2d') : null;
+    if (!g) return c;
+    g.translate(36, 24);
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(40,10,60,0.4)'; g.lineWidth = 3.5;   // soft dark outline so it reads on any background
+    g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, -17); g.lineTo(-24, 0); g.lineTo(-30, 17); g.closePath(); g.stroke();
+    g.fillStyle = kind ? '#eaf3ff' : '#ffffff';          // upper wing (lit)
+    g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, -17); g.lineTo(-23, -1.5); g.closePath(); g.fill();
+    g.fillStyle = kind ? '#c9dcf2' : '#dde4ec';          // lower wing (in shade)
+    g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, 17); g.lineTo(-23, 1.5); g.closePath(); g.fill();
+    g.fillStyle = kind ? '#9fb6d3' : '#aab6c6';          // centre fold (keel)
+    g.beginPath(); g.moveTo(30, 0); g.lineTo(-23, -1.5); g.lineTo(-27, 0); g.lineTo(-23, 1.5); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(110,125,150,0.45)'; g.lineWidth = 0.9;   // two wing creases
+    g.beginPath(); g.moveTo(30, 0); g.lineTo(-26, -8.5); g.moveTo(30, 0); g.lineTo(-26, 8.5); g.stroke();
+    return c;
+  }
+  function buildPlane() {
+    planeSprites.length = 0;
+    planeSprites.push(paintPlane(0), paintPlane(1));
+  }
+  function spawnPlane() {                                // always enters from the left or right edge, never pops in mid-screen
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const s = 0.65 + Math.random() * 0.45;
+    pln.push({
+      x: dir > 0 ? -50 - Math.random() * 60 : w + 50 + Math.random() * 60,
+      y: h * (0.06 + Math.random() * 0.55),
+      dir, s,
+      v0: 34 + 36 * s + Math.random() * 12,              // px/s: slow, and the smaller (further) ones are slower
+      glide: 0.07 + Math.random() * 0.07,                // average descent angle (rad)
+      amp: 0.22 + Math.random() * 0.18,                  // how far the swoop tips the flight path up / down (rad)
+      phase: Math.random() * 6.28,
+      freq: 0.8 + Math.random() * 0.5,                   // rad/s -> one swoop every ~5-8 seconds
+      bank: Math.random() * 6.28,
+      flut: Math.random() * 6.28,
+      a: 0.85 + Math.random() * 0.12,
+      kind: Math.random() < 0.7 ? 0 : 1,
+    });
+  }
+  function updatePlane(dt, t) {
+    tier = t;
+    const sec = Math.min(dt, 50) / 1000;
+    const want = target();
+    if (want === 0 && !pln.length) {                     // lite mode: no planes at all, so no per-frame canvas work either
+      if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
+      return;
+    }
+    if (pln.length < want && Math.random() < 0.04) spawnPlane();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    dirty = true;
+    for (let i = pln.length - 1; i >= 0; i--) {
+      const p = pln[i];
+      p.phase += p.freq * sec; p.bank += 0.45 * sec; p.flut += 3.1 * sec;
+      const c = Math.cos(p.phase);
+      const al = p.glide + p.amp * c;                    // flight path angle, positive = heading down
+      const sp = p.v0 * (1 + 0.3 * c);                   // diving gains speed, climbing loses it
+      const vx = p.dir * sp * Math.cos(al), vy = sp * Math.sin(al);
+      p.x += vx * sec; p.y += vy * sec;
+      if (p.x < -140 || p.x > w + 140 || p.y > h + 50 || p.y < -80) {   // left the screen: a new plane comes in from an edge
+        pln.splice(i, 1);
+        if (pln.length < want) spawnPlane();
+        continue;
+      }
+      const ang = Math.atan2(vy, vx) + Math.sin(p.flut) * 0.04;   // nose follows the flight path, with a tiny wobble
+      const sy = 0.55 + 0.45 * Math.abs(Math.cos(p.bank));        // slow roll: the wings squash a little
+      const k = p.s * dpr, cs = Math.cos(ang), sn = Math.sin(ang);
+      ctx.globalAlpha = p.a;
+      ctx.setTransform(cs * k, sn * k, -sn * k * sy, cs * k * sy, p.x * dpr, p.y * dpr);
+      const spr = planeSprites[p.kind];
+      ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
   let shape = null;
   function buildSprites(text) {
     sprites.length = 0;
+    if (planeMode) { buildPlane(); return; }
     if (spellMode) { buildSpell(); return; }
     if (chocoMode) { chocoSprites.length = 0; chocoSprites.push(makeChoco(0), makeChoco(1)); return; }
     if (fruitMode) { buildFruit(); return; }
     if (indoMode) { buildIndo(); return; }
     if (roachMode) { buildRoach(); return; }
+    if (sunMode) { buildSunflower(); return; }
     if (noteMode) { noteSprites.length = 0; COLORS.forEach(c => noteSprites.push([makeNote(c, 0), makeNote(c, 1)])); return; }
     textMode = !!text;
     COLORS.forEach(c => sprites.push(text ? makeTextSprite(c, text) : shape === 'feather' ? makeFeather(c) : shape === 'bead' ? makeBead(c) : makeSprite(c)));
@@ -2930,7 +3131,7 @@ const petals = (() => {
       vr: (Math.random() - 0.5) * 2.4,
       s: 0.45 + Math.random() * 0.5,
       a: 0.35 + Math.random() * 0.4,
-      spriteIdx: tier,
+      spriteIdx: mixPal ? (Math.random() * COLORS.length) | 0 : tier,
       kind: Math.floor(Math.random() * FRUIT_KINDS),
       fast: !!fast,
     });
@@ -2938,13 +3139,20 @@ const petals = (() => {
 
   function target() {
     if (reduceMotion) return 0;
+    if (planeMode) return Math.round(PLANE_N[tier] * quality);
     if (chocoMode) return Math.round(CHOCO_N[tier] * quality);
+    if (sunMode) return Math.round(SUN_N[tier] * quality);
     return Math.round(TARGETS[tier] * quality);
   }
 
   let curText = null;
   return {
     setTier(t) { tier = t; },
+    setPlane(on) {                                       // true = slow gliding paper airplanes instead of petals (petalPlane in songs.js)
+      on = !!on;
+      if (on === planeMode) return;
+      planeMode = on; pln.length = 0; buildSprites(curText);
+    },
     setSpell(on) {                                       // true = orange wand-spell sparkles instead of petals (petalSpell in songs.js)
       on = !!on;
       if (on === spellMode) return;
@@ -2954,6 +3162,11 @@ const petals = (() => {
       on = !!on;
       if (on === roachMode) return;
       roachMode = on; buildSprites(curText);
+    },
+    setSunflower(on) {                                   // true = sunflowers instead of petals (petalSunflower in songs.js)
+      on = !!on;
+      if (on === sunMode) return;
+      sunMode = on; buildSprites(curText);
     },
     setIndo(on) {                                        // true = Indonesian flag + skull (petalIndo in songs.js)
       on = !!on;
@@ -2981,18 +3194,27 @@ const petals = (() => {
       curText = text; buildSprites(text);
     },
     setQuality(q) { quality = q; },
-    setColors(cols, shp) {                               // null = default sakura; shp 'feather' = feathers. Sprites are rebuilt once, not per frame
-      COLORS = cols || DEFAULT_COLORS;
-      shape = (cols && shp) || null;
+    setColors(cols, shp, mix) {                               // null = default sakura; shp 'feather' = feathers. Sprites are rebuilt once, not per frame
+      themeCols = cols; themeShape = shp; themeMix = mix;
+      applyColors();
+      buildSprites(curText);
+    },
+    setSakura(on) {                                      // true = bright pink sakura petals, no colour change, no glow (petalSakura in songs.js)
+      on = !!on;
+      if (on === sakuraMode) return;
+      sakuraMode = on;
+      applyColors();
       buildSprites(curText);
     },
     burst(count) {
       if (reduceMotion || fxLight() || songFx) return;   // songs with their own effect (moon...) have no petals
+      if (planeMode) return;                             // planes just arrive in their own time
       if (spellMode) { for (let i = 0; i < Math.min(count, 3) && spl.length < 80; i++) spawnSpell(true); return; }
       for (let i = 0; i < count && list.length < 90; i++) spawn(true, true);
     },
     update(dt, t) {
       if (!ctx) return;
+      if (planeMode) { updatePlane(dt, t); return; }
       if (spellMode) { updateSpell(dt, t); return; }
       tier = t;
       const sec = dt / 1000;
@@ -3013,19 +3235,19 @@ const petals = (() => {
         p.rot += p.vr * sec;
         if (p.y > h + 30) {
           if (list.length > want || p.fast) { list.splice(i, 1); continue; }
-          p.y = -20; p.x = Math.random() * w; p.spriteIdx = tier;
+          p.y = -20; p.x = Math.random() * w; p.spriteIdx = mixPal ? (Math.random() * COLORS.length) | 0 : tier;
         }
         const ang = textMode ? p.r0 + Math.sin(p.phase * 1.3) * 0.5 : p.rot;      // petals spin, words just sway
         const cos = Math.cos(ang) * p.s * dpr, sin = Math.sin(ang) * p.s * dpr;
         ctx.globalAlpha = p.a;
         ctx.setTransform(cos, sin, -sin, cos, p.x * dpr, p.y * dpr);
-        const sp = roachMode ? roachSets[ROACH_SET[tier]][p.kind & 1] : chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];   // fruits follow the live combo tier, so they all change at once
+        const sp = sunMode ? sunSets[SUN_SET[tier]][0] : roachMode ? roachSets[ROACH_SET[tier]][p.kind & 1] : chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];   // fruits follow the live combo tier, so they all change at once
         ctx.drawImage(sp, -sp.width / 2, -sp.height / 2);
       }
       ctx.globalAlpha = 1;
     },
     clear() {
-      list.length = 0; spl.length = 0;
+      list.length = 0; spl.length = 0; pln.length = 0;
       if (ctx && dirty) {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, cv.width, cv.height);
@@ -3719,7 +3941,99 @@ const magicFx = (() => {
   };
 })();
 
-const SONG_FX = { moon: moonFx, sparkler: sparklerFx, lightning: lightningFx };
+// METEORS (songs.js:  fx: 'meteors'): replaces the petals. At 50, 100, 200, 300, 400 and 480 combo a shower of soft, slightly blurry meteors falls
+// across the BACKGROUND (behind the lanes), bigger at each milestone. Losing the combo re-arms the milestones. One sprite (blurred once when painted),
+// one low-res canvas, a small fixed pool, and nothing is drawn while no meteor is falling.
+const METEOR = { MARKS: [50, 100, 200, 300, 400, 480], COUNTS: [3, 5, 8, 11, 14, 20], SPREAD: 2.4 };
+const meteorFx = (() => {
+  const cv = document.createElement('canvas');
+  cv.id = 'meteor-fx';
+  cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
+  game.insertBefore(cv, game.firstChild);
+  const c = cv.getContext('2d');
+  const K = COARSE ? 0.4 : 0.5;                           // low backing resolution: cheaper and softer
+  const MAXM = COARSE ? 14 : 24;
+  const spr = (() => {                                    // 160x24, head on the right, long tapered tail to the left; blurred once here
+    const k = document.createElement('canvas'); k.width = 160; k.height = 24;
+    const g = k.getContext('2d');
+    if ('filter' in g) g.filter = 'blur(1.6px)';
+    const tail = g.createLinearGradient(0, 0, 140, 0);
+    tail.addColorStop(0, 'rgba(120,170,255,0)'); tail.addColorStop(0.55, 'rgba(160,200,255,0.35)'); tail.addColorStop(1, 'rgba(235,245,255,0.95)');
+    g.fillStyle = tail;
+    g.beginPath(); g.moveTo(0, 12); g.lineTo(140, 7); g.quadraticCurveTo(152, 12, 140, 17); g.closePath(); g.fill();
+    const head = g.createRadialGradient(140, 12, 0, 140, 12, 11);
+    head.addColorStop(0, 'rgba(255,255,255,1)'); head.addColorStop(0.4, 'rgba(210,230,255,0.7)'); head.addColorStop(1, 'rgba(150,190,255,0)');
+    g.fillStyle = head; g.fillRect(124, 0, 36, 24);
+    return k;
+  })();
+  const pool = [];
+  for (let i = 0; i < MAXM; i++) pool.push({ l: 0, m: 1, x: 0, y: 0, vx: 0, vy: 0, s: 1, a: 1 });
+  const fired = [false, false, false, false, false, false];
+  let pending = [];                                       // meteors waiting to launch: { t seconds, i milestone }
+  let on = false, W = 0, H = 0, sc = 1, anyAlive = false, dirty = false;
+
+  function resize(force) {
+    if (!on) return;
+    const w = game.clientWidth, h = game.clientHeight;
+    if (!w || !h) return;
+    if (!force && w === W && h === H) return;
+    W = w; H = h; sc = Math.max(0.7, Math.min(w, h) / 360);
+    cv.width = Math.round(w * K); cv.height = Math.round(h * K);
+  }
+  function launch(i) {
+    let p = null;
+    for (const q of pool) if (q.l <= 0) { p = q; break; }
+    if (!p) return;
+    const ang = 1.95 + Math.random() * 0.3;               // falls down and to the left
+    const sp = H * (0.8 + Math.random() * 0.5);
+    p.vx = Math.cos(ang) * sp; p.vy = Math.sin(ang) * sp;
+    p.x = W * (0.2 + Math.random() * 0.95); p.y = -30 - Math.random() * H * 0.25;
+    p.l = p.m = (H + 120) / p.vy;
+    p.s = (0.55 + Math.random() * 0.55) * sc * (1 + i * 0.08);
+    p.a = 0.55 + Math.random() * 0.3;
+  }
+  return {
+    start() { on = true; fired.fill(false); pending.length = 0; pool.forEach(p => p.l = 0); anyAlive = false; dirty = false; cv.style.display = 'block'; resize(true); },
+    clear() { on = false; pending.length = 0; cv.style.display = 'none'; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); },
+    resize,
+    update(dt) {
+      if (!on) return;
+      if (!W) { resize(true); if (!W) return; }
+      const sec = Math.min(dt, 100) / 1000;
+      for (let i = 0; i < METEOR.MARKS.length; i++) {
+        if (combo >= METEOR.MARKS[i]) {
+          if (!fired[i]) {
+            fired[i] = true;
+            if (!reduceMotion) { const n = Math.ceil(METEOR.COUNTS[i] * (fxLite() ? 0.5 : 1)); for (let k = 0; k < n; k++) pending.push({ t: Math.random() * METEOR.SPREAD, i }); }
+          }
+        } else if (fired[i]) { fired[i] = false; pending = pending.filter(q => q.i !== i); }   // combo lost: the unlaunched ones are cancelled
+      }
+      for (let k = pending.length - 1; k >= 0; k--) { pending[k].t -= sec; if (pending[k].t <= 0) { launch(pending[k].i); pending.splice(k, 1); } }
+      anyAlive = false;
+      for (const p of pool) if (p.l > 0) { p.l -= sec; if (p.l > 0) { anyAlive = true; p.x += p.vx * sec; p.y += p.vy * sec; } }
+      if (!anyAlive) {                                    // nothing falling: clear once, then no drawing at all
+        if (dirty) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); dirty = false; }
+        return;
+      }
+      dirty = true;
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, cv.width, cv.height);
+      c.globalCompositeOperation = 'lighter';
+      for (const p of pool) {
+        if (p.l <= 0) continue;
+        const u = 1 - p.l / p.m, fade = Math.min(1, u / 0.1) * Math.min(1, (1 - u) / 0.25);
+        const ang = Math.atan2(p.vy, p.vx), k = p.s * K * 0.8, cs = Math.cos(ang), sn = Math.sin(ang);
+        c.globalAlpha = p.a * fade;
+        c.setTransform(cs * k, sn * k, -sn * k, cs * k, p.x * K, p.y * K);
+        c.drawImage(spr, -140, -12);                      // the head (140 px in) sits on the meteor's position
+      }
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'source-over';
+    },
+  };
+})();
+
+const SONG_FX = { moon: moonFx, sparkler: sparklerFx, lightning: lightningFx, meteors: meteorFx };
 
 function applySongFx(song) {
   clearSongFx();
@@ -3756,7 +4070,7 @@ function applySongTheme(song) {
   TH = next;
   COLS_NOW = TH ? NOTE_COLS.map((c, i) => TH.notes[i] || c) : NOTE_COLS;
   for (let i = 0; i < 4; i++) { beamColor[i] = laneHitColor[i] = ACCENT(); }
-  petals.setColors(TH ? TH.petals : null, TH ? TH.petalShape : null);
+  petals.setColors(TH ? TH.petals : null, TH ? TH.petalShape : null, TH ? TH.mixPetals : false);
   tierGlow.style.display = TH ? 'none' : '';                 // replaced by the theme atmosphere
   beatPulse.style.background = TH ? TH.pulse : '';
   screenFlash.style.background = TH ? TH.flash : '';
@@ -3803,17 +4117,17 @@ applyGfx();
 
 // Watches the frame rate. If the device struggles, it drops from normal to lite mode on its own.
 function trackPerformance(dt) {
-  if (dt > SPIKE_FRAME_MS) {              // one very long frame: the phone was busy elsewhere. Go light right away and let it recover
+  if (dt > SPIKE_FRAME_MS && performance.now() - playBeganAt >= WARMUP_MS) {            // one very long frame: the phone was busy elsewhere. Go light right away and let it recover
     spikeUntil = performance.now() + SPIKE_LIGHT_MS;
     fxParts.length = 0; fxRings.length = 0;
     beatPulse.style.opacity = 0; lastBeatOpacity = 0;
   } else {
-    frameEma += (dt - frameEma) * 0.05;
+    frameEma += (Math.min(dt, SPIKE_FRAME_MS) - frameEma) * 0.05;
   }
   if (!lowFx) {
     // below ~48 fps for about one second -> light mode (it used to wait for ~38 fps and 1.5 s)
     if (performance.now() - playBeganAt < WARMUP_MS) perfBad = 0;     // first 2 s: no resize / mode switch while the audio is still starting up
-    else if (frameEma > 21) { if (++perfBad > 50) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
+    else if (frameEma > 23) { if (++perfBad > 80) { if (++lowFlips >= 2) lowLock = true; setLowFx(true); } } else perfBad = 0;
   } else if (!lowLock) {
     if (frameEma < 17.5) { if (++perfGood > 600) setLowFx(false); } else perfGood = 0;
   }
@@ -3935,13 +4249,14 @@ function showJudgement(text, color) {
   perfectTilt = -perfectTilt;                                          // each PERFECT tilts the other way, so a streak wiggles instead of repeating the same pop
   const pt = (s, r) => 'translateX(-50%) scale(' + s + ') rotate(' + r + 'deg)';
   judgeAnim = judgementEl.animate(isP ? [
-    { transform: pt(s0, perfectTilt * 3), opacity: 0, filter: 'brightness(2.4)' },
-    { transform: pt(0.94, 0), opacity: 1, offset: 0.12, filter: 'brightness(2.2)' },
-    { transform: pt(1.3, -perfectTilt), opacity: 1, offset: 0.24, filter: 'brightness(1.6)' },
-    { transform: pt(1.0, 0), opacity: 1, offset: 0.38, filter: 'brightness(1.15)' },
-    { transform: pt(1.06, 0), opacity: 1, offset: 0.5, filter: 'brightness(1.3)' },
-    { transform: pt(1.0, 0), opacity: 1, offset: 0.68, filter: 'brightness(1)' },
-    { transform: pt(1.0, 0), opacity: 0, filter: 'brightness(1)' },
+    // transform + opacity only: an animated filter on glowing text is repainted every frame, transform / opacity stay on the compositor
+    { transform: pt(s0, perfectTilt * 3), opacity: 0 },
+    { transform: pt(0.94, 0), opacity: 1, offset: 0.12 },
+    { transform: pt(1.3, -perfectTilt), opacity: 1, offset: 0.24 },
+    { transform: pt(1.0, 0), opacity: 1, offset: 0.38 },
+    { transform: pt(1.06, 0), opacity: 1, offset: 0.5 },
+    { transform: pt(1.0, 0), opacity: 1, offset: 0.68 },
+    { transform: pt(1.0, 0), opacity: 0 },
   ] : [
     { transform: T + s0 + ')', opacity: 0 },
     { transform: T + '1)', opacity: 1, offset: 0.15 },
@@ -4041,7 +4356,7 @@ function removeNoteAnimated(n) {
   n.judged = true;
   if (n.el) {
     n.el = null;
-    if (fxPops.length < 12) fxPops.push({ lane: n.lane, t0: performance.now(), v: tierVariant() });
+    if (fxPops.length < 12) fxPops.push({ lane: n.lane, t0: performance.now(), v: (TH && TH.byLane) ? n.lane : tierVariant() });
   }
 }
 
@@ -4453,8 +4768,11 @@ function startPlayback() {
   petals.setNotes(currentSong && currentSong.petalNotes);
   petals.setIndo(currentSong && currentSong.petalIndo);
   petals.setRoach(currentSong && currentSong.petalRoach);
+  petals.setSunflower(currentSong && currentSong.petalSunflower);
   petals.setText(currentSong && currentSong.petalText);
   petals.setSpell(currentSong && currentSong.petalSpell);
+  petals.setPlane(currentSong && currentSong.petalPlane);
+  petals.setSakura(currentSong && currentSong.petalSakura);
   applySongFx(currentSong);
   applySongTheme(currentSong);
   scoreEl.textContent = 'Score: 0';

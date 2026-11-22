@@ -88,6 +88,7 @@
     melody: { id: 'melody', name: 'Melody', label: 'GM', team: 'Special', color: '#ff6ad5', front: 'images/cards/melody.webp', back: 'images/cards/love_back.webp', guest: true },     // label: the grade letter on her card (default R); scoring is still GUEST_TIER
     yona: { id: 'yona', name: 'Yona', team: 'Special', color: '#ff6ad5', front: 'images/cards/yona.webp', back: 'images/cards/love_back.webp', guest: true },
     zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
+    haruka: { id: 'haruka', name: 'Haruka', team: 'Special', color: '#ff6ad5', front: 'images/cards/haruka.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
@@ -654,7 +655,13 @@
   (() => {
     const menu = $('menu-screen');
     if (menu && window.MutationObserver) new MutationObserver(syncSquad).observe(menu, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
-    setInterval(() => { if (!document.body.classList.contains('carousel-scrolling')) syncSquad(); }, 600);
+    // safety net only: the observer above already reacts when the menu appears / disappears. While a song is on screen this check
+    // (getComputedStyle + getClientRects) would force a layout recalculation in the middle of gameplay, so it is skipped there.
+    setInterval(() => {
+      const g = $('game');
+      if (g && g.style.display !== 'none') return;
+      if (!document.body.classList.contains('carousel-scrolling')) syncSquad();
+    }, 600);
     window.addEventListener('resize', measureSquad);
     window.addEventListener('orientationchange', () => setTimeout(measureSquad, 250));
     syncSquad();

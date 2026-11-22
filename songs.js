@@ -6,8 +6,9 @@ console.log('songs.js loaded');
 //   previewStart: second where the song-select preview starts (default 15)
 //   preview:      set to false to disable the preview for that song
 //   volume:       music loudness for this song (default 1; 1.2 = 20% louder; above 1 uses a gain node)
-//   fx:           gameplay effect that replaces the sakura petals: 'moon', 'sparkler' or 'lightning' (registered in SONG_FX in game.js)
-//   theme:        'crimson' | 'white' | 'popfight' -> petals, lights, hit effects, track and atmosphere turn crimson red (notes change only from 100 combo; see THEMES in game.js)
+//   fx:           gameplay effect that replaces the sakura petals: 'moon', 'sparkler', 'lightning' or 'meteors' (background meteor showers) (registered in SONG_FX in game.js)
+//   theme:        'crimson' | 'white' | 'popfight' | 'blackwhite' -> petals, lights, hit effects, track and atmosphere turn crimson red (notes change only from 100 combo; see THEMES in game.js)
+//                 'blackwhite': left two lanes = soft white notes, right two lanes = soft black notes, white + black petals, no colour changes at any combo
 //   petalText:    a word that flies around like the sakura petals, instead of petals (e.g. 'oaoeeee')
 //   team:         'dream' | 'love' | 'passion' -> only that team's cards are equipped
 //                 (leave it out, or use null, to allow every member's cards)
@@ -15,9 +16,10 @@ console.log('songs.js loaded');
 //   petalChoco:   true -> chocolate bars fly around instead of petals; no colour change, just more of them from 100 and 200 combo
 //   petalNotes:   true -> musical notes fly around instead of petals, with the same colour changes as the petals
 //   petalSpell:   true -> orange wand-spell sparkles twinkle in the background instead of petals, more at 100 and 200 combo (Magic Hour)
+//   petalSakura:  true -> bright pink sakura petals (no colour change, no glow; more of them as the combo grows)
 //   coldMist:     true -> from 100 combo the stage turns subtly cold (Magic Hour)
 //   petalIndo:    true -> the Indonesian flag and a skull emoji fly around instead of petals (no colour change; glow from 100 combo, more from 200)
-//   petalRoach:   true -> cockroaches fly around instead of petals (no colour change; amber glow from 100 combo, more from 200)
+//   petalRoach:   true -> cockroaches fly around instead of petals (no colour change, no glow; more from 100 and 200 combo)
 //   mascot:       'grasshopper' -> a giant grasshopper waves its arms in the top right corner of the screen
 //   slots:        how many cards are equipped for this song (1-12, default 12). The highest-tier owned cards fill them.
 //   duet:         true -> the equipped card bar says "DUET WITH <guest>" instead of "ALL MEMBERS WITH <guest>"
@@ -634,5 +636,88 @@ window.SONGS = [
     audio: 'music/dirimu_melody.ogg',
     chart: 'charts/dirimu_melody.js',
     cover: 'images/dirimu_melody.webp'
+  },
+    {
+    id: 'cinta_pertama',
+    title: 'Cinta Pertama di Jam 7 Lewat 12',
+    artist: 'JKT48',
+    team: null,
+    slots: 5,
+    audio: 'music/cinta_pertama.ogg',
+    chart: 'charts/cinta_pertama.js',
+    cover: 'images/rkj.webp'
+  },
+    {
+    id: 'sungai_impian',
+    title: 'Sungai Impian',
+    artist: 'JKT48',
+    team: null,
+    slots:  7,
+    guest: 'haruka',
+    petalSunflower: true,
+    audio: 'music/sungai_impian.ogg',
+    chart: 'charts/sungai_impian.js',
+    cover: 'images/saikou_kayo.webp',
+    volume: 1.5
+  },
+    {
+    id: 'pesawat_kertas_365_hari',
+    title: 'Pesawat Kertas 365 Hari',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/pesawat_kertas_365_hari.ogg',
+    chart: 'charts/pesawat_kertas_365_hari.js',
+    petalPlane: true,   // slow gliding paper airplanes instead of petals
+    cover: 'images/mahagita.webp',
+    volume: 1.2
+  },
+    {
+    id: 'persentase_meteor',
+    title: 'Persentase Meteor',
+    artist: 'JKT48',
+    team: null,
+    fx: 'meteors',      // meteor showers in the background at 50 / 100 / 200 / 300 / 400 / 480 combo
+    audio: 'music/persentase_meteor.ogg',
+    chart: 'charts/persentase_meteor.js',
+    cover: 'images/dewi_theater.webp'
+  },
+    {
+    id: 'arah_sang_cinta_dan_balasannya',
+    title: 'Arah Sang Cinta dan Balasannya',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/arah_sang_cinta_dan_balasannya.ogg',
+    chart: 'charts/arah_sang_cinta_dan_balasannya.js',
+    cover: 'images/sambil_menggandeng_erat_tanganku.webp'
+  },
+    {
+    id: 'papan_penanda_isi_hati',
+    title: 'Papan Penanda Isi Hati',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/papan_penanda_isi_hati.ogg',
+    chart: 'charts/papan_penanda_isi_hati.js',
+    cover: 'images/papan_penanda_isi_hati.webp'
+  },
+    {
+    id: 'sakura_no_hanabiratachi',
+    title: 'Sakura no Hanabiratachi',
+    artist: 'JKT48',
+    team: null,
+    petalSakura: true,  // bright pink sakura petals, no colour change, no glow, more at higher combos
+    audio: 'music/sakura_no_hanabiratachi.ogg',
+    chart: 'charts/sakura_no_hanabiratachi.js',
+    cover: 'images/gingham_check.webp'
+  },
+    {
+    id: 'dua_orang_yang_terlarang',
+    title: 'Dua Orang yang Terlarang',
+    artist: 'JKT48',
+    team: null,
+    slots: 2,
+    audio: 'music/dua_orang_yang_terlarang.ogg',
+    chart: 'charts/dua_orang_yang_terlarang.js',
+    theme: 'blackwhite',   // left lanes white, right lanes black, black & white petals
+    cover: 'images/seishun_girls.webp'
   }
 ];
