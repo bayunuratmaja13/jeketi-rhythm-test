@@ -52,6 +52,28 @@ const comboNumEl = comboEl.querySelector('.combo-num');
 // Early / late indicator
 const timingEl = mk('div', 'timing');
 
+// "HOLD!" indicator: stays on screen for as long as at least one hold note is being held, hides on release
+const holdEl = mk('div', 'hold-indicator');
+holdEl.textContent = 'HOLD!';
+Object.assign(holdEl.style, {
+  position: 'fixed', left: '50%', transform: 'translateX(-50%)', zIndex: '30',
+  font: '800 clamp(20px, 4.5vw, 34px) system-ui, sans-serif', letterSpacing: '0.06em',
+  color: '#ff66a3', textShadow: '0 0 8px #ff66a3, 0 2px 0 rgba(0,0,0,0.35)',
+  pointerEvents: 'none', display: 'none'
+});
+let holdShown = false;
+function setHoldIndicator(on) {
+  if (on === holdShown) return;
+  holdShown = on;
+  if (on) {
+    const r = judgementEl.getBoundingClientRect();
+    holdEl.style.top = Math.round(r.bottom + 10) + 'px';   // just under the PERFECT / GREAT text
+    holdEl.style.display = '';
+  } else {
+    holdEl.style.display = 'none';
+  }
+}
+
 // Tier-up banner
 const tierBanner = mk('div', 'tier-banner');
 tierBanner.innerHTML = '<div class="tb-title"></div><div class="tb-sub"></div>';
@@ -531,6 +553,7 @@ function hideTransientHud() {
   document.body.classList.remove('intro-hud', 'intro-hud-in');
   if (introLoadingEl) introLoadingEl.style.display = 'none';
   timingEl.style.opacity = 0;
+  setHoldIndicator(false);
   tierBanner.getAnimations().forEach(a => a.cancel());
   judgementEl.getAnimations().forEach(a => a.cancel());
 }
@@ -1447,6 +1470,7 @@ function pauseGame() {
     pauseStartWall = performance.now();
   }
   mode = 'paused';
+  setHoldIndicator(false);
   if (window.Shop) Shop.setCheerPaused(true);
   music.pause();
   countdownEl.classList.remove('show');
@@ -4592,13 +4616,17 @@ function startHold(n, diffMs, signedDiff) {
   addScore(j.points);
   perfectStreakStep(name === 'BAD' ? 'MISS' : name);
   n.headJ = name;
+  n.headColor = j.color;          // shown only if the hold is completed
+  n.headSigned = signedDiff;
   n.holding = true;
   n.lastTick = Math.round(getSongTime());
   if (n.el) n.el.classList.add('holding');
 
   updateScoreboard();
-  showJudgement(name, j.color);
-  showTiming(name, signedDiff);
+  judgementEl.getAnimations().forEach(a => a.cancel());   // clear any earlier judgement text
+  judgementEl.style.opacity = 0;
+  timingEl.style.opacity = 0;
+  setHoldIndicator(true);         // head hit and held: HOLD! stays up until release / completion
   flashLane(lane);
   flashJudgementLine(lane, name === 'BAD' ? 'miss' : name);
   beamHit(lane, name);
@@ -4627,8 +4655,10 @@ function completeHold(n) {
   judgedCount++;
   if ((n.headJ || 'PERFECT') === 'PERFECT') healFromPerfect();
 
-  showJudgement('HOLD!', '#ff66a3');
-  timingEl.style.opacity = 0;
+  judgementEl.style.opacity = '';
+  setHoldIndicator(false);
+  showJudgement(n.headJ || 'PERFECT', n.headColor || '#ffd34d');
+  showTiming(n.headJ || 'PERFECT', n.headSigned || 0);
   updateScoreboard();
   flashLane(lane);
   flashJudgementLine(lane, 'perfect');
@@ -5641,6 +5671,11 @@ function update(ts) {
     }
 
   }
+
+  // "HOLD!" is visible only while a hold note is actually being held
+  let anyHeld = false;
+  for (let i = 0; i < active.length; i++) { if (active[i].holding && !active[i].judged) { anyHeld = true; break; } }
+  setHoldIndicator(anyHeld);
 
   // 3) HUD: score counts up smoothly instead of jumping
   if (displayScore !== score) {
