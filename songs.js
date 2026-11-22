@@ -58,6 +58,46 @@ window.SONGS = [
     chart: 'charts/dekat_namun_jauh.js',
     cover: 'images/dekat_namun_jauh.webp'
   },
+    {
+    id: 'jurus_rahasia_teleport_revoice',
+    title: 'Jurus Rahasia Teleport',
+    artist: 'JKT48 REVOICE',
+    team: null,
+    only: ['aralie', 'oniel', 'cynthia', 'freya', 'ella'],
+    audio: 'music/jurus_rahasia_teleport_revoice.ogg',
+    chart: 'charts/jurus_rahasia_teleport_revoice.js',
+    cover: 'images/jurus_rahasia_teleport_revoice.webp'
+  },
+    {
+    id: 'refrain_penuh_harapan_revoice',
+    title: 'Refrain Penuh Harapan',
+    artist: 'JKT48 REVOICE',
+    team: null,
+    only: ['greesel', 'eli', 'lyn', 'lulu'],
+    audio: 'music/refrain_penuh_harapan_revoice.ogg',
+    chart: 'charts/refrain_penuh_harapan_revoice.js',
+    cover: 'images/refrain_penuh_harapan_revoice.webp'
+  },
+    {
+    id: 'seesaw_game_penuh_air_mata_revoice',
+    title: 'Seesaw Game Penuh Air Mata',
+    artist: 'JKT48 REVOICE',
+    team: null,
+    only: ['lulu', 'oniel', 'freya', 'eli'],
+    audio: 'music/seesaw_game_penuh_air_mata_revoice.ogg',
+    chart: 'charts/seesaw_game_penuh_air_mata_revoice.js',
+    cover: 'images/seesaw_game_penuh_air_mata_revoice.webp'
+  },
+    {
+    id: 'kamulah_yang_memberi_tahu_aku',
+    title: 'Kamulah yang Memberitahu Aku',
+    artist: 'JKT48 REVOICE',
+    team: null,
+    only: ['cynthia', 'freya', 'lyn', 'nachia'],
+    audio: 'music/kamulah_yang_memberi_tahu_aku_revoice.ogg',
+    chart: 'charts/kamulah_yang_memberi_tahu_aku_revoice.js',
+    cover: 'images/kamulah_yang_memberi_tahu_aku_revoice.webp'
+  },
   {
     id: 'andai_ku_bukan_idola',
   title: 'Andai \'Ku Bukan Idola',

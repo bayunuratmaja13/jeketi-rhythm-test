@@ -228,29 +228,28 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 @keyframes op-rise { 0% { transform: translateY(0) rotate(-10deg); opacity: 0; } 12% { opacity: .55; } 100% { transform: translateY(-115dvh) rotate(14deg); opacity: 0; } }
 
 .op-top { position: relative; z-index: 2; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0 4px; }
-.op-title { font: 900 clamp(20px, 6.4dvh, 32px)/1 var(--font-impact); letter-spacing: .5px; text-shadow: 0 3px 0 rgba(0,0,0,.4), 0 0 16px var(--tc); }
+.op-top { --sw: clamp(250px, 42vw, 400px); }   /* same value as .op-main: the title is centred over the highlighted card */
+.op-title { position: absolute; left: calc(50% - var(--sw) / 2); top: 50%; transform: translate(-50%, -50%); white-space: nowrap; font: 900 clamp(20px, 6.4dvh, 32px)/1 var(--font-impact); letter-spacing: .5px; text-shadow: 0 3px 0 rgba(0,0,0,.4), 0 0 16px var(--tc); }
 .op-title span { color: #ff5d93; display: inline-block; animation: op-beat 1.1s ease-in-out infinite; }
 @keyframes op-beat { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.3); } 40% { transform: scale(1); } }
-.op-filters { display: flex; gap: 8px; }
+.op-filters { display: flex; gap: 8px; margin-left: auto; }   /* stays on the right now that the title is positioned over the card */
 .op-filters button { padding: 8px 18px; border-radius: 999px; border: 3px solid rgba(255,255,255,.45); background: rgba(0,0,0,.3); color: #fff; font: 700 clamp(15px, 4.6dvh, 20px)/1 'Fredoka', sans-serif; cursor: pointer; }
 .op-filters button.on { background: #fff; color: #3a2140; border-color: #fff; }
 
 .op-main { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 8px; }
-.op-car {
-  --ph: calc(100dvh - 62px);
-  --pw: calc(var(--ph) * .75);
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0;
-  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  padding: 0 calc(50% - var(--pw) / 2); touch-action: pan-x;
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-}
-.op-car::-webkit-scrollbar { display: none; }
-.op-item { flex: none; width: var(--pw); height: var(--ph); scroll-snap-align: center; cursor: pointer; transform: scale(.74); opacity: .5; transition: transform .28s cubic-bezier(.3,1.3,.5,1), opacity .25s; will-change: transform; }
-.op-item + .op-item { margin-left: calc(var(--pw) * -.2); }   /* members sit closer together */
-.op-item.sel { transform: scale(1); opacity: 1; cursor: default; z-index: 2; }   /* on top of the neighbours that overlap it */
+.op-main { --ph: calc(100dvh - 62px); --pw: calc(var(--ph) * .75); --sw: clamp(250px, 42vw, 400px); }
+.op-car { position: relative; z-index: 0; flex: 1; min-width: 0; touch-action: none; cursor: grab; }   /* z-index: 0 keeps the cards' own z-indexes inside the carousel, so they can never cover the side panel */
+/* cards are laid out by shop.js as a fan (transform + z-index per card); no scrolling, so selecting is instant */
+.op-item { position: absolute; left: calc(50% - var(--sw) / 2); top: 50%; width: var(--pw); height: var(--ph); margin: calc(var(--ph) / -2) 0 0 calc(var(--pw) / -2);
+  cursor: pointer; transform-origin: 50% 135%; transition: transform .18s cubic-bezier(.2,.85,.3,1), opacity .2s, visibility .18s; }
+.op-item.sel { cursor: default; }
+.op-car.snap .op-item { transition: none; }
+.op-item.far { visibility: hidden; pointer-events: none; }
 .op-pic { position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: calc(var(--pw) * .04); border-radius: calc(var(--pw) * .075); overflow: hidden;
   background: linear-gradient(135deg, #fff 0%, color-mix(in srgb, var(--tc) 70%, #fff) 28%, var(--tc) 50%, color-mix(in srgb, var(--tc) 70%, #fff) 74%, #fff 100%);
   box-shadow: 0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.55); }
+.op-item:not(.sel) .op-pic { box-shadow: 0 6px 14px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.55); }
+.op-item:not(.sel) .op-pic::after { background: linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.5)); }
 .op-item.sel .op-pic { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--tc), 0 0 34px 8px color-mix(in srgb, var(--tc) 70%, transparent), 0 12px 30px rgba(0,0,0,.55); }
 .op-pic img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; border-radius: calc(var(--pw) * .05); box-shadow: 0 0 0 calc(var(--pw) * .009) rgba(10,4,16,.75); }
 .op-pic::after { content: ''; position: absolute; inset: calc(var(--pw) * .04); border-radius: calc(var(--pw) * .05); background: linear-gradient(180deg, transparent 70%, rgba(0,0,0,.35)); pointer-events: none; }
@@ -258,30 +257,50 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .op-ph b { font: 800 clamp(18px, 5dvh, 28px)/1.1 var(--font-impact); } .op-ph small { opacity: .8; font-weight: 600; }
 
 .op-arrow { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: 3px solid #fff; background: rgba(10,5,20,.55); color: #fff; font-size: 16px; cursor: pointer; }
-.op-arrow.l { left: 0; } .op-arrow.r { right: calc(clamp(170px, 30vw, 250px) + 8px); }
+/* arrows hug the highlighted card: card edge = 50% - sw/2 +- pw/2 (same centre the fan uses); drawn above the fan and the info box */
+.op-arrow { z-index: 4; }
+.op-arrow.l { left: calc(50% - var(--sw) / 2 - var(--pw) / 2 - 52px); right: auto; }
+.op-arrow.r { left: calc(50% - var(--sw) / 2 + var(--pw) / 2 + 8px); right: auto; }
 .op-arrow:active { transform: scale(.92); }
 
-.op-side { flex: none; width: clamp(170px, 30vw, 250px); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; z-index: 2; }
+/* info box: right side of the picker, drawn on top of the unselected cards (just inside the right arrow).
+   pointer-events: none so a swipe that starts on the box still scrolls the fan; only the button is tappable. */
+.op-side { position: absolute; top: 50%; transform: translateY(-50%); left: auto; right: 54px; width: var(--sw); box-sizing: border-box; padding: 18px 22px; border-radius: 22px; pointer-events: none;
+  background: color-mix(in srgb, var(--tc) 16%, rgba(13,4,22,.72)); box-shadow: 0 8px 24px rgba(0,0,0,.45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; z-index: 2; }
 .op-count { font: 700 12px/1 'Fredoka', sans-serif; letter-spacing: .15em; opacity: .75; }
-.op-name { font: 900 clamp(32px, 11dvh, 58px)/.95 var(--font-impact); text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 22px var(--tc); word-break: break-word; }
+.op-name { font: 900 clamp(32px, 11dvh, 58px)/.95 var(--font-impact); text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 22px var(--tc); white-space: nowrap; }
 .op-name.pop { animation: op-pop .35s cubic-bezier(.3,1.7,.5,1); }
 @keyframes op-pop { from { transform: translateX(14px) scale(.85); opacity: 0; } }
 .op-team span { display: inline-block; padding: 5px 12px; border-radius: 999px; background: var(--tc); color: #fff; font: 800 13px/1 'Fredoka', sans-serif; box-shadow: 0 2px 0 rgba(0,0,0,.3); text-shadow: 0 1px 0 rgba(0,0,0,.3); }
 .op-hint { font: 600 clamp(11px, 2.8dvh, 13px)/1.3 'Fredoka', sans-serif; opacity: .75; }
-.op-ok { width: 100%; min-height: 48px; font-size: clamp(14px, 3.6dvh, 18px); animation: op-glow 1.6s ease-in-out infinite; }
+.op-ok { pointer-events: auto; width: 100%; min-height: 48px; font-size: clamp(14px, 3.6dvh, 18px); animation: op-glow 1.6s ease-in-out infinite; }
 @keyframes op-glow { 0%, 100% { box-shadow: 0 4px 0 #a86f00, 0 0 0 rgba(255,210,60,0); } 50% { box-shadow: 0 4px 0 #a86f00, 0 0 22px rgba(255,210,60,.8); } }
 .op-burst { position: fixed; z-index: 5; color: #ff5d93; font-style: normal; pointer-events: none; text-shadow: 0 0 8px #fff; }
 .oshi-pick.chosen .op-item:not(.sel) { opacity: .15; }
 .oshi-pick.chosen .op-ok { animation: none; }
 
 @media (orientation: portrait) {
-  .op-top { flex-wrap: wrap; }
+  .op-top { flex-wrap: wrap; --sw: 0px; }
+  .op-title { position: static; transform: none; }
+  .op-filters { margin-left: 0; }
   .op-filters button { padding: 7px 14px; font-size: 16px; }
   .op-main { flex-direction: column; }
-  .op-car { --ph: calc(100dvh - 330px); }
+  .op-main { --ph: calc(100dvh - 330px); --sw: 0px; }
+  .op-side { position: static; transform: none; left: auto; right: auto; padding: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .op-side { width: 100%; align-items: center; text-align: center; }
-  .op-arrow.r { right: 0; }
+  .op-arrow.l { left: 0; }
+  .op-arrow.r { left: auto; right: 0; }
 }
+
+/* oshi confirmation pop up (above the picker) */
+.oshi-confirm { position: fixed; inset: 0; z-index: 1600; display: flex; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;
+  background: rgba(5, 2, 10, .72); touch-action: manipulation; user-select: none; -webkit-user-select: none; font-family: 'Fredoka', var(--font-game), sans-serif; animation: fade-in .18s ease-out; }
+.oc-box { width: min(94vw, 680px); box-sizing: border-box; padding: clamp(18px, 4dvh, 30px) clamp(16px, 3vw, 30px); border-radius: 20px; text-align: center; background: var(--paper); color: #3a2140; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.oc-title { white-space: nowrap; overflow: hidden; font: 900 clamp(24px, 7dvh, 42px)/1.15 var(--font-impact); }   /* always one line: shop.js shrinks the font if a long name would not fit */
+.oc-title b { color: #e0488a; }
+.oc-btns { display: flex; gap: 16px; justify-content: center; margin-top: clamp(14px, 3.4dvh, 26px); }
+.oc-btns .sh-btn { flex: 1; max-width: 240px; min-height: clamp(52px, 11dvh, 72px); font-size: clamp(20px, 5.4dvh, 30px); border-radius: 34px; }
 
 /* ---------- combine: orbit, charge, explode ---------- */
 .cmb { overflow: hidden; }

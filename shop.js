@@ -362,67 +362,120 @@
       '<div class="op-bg"></div><div class="op-fx"></div>' +
       '<div class="op-top"><div class="op-title"><span>♥</span> Who is your oshi?</div><div class="op-filters"></div></div>' +
       '<div class="op-main"><button class="op-arrow l" type="button" aria-label="Previous">◀</button><div class="op-car"></div><button class="op-arrow r" type="button" aria-label="Next">▶</button>' +
-      '<div class="op-side"><div class="op-count"></div><div class="op-name"></div><div class="op-team"></div><div class="op-hint">Swipe to browse.<br>Her card gets a bigger score bonus.</div><button class="sh-btn gold op-ok" type="button">♥ THIS IS MY OSHI</button></div></div>';
+      '<div class="op-side"><div class="op-count"></div><div class="op-name"></div><div class="op-team"></div><div class="op-hint">Swipe to browse.<br>Oshi card gets a bigger score bonus.</div><button class="sh-btn gold op-ok" type="button">♥ THIS IS MY OSHI</button></div></div>';
     document.body.appendChild(ov);
     const car = ov.querySelector('.op-car'), fil = ov.querySelector('.op-filters'), nameEl = ov.querySelector('.op-name'),
       teamEl = ov.querySelector('.op-team'), countEl = ov.querySelector('.op-count'), ok = ov.querySelector('.op-ok'), fx = ov.querySelector('.op-fx');
-    let list = [], idx = 0, filter = 'all', raf = 0, stride = 1, done_ = false;
+    let list = [], idx = 0, filter = 'all', done_ = false, dragMoved = false;
+    const els = new Map();                          // member id -> card element. Built ONCE; changing the team filter only re-fans them (no rebuilding, no image reloading)
 
     for (let i = 0; i < 7; i++) fx.appendChild(h('i', '', '♥'));       // a few drifting hearts (CSS only)
     fx.querySelectorAll('i').forEach((el, i) => { el.style.left = (8 + i * 14) + '%'; el.style.animationDelay = (-i * 1.7) + 's'; el.style.fontSize = (12 + (i % 3) * 7) + 'px'; });
 
-    const measure = () => {
-      const it = car.children;
-      stride = it.length > 1 ? it[1].offsetLeft - it[0].offsetLeft : (it[0] ? it[0].offsetWidth : 1) || 1;
+    // cards are fanned out like a hand of playing cards. Selection is instant (no scrolling): the highlighted card sits in front,
+    // and each card further out is tucked UNDER the one nearer the middle (so the neighbours overlap the cards outside them).
+    const FAN = 4;                                  // cards shown on each side of the highlighted one
+    const layout = () => {
+      const on = new Set();
+      list.forEach((m, i) => {
+        const el = els.get(m.id);
+        if (!el) return;
+        on.add(m.id);
+        const d = i - idx, a = Math.abs(d), sgn = d < 0 ? -1 : 1, k = Math.min(a, FAN + 1);
+        const x = a === 0 ? 0 : sgn * (.40 + (k - 1) * .18);
+        const sc = a === 0 ? 1 : .88 - Math.min(k, 4) * .015;
+        el.style.transform = 'translateX(calc(var(--pw) * ' + x + ')) rotate(' + (sgn * k * 6) + 'deg) scale(' + sc + ')';
+        el.style.zIndex = 1000 - a;                 // closer to the highlighted card = on top
+        el.classList.toggle('sel', a === 0);
+        el.classList.toggle('far', a > FAN);
+      });
+      els.forEach((el, id) => { if (!on.has(id)) { el.classList.add('far'); el.classList.remove('sel'); } });   // other teams: hidden, but kept loaded
     };
-    const paint = (fromScroll) => {
+    const fitName = () => {                          // a name never wraps: it shrinks until it fits the box on one line
+      nameEl.style.fontSize = '';
+      const box = nameEl.parentNode, cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      let fs = parseFloat(getComputedStyle(nameEl).fontSize), guard = 0;
+      while (avail > 0 && nameEl.scrollWidth > avail && fs > 14 && guard++ < 50) { fs -= 2; nameEl.style.fontSize = fs + 'px'; }
+    };
+    const paint = (sound) => {
+      layout();
       const m = list[idx];
       if (!m) return;
       ov.style.setProperty('--tc', m.color);
-      Array.from(car.children).forEach((c, i) => c.classList.toggle('sel', i === idx));
       nameEl.textContent = m.name;
+      fitName();
       teamEl.innerHTML = '<span>Team ' + esc(m.team) + '</span>';
       countEl.textContent = (idx + 1) + ' / ' + list.length;
       nameEl.classList.remove('pop'); void nameEl.offsetWidth; nameEl.classList.add('pop');
-      if (fromScroll) snd('hover');
+      if (sound) snd('hover');
     };
-    const goTo = (i, smooth) => { i = Math.max(0, Math.min(list.length - 1, i)); car.scrollTo({ left: i * stride, behavior: smooth ? 'smooth' : 'auto' }); if (!smooth) { idx = i; paint(); } };
-    car.addEventListener('scroll', () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const i = Math.max(0, Math.min(list.length - 1, Math.round(car.scrollLeft / stride)));
-        if (i !== idx) { idx = i; paint(true); }
-      });
-    }, { passive: true });
-    ov.querySelector('.op-arrow.l').addEventListener('click', () => goTo(idx - 1, true));
-    ov.querySelector('.op-arrow.r').addEventListener('click', () => goTo(idx + 1, true));
+    const goTo = (i, silent) => {
+      i = Math.max(0, Math.min(list.length - 1, i));
+      if (i === idx && !silent) return;
+      idx = i; paint(!silent);
+    };
+    // drag / swipe: every ~quarter card of movement steps one card, live while the finger is down
+    let down = false, dragging = false, dragX = 0, dragIdx = 0, wheelAt = 0;
+    car.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      down = true; dragging = false; dragMoved = false; dragX = e.clientX; dragIdx = idx;
+    });
+    car.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - dragX;
+      if (!dragging) {
+        if (Math.abs(dx) < 8) return;
+        dragging = true; dragMoved = true;
+        try { car.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+      }
+      const first = car.firstElementChild, step = Math.max(30, (first ? first.offsetWidth : 200) * .28);
+      goTo(dragIdx - Math.round(dx / step));
+    });
+    const endDrag = () => { down = false; dragging = false; setTimeout(() => { dragMoved = false; }, 0); };
+    car.addEventListener('pointerup', endDrag);
+    car.addEventListener('pointercancel', endDrag);
+    car.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const t = performance.now(), d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (t - wheelAt < 80 || Math.abs(d) < 4) return;
+      wheelAt = t; goTo(idx + (d > 0 ? 1 : -1));
+    }, { passive: false });
+    ov.querySelector('.op-arrow.l').addEventListener('click', () => goTo(idx - 1));
+    ov.querySelector('.op-arrow.r').addEventListener('click', () => goTo(idx + 1));
     const onKey = (e) => {
       if (!ov.isConnected) return;
-      if (e.code === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); goTo(idx - 1, true); }
-      else if (e.code === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); goTo(idx + 1, true); }
+      if (confirmEl) {                               // the confirmation pop up is open: Enter = YES, Escape = NO, arrows are ignored
+        e.preventDefault(); e.stopPropagation();
+        if (e.code === 'Enter') confirmEl.querySelector('.oc-yes').click();
+        else if (e.code === 'Escape') confirmEl.querySelector('.oc-no').click();
+        return;
+      }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); goTo(idx - 1); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); goTo(idx + 1); }
       else if (e.code === 'Enter') { e.preventDefault(); e.stopPropagation(); ok.click(); }
     };
     window.addEventListener('keydown', onKey, true);
 
+    const makeItem = (m) => {                        // front image only: the back of a card is never shown here
+      const c = h('div', 'op-item far'); c.style.setProperty('--tc', m.color);
+      const pic = h('div', 'op-pic');
+      const im = new Image(); im.alt = m.name; im.draggable = false; im.decoding = 'async';
+      im.onerror = () => im.replaceWith(h('div', 'op-ph', '<b>' + esc(m.name) + '</b><small>Team ' + esc(m.team) + '</small>'));
+      im.src = m.front;
+      pic.appendChild(im);
+      c.appendChild(pic);
+      c.addEventListener('click', () => { if (dragMoved) return; const i = list.findIndex(x => x.id === m.id); if (i >= 0 && i !== idx) goTo(i); });
+      return c;
+    };
     const build = (keepId) => {
       const cur = keepId || (list[idx] && list[idx].id) || getOshi();
       list = C().MEMBERS.filter(m => filter === 'all' || m.team === filter);
       list.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));   // A to Z by nickname (ALL = every team mixed)
-      car.innerHTML = '';
-      const frag = document.createDocumentFragment();
-      list.forEach((m, i) => {
-        const c = h('div', 'op-item'); c.style.setProperty('--tc', m.color);
-        const pic = h('div', 'op-pic');
-        const im = new Image(); im.alt = m.name; im.draggable = false; im.decoding = 'async'; if (i > 3) im.loading = 'lazy';
-        im.onerror = () => im.replaceWith(h('div', 'op-ph', '<b>' + esc(m.name) + '</b><small>Team ' + esc(m.team) + '</small>'));
-        im.src = m.front;
-        pic.appendChild(im);
-        c.appendChild(pic);
-        c.addEventListener('click', () => { if (i !== idx) goTo(i, true); });
-        frag.appendChild(c);
-      });
-      car.appendChild(frag);
+      if (!els.size) {                               // first time only: create + start loading every card image, so every filter is instant afterwards
+        const frag = document.createDocumentFragment();
+        C().MEMBERS.forEach(m => { const c = makeItem(m); els.set(m.id, c); frag.appendChild(c); });
+        car.appendChild(frag);
+      }
       fil.innerHTML = '';
       [['all', 'ALL']].concat(C().TEAMS.map(t => [t.id, t.id.toUpperCase()])).forEach(([k, label]) => {
         const b = h('button', filter === k ? 'on' : '', label); b.type = 'button';
@@ -430,16 +483,39 @@
         fil.appendChild(b);
       });
       const at = Math.max(0, list.findIndex(m => m.id === cur));
-      requestAnimationFrame(() => { measure(); goTo(at, false); });
+      car.classList.add('snap');                     // no slide animation when the filter changes: the new fan appears at once
+      goTo(at, true);
+      void car.offsetWidth;
+      car.classList.remove('snap');
     };
 
+    // "THIS IS MY OSHI" first asks PICK (MEMBER) AS YOUR OSHI? -> YES confirms, NO goes back to browsing
+    let confirmEl = null;
+    const closeConfirm = () => { if (confirmEl) { confirmEl.remove(); confirmEl = null; } };
     ok.addEventListener('click', () => {
       const m = list[idx];
-      if (!m || done_) return;
+      if (!m || done_ || confirmEl) return;
+      confirmEl = h('div', 'oshi-confirm');
+      confirmEl.innerHTML =
+        '<div class="oc-box" role="dialog" aria-modal="true"><div class="oc-title">PICK <b>' + esc(m.name.toUpperCase()) + '</b> AS YOUR OSHI?</div>' +
+        '<div class="oc-btns"><button type="button" class="sh-btn gold oc-yes">YES</button><button type="button" class="sh-btn alt oc-no">NO</button></div></div>';
+      confirmEl.querySelector('.oc-yes').addEventListener('click', () => { closeConfirm(); choose(m); });
+      confirmEl.querySelector('.oc-no').addEventListener('click', closeConfirm);
+      confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) closeConfirm(); });
+      document.body.appendChild(confirmEl);
+      const tt = confirmEl.querySelector('.oc-title'), bx = confirmEl.querySelector('.oc-box');   // keep the question on one line: shrink the font until it fits the box
+      const avail = bx.clientWidth - parseFloat(getComputedStyle(bx).paddingLeft) - parseFloat(getComputedStyle(bx).paddingRight);
+      let fs = parseFloat(getComputedStyle(tt).fontSize), guard = 0;
+      while (avail > 0 && tt.scrollWidth > avail && fs > 10 && guard++ < 60) { fs -= 1; tt.style.fontSize = fs + 'px'; }
+      snd('hover');
+      confirmEl.querySelector('.oc-yes').focus({ preventScroll: true });
+    });
+    const choose = (m) => {
+      if (done_) return;
       done_ = true;
       setOshi(m.id); snd('fanfare');
       try { if (navigator.vibrate) navigator.vibrate([20, 30, 60]); } catch (e) { /* no haptics */ }
-      const sel = car.children[idx];
+      const sel = els.get(m.id);
       if (sel) {
         const r = sel.getBoundingClientRect();
         for (let i = 0; i < 14; i++) {
@@ -457,7 +533,7 @@
         ov.classList.add('out'); setTimeout(() => ov.remove(), 280);
         if (done) done();
       }, 750);
-    });
+    };
     build();
   }
 

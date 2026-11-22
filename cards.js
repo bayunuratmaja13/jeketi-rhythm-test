@@ -84,16 +84,16 @@
   const LOCK ='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg>';
 
   // ---------- CARD ----------
-  function makeCard(m, t, owned, ghost) {
+  function makeCard(m, t, owned, ghost, lite) {   // lite = flat squad-bar card: no back face (its image is never fetched), front art decodes off the main thread
     const c = document.createElement('div');
     c.className = `tcard t-${t.id.toLowerCase()}` + (owned ? '' : (ghost ? ' ghost' : ' locked'));
     c.dataset.m = m.id;
     c.dataset.t = t.id;
     c.innerHTML =
       '<i class="tc-glow"></i><div class="tc-tilt"><div class="tc-inner">' +
-        `<div class="tc-face tc-front"><div class="tc-art"><img src="${m.front}" alt="${m.name}" draggable="false" onerror="this.outerHTML='<div class=tc-ph style=--pc:${m.color}><b>${m.name}</b><small>Team ${m.team}</small></div>'"><i class="tc-foil"></i><i class="tc-sheen"></i><i class="tc-sweep"></i></div>` +
+        `<div class="tc-face tc-front"><div class="tc-art"><img src="${m.front}" alt="${m.name}" draggable="false"${lite ? ' decoding="async"' : ''} onerror="this.outerHTML='<div class=tc-ph style=--pc:${m.color}><b>${m.name}</b><small>Team ${m.team}</small></div>'"><i class="tc-foil"></i><i class="tc-sheen"></i><i class="tc-sweep"></i></div>` +
           `<span class="tc-badge" data-t="${t.id}">${t.id}</span>${t.id === 'SS' ? SPARKS : ''}</div>` +
-        `<div class="tc-face tc-back"><div class="tc-art"><img src="${m.back}" alt="Team ${m.team}" draggable="false"><i class="tc-sheen"></i><i class="tc-sweep"></i><div class="tc-lock">${LOCK}<b>${t.id}</b></div></div></div>` +
+        (lite ? '' : `<div class="tc-face tc-back"><div class="tc-art"><img src="${m.back}" alt="Team ${m.team}" draggable="false"><i class="tc-sheen"></i><i class="tc-sweep"></i><div class="tc-lock">${LOCK}<b>${t.id}</b></div></div></div>`) +
       '</div></div>';
     if ((owned || ghost) && isOshiId(m.id)) syncHeart(c, true);
     return c;
