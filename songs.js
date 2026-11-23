@@ -131,6 +131,16 @@ window.SONGS = [
     cover: 'images/pertaruhan_cinta.webp'
   },
     {
+    id: 'sahabat_atau_cinta',
+    title: 'Sahabat atau Cinta',
+    artist: 'JKT48',
+    team: null,
+    slots: 2,
+    audio: 'music/sahabat_atau_cinta.ogg',
+    chart: 'charts/sahabat_atau_cinta.js',
+    cover: 'images/pertaruhan_cinta.webp'
+  },
+    {
     id: 'percik_kecil',
     title: 'Percik Kecil',
     artist: 'Bernadya, JKT48',
@@ -727,6 +737,15 @@ window.SONGS = [
     team: null,
     audio: 'music/beach_sandal.ogg',
     chart: 'charts/beach_sandal.js',
+    cover: 'images/seishun_girls.webp'
+  },
+    {
+    id: 'dont_disturb',
+    title: 'Don\'t Disturb!',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/dont_disturb.ogg',
+    chart: 'charts/dont_disturb.js',
     cover: 'images/seishun_girls.webp'
   },
     {

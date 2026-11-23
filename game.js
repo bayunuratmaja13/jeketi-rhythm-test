@@ -89,7 +89,6 @@ pauseOverlay.innerHTML = `
   <div class="pause-card">
     <div class="tape-top"></div>
     <div class="pause-title">PAUSED</div>
-    <div class="eq-strip"></div>
     <div class="pause-buttons">
       <button id="btn-resume" class="pause-btn-text pb-resume">RESUME</button>
       <div class="pause-row">
@@ -1489,7 +1488,6 @@ function pauseGame() {
   if (window.Shop) Shop.setCheerPaused(true);
   music.pause();
   countdownEl.classList.remove('show');
-  if (window.Shop) Shop.fillStrips();
   pauseOverlay.classList.add('show');
   pauseBtn.classList.remove('show');
 }
