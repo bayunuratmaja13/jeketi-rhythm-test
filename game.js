@@ -5061,11 +5061,24 @@ function findLaneFromPoint(x, y) {
   return k < 0 ? 0 : k > 3 ? 3 : k;
 }
 
+// A finger that lands NEAR the pause button (it is a screen-wide playfield, so a slightly off tap would be a lane tap) pauses too.
+// The zone reaches PAUSE_ZONE_PX past the drawn button on every side; it only exists while the button is on screen.
+const PAUSE_ZONE_PX = 44;
+function nearPauseButton(x, y) {
+  if (x > 260 || y > 260 || !pauseBtn.classList.contains('show')) return false;   // cheap check first: only the top-left corner can match
+  const r = pauseBtn.getBoundingClientRect();
+  return r.width > 0 && x >= r.left - PAUSE_ZONE_PX && x <= r.right + PAUSE_ZONE_PX && y >= r.top - PAUSE_ZONE_PX && y <= r.bottom + PAUSE_ZONE_PX;
+}
 playfieldEl.addEventListener('touchstart', (e) => {
   if (mode !== 'playing' && mode !== 'countdown') return;
   e.preventDefault();
   for (const touch of e.changedTouches) {
     if (activeTouches.has(touch.identifier)) continue;
+    if (nearPauseButton(touch.clientX, touch.clientY)) {      // not a lane tap: pause, even while the other fingers are busy on the lanes
+      pauseGame();
+      try { ensureAudio(); UI_SND.pause(); } catch (err) { /* audio unavailable */ }
+      return;
+    }
     const lane = findLaneFromPoint(touch.clientX, touch.clientY);
     if (lane !== null) {
       activeTouches.set(touch.identifier, lane);
@@ -5125,7 +5138,23 @@ btnRestart.addEventListener('click', () => {
   if (window.Shop) Shop.setCheerPaused(false);
   startPlayback();
 });
-pauseBtn.addEventListener('click', () => { pauseGame(); });
+// The pause button reacts the instant a finger touches it (pointerdown), not after the finger lifts, and its tap area reaches 16px past the
+// drawn button on every side. A tap that lands next to it still counts, and it works with other fingers already holding lanes.
+(function easyPause() {
+  const st = document.createElement('style');
+  st.textContent = '#pause-btn::after{content:"";position:absolute;left:-16px;right:-16px;top:-16px;bottom:-16px;}' +
+    '#pause-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}';
+  document.head.appendChild(st);
+  try { if (getComputedStyle(pauseBtn).position === 'static') pauseBtn.style.position = 'fixed'; } catch (e) { /* ignore */ }
+  pauseBtn.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;
+    if (mode !== 'playing' && mode !== 'countdown') return;
+    e.stopPropagation();
+    pauseGame();
+    try { ensureAudio(); UI_SND.pause(); } catch (err) { /* audio unavailable */ }   // the button is hidden by now, so its click (and sound) may never come
+  });
+})();
+pauseBtn.addEventListener('click', () => { pauseGame(); });      // keyboard / fallback; pauseGame ignores it when already paused
 
 // ---------- UI SOUND PACK ----------
 // Every tappable thing gets its own synthesized voice. uTone = one oscillator note, uNoise = a filtered noise burst.
@@ -5327,6 +5356,7 @@ function playUiFor(target) {
 
 // ---------- GLOBAL UI CLICK SOUND ----------
 document.addEventListener('click', (e) => {
+  if (mode === 'paused' && e.target.closest('#pause-btn')) return;   // already paused by pointerdown, which played the sound
   if (e.target.closest('.song-card') && !e.target.closest('.card-play-btn')) return;   // song cards have their own select sound
   if (e.target.closest('button, [role="button"], #rotate-hint')) {
     try { playUiFor(e.target); } catch (err) { /* audio unavailable */ }

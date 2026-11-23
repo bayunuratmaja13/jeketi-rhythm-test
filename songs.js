@@ -763,6 +763,7 @@ window.SONGS = [
     team: null,
     slots: 4,
     guest: 'vienny',
+    petalSunflower: true,
     audio: 'music/himawari.ogg',
     chart: 'charts/himawari.js',
     cover: 'images/matahari_milikku.webp'
