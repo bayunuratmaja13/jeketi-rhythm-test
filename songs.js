@@ -719,5 +719,52 @@ window.SONGS = [
     chart: 'charts/dua_orang_yang_terlarang.js',
     theme: 'blackwhite',   // left lanes white, right lanes black, black & white petals
     cover: 'images/seishun_girls.webp'
+  },
+    {
+    id: 'beach_sandal',
+    title: 'Beach Sandal',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/beach_sandal.ogg',
+    chart: 'charts/beach_sandal.js',
+    cover: 'images/seishun_girls.webp'
+  },
+    {
+    id: 'fortune_cookie_yang_mencinta',
+    title: 'Fortune Cookie yang Mencinta',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/fortune_cookie_yang_mencinta.ogg',
+    chart: 'charts/fortune_cookie_yang_mencinta.js',
+    cover: 'images/fortune_cookie_yang_mencinta.webp'
+  },
+    {
+    id: 'baby_baby_baby',
+    title: 'Baby! Baby! Baby! (Passionate Prayer Version)',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/baby_baby_baby.ogg',
+    chart: 'charts/baby_baby_baby.js',
+    cover: 'images/fortune_cookie_yang_mencinta.webp'
+  },
+    {
+    id: 'bingo',
+    title: 'BINGO!',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/bingo.ogg',
+    chart: 'charts/bingo.js',
+    cover: 'images/matahari_milikku.webp'
+  },
+    {
+    id: 'himawari',
+    title: 'Himawari',
+    artist: 'JKT48',
+    team: null,
+    slots: 4,
+    guest: 'vienny',
+    audio: 'music/himawari.ogg',
+    chart: 'charts/himawari.js',
+    cover: 'images/matahari_milikku.webp'
   }
 ];

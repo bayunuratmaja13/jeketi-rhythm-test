@@ -89,7 +89,13 @@
     yona: { id: 'yona', name: 'Yona', team: 'Special', color: '#ff6ad5', front: 'images/cards/yona.webp', back: 'images/cards/love_back.webp', guest: true },
     zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
     haruka: { id: 'haruka', name: 'Haruka', team: 'Special', color: '#ff6ad5', front: 'images/cards/haruka.webp', back: 'images/cards/love_back.webp', guest: true },
+    vienny: { id: 'vienny', name: 'Vienny', team: 'Special', color: '#ff6ad5', front: 'images/cards/vienny.webp', back: 'images/cards/love_back.webp', guest: true },
   };
+  // score bonus (%) of a guest card: R cards give GUEST_BONUS, a guest can override it with  bonus: 48  (Melody's GM card). The same number is her CENTER bonus.
+  const GUEST_BONUS = 25;
+  GUESTS.melody.bonus = 48;
+  const guestBonus = (id) => (GUESTS[id] ? (GUESTS[id].bonus != null ? GUESTS[id].bonus : GUEST_BONUS) : 0);
+  const guestLabel = (id) => (GUESTS[id] ? (GUESTS[id].label || GUEST_LABEL) : '');
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
   const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));          // tier index a card counts as
@@ -177,7 +183,7 @@
     ids.forEach(id => {
       const t = bestT(id);
       if (t < 0) return;
-      const base = TIER_BONUS[t];
+      const base = GUESTS[id] ? guestBonus(id) : TIER_BONUS[t];
       cards += base;
       if (id === oshi) oshiExtra += base * (OSHI_MULT - 1);
       if (set.has(id)) match += SONG_MATCH;
@@ -189,7 +195,7 @@
     const teamEq = (slots < MAX_LINEUP && teamN >= 2) ? teamN * f : (slots < MAX_LINEUP ? 0 : teamN);   // team size measured against a 12-card lineup (needs 2+ real cards)
     const teamPct = teamEq >= 5 ? TEAM_BONUS[5] : (TEAM_BONUS[Math.floor(teamEq)] || 0);
     const r = (v) => Math.round(v * 10) / 10;
-    const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (CENTER_BONUS[bestT(centerId)] || 0) : 0;   // CENTER: stacks with the oshi bonus
+    const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (GUESTS[centerId] ? guestBonus(centerId) : (CENTER_BONUS[bestT(centerId)] || 0)) : 0;   // CENTER: stacks with the oshi bonus
     cards *= f; oshiExtra *= f; match *= f;
     const total = cards + oshiExtra + match + teamPct + ctr;
     return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, center: r(ctr), total: r(total) };
@@ -713,9 +719,10 @@
       title.textContent = 'PICK THE CENTER FOR THIS SONG';
       sub.innerHTML = 'Tap one of your equipped cards below.<br>A higher tier card gives a bigger <b>CENTER</b> bonus.';
     } else {
-      const ti = bestT(cpick.sel), t = C().TIERS && C().TIERS[ti];
+      const ti = bestT(cpick.sel), t = C().TIERS && C().TIERS[ti], isG = !!GUESTS[cpick.sel];
+      const pct = isG ? guestBonus(cpick.sel) : centerBonusFor(ti), lab = isG ? guestLabel(cpick.sel) : (t ? t.id : '');
       title.textContent = 'PICK ' + String(member(cpick.sel).name || '').toUpperCase() + ' AS CENTER?';
-      sub.innerHTML = '<b>CENTER</b> bonus <b>+' + centerBonusFor(ti) + '%</b>' + (t ? ' <small>(' + esc(t.id) + ' card)</small>' : '');
+      sub.innerHTML = '<b>CENTER</b> bonus <b>+' + pct + '%</b>' + (lab ? ' <small>(' + esc(lab) + ' card)</small>' : '');
     }
   }
   function pickSelect(cell) {
