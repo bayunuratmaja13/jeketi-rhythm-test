@@ -290,7 +290,7 @@ const LITE_DPR = 0.75;                 // playfield resolution for a song that s
 // The quality ladder (rung = qRung):  R0 full  ->  R1 nearly invisible trims  ->  R2 lighter hit effects  ->  R3 lite.
 function fxLite() { return qRung >= 3; }                  // R3: no particles / rings / hit flash / tier glow, no petals ...
 function fxLight() { return !OPT.gfx || qRung >= 2; }     // "light look": graphics off, or rung 2 and up
-function fxMid() { return !OPT.gfx || qRung >= 1; }       // R1 and up: no beat glow, no shake, calmer ambience
+function fxMid() { return !OPT.gfx || qRung >= 2; }       // R2 and up: no beat glow, no shake
 
 // start-up smoothness
 const CLOCK_SNAP_MS = 400;             // song clock only JUMPS to the audio when they differ by more than this (was 120: a weak phone's audio start-up often wobbles more than that)
@@ -412,6 +412,15 @@ function stopPreview() {
   if (previewAudio) { try { previewAudio.pause(); } catch (e) { /* ignore */ } }
 }
 
+// When a song starts the preview element is not only paused but emptied (no src), so its buffered audio / decoder is freed for the song.
+// The element itself stays (iPhones remember it was unlocked); the next preview simply sets its src again.
+function releasePreview() {
+  clearTimeout(previewDelay);
+  stopPreview();
+  if (!previewAudio) return;
+  try { previewAudio.removeAttribute('src'); previewAudio.load(); } catch (e) { /* ignore */ }
+}
+
 // while the new-player intro (oshi picker + starter pack) is on screen, no preview music
 let holdPreview = false;
 function setPreviewHold(v) {
@@ -435,6 +444,7 @@ function ensurePreviewAudio() {
 const warmedPreviews = new Set();
 function warmPreview(song) {
   if (!song || !song.audio || song.preview === false) return;
+  if (playBusy()) return;                              // a song is starting / playing: never (re)attach the preview file now
   const url = previewUrlOf(song);
   if (warmedPreviews.has(url)) return;
   warmedPreviews.add(url);
@@ -470,6 +480,7 @@ function unlockPreview() {
 function startPreview(song) {
   stopPreview();
   if (holdPreview) return;
+  if (playBusy()) return;
   if (!song || !song.audio || song.preview === false) return;
   const a = ensurePreviewAudio();
   const token = previewToken;
@@ -1090,19 +1101,46 @@ function proceedSong(song) {
   if (window.Shop && Shop.openLineup(song, go)) return;
   go();
 }
+// ---------- SONG AUDIO IN MEMORY ----------
+// The whole song file is read into memory (a Blob) BEFORE the song starts and the <audio> element plays that, so nothing can stall
+// mid-song on a slow network and seeking is instant. If the download fails or is slow (AUDIO_LOAD_MAX_MS) the game falls back to normal streaming.
+const AUDIO_LOAD_MAX_MS = 8000;
+let songBlobUrl = null, songBlobFor = '';
+function freeSongBlob() {
+  if (songBlobUrl) { try { URL.revokeObjectURL(songBlobUrl); } catch (e) { /* ignore */ } }
+  songBlobUrl = null; songBlobFor = '';
+}
+async function loadSongAudio(song) {
+  if (!song || !song.audio || !window.fetch || !window.URL || !URL.createObjectURL) return null;
+  if (songBlobUrl && songBlobFor === song.audio) return songBlobUrl;       // same song again: already in memory
+  freeSongBlob();
+  const ctrl = window.AbortController ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, AUDIO_LOAD_MAX_MS);
+  try {
+    const r = await fetch(absUrl(song.audio), ctrl ? { signal: ctrl.signal } : undefined);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    if (!blob || !blob.size) return null;
+    songBlobUrl = URL.createObjectURL(blob); songBlobFor = song.audio;
+    return songBlobUrl;
+  } catch (e) { return null; }
+  finally { clearTimeout(timer); }
+}
+
 async function startSong(song) {
   songStarting = true; songStartingAt = performance.now();   // from now on (chart loading included) nothing may download in the background
   window.dispatchEvent(new Event('jeketi:busy'));    // downloader.js stops an in-flight song download right away
-  stopPreview();
+  releasePreview();                                  // the preview element lets go of its audio before the song loads
   currentSong = song;
   lastPlayedId = song.id;
   showGameScreen();
   setStatus(`Loading ${song.title}…`);
+  introLoadingEl.style.display = 'block';            // hidden again by startPlayback / hideTransientHud
 
   try {
-    const chart = await loadChartFor(song);
+    const [chart, audioUrl] = await Promise.all([loadChartFor(song), loadSongAudio(song)]);
     currentChart = chart;
-    music.src = song.audio;
+    music.src = audioUrl || song.audio;              // in memory when possible, streaming as a fallback
     startPlayback();                                 // sets mode = 'starting' synchronously: mode now covers the busy state
     songStarting = false;
   } catch (err) {
@@ -1443,6 +1481,7 @@ function triggerGameOver() {
 function pauseGame() {
   if (mode !== 'playing' && mode !== 'countdown') return;
   if (mode === 'playing') {
+    flushHitFx();                                      // show the hits that are still queued before the screen freezes
     frozenTime = getSongTime();
     pauseStartWall = performance.now();
   }
@@ -1524,6 +1563,7 @@ function backToSongSelect() {
   music.pause();
   music.removeAttribute('src');     // let go of the finished song's audio; the next song sets its own src
   try { music.load(); } catch (e) { /* ignore */ }
+  freeSongBlob();                    // give the in-memory copy of the song back
   mode = 'idle';
   clearNotes();
   queue = [];
@@ -2004,6 +2044,7 @@ const beamG = [null, null, null, null], beamGC = ['', '', '', ''], beamGV = [-1,
 let layoutVer = 0;                                                                                // bumps whenever the field is re-laid-out
 const fxRings = [];
 const fxParts = [];
+const ringFree = [], partFree = [];       // pools: finished rings / particles are reused, so a hit allocates nothing
 const fxFlares = [];                       // PERFECT / GREAT hit flares (a glow on the receptor, PERFECT also shoots a light column up the lane)
 const FLARE_SPR = { perfect: null, great: null, col: null, core: null };
 const fxPops = [];                         // quick "pop" of a note that was just hit
@@ -2176,7 +2217,7 @@ function buildSprites() {
   const COLS = noteCols();
   const pad = Math.ceil(F.lw * 0.14), w = F.noteW, h = F.noteH, k = F.dpr * 1.15;
   COLS.forEach((c, i) => {
-    c.h0 = rgbaOf(c.hex, 0.25); c.h1 = rgbaOf(c.hex, 0.7); c.h2 = rgbaOf(c.hex, 0.9); c.hk = rgbaOf(c.hex, 0.95);   // hold-body colours, built once (not per frame)
+    c.h0 = rgbaOf(c.hex, 0.25); c.h1 = rgbaOf(c.hex, 0.7); c.h2 = rgbaOf(c.hex, 0.9); c.hk = rgbaOf(c.hex, 0.95); c._ug = null;   // hold-body colours, built once (not per frame)
     const cv = (NOTE_SPR[i] && NOTE_SPR[i].cv) || document.createElement('canvas');
     cv.width = Math.ceil((w + 2 * pad) * k);
     cv.height = Math.ceil((h + 2 * pad) * k);
@@ -2278,17 +2319,24 @@ function drawStatic() {
   }
 }
 
-// hold-note body gradient: built once per colour set / holding state / layout instead of once per hold note per frame
-const holdG = [null, null], holdGK = ['', ''], holdGV = [-1, -1];
-function holdGradient(c, colr, holding) {
-  const k = holding ? 1 : 0, key = colr.h0 + colr.h1 + colr.h2;
-  if (!holdG[k] || holdGK[k] !== key || holdGV[k] !== layoutVer) {
-    const gr = c.createLinearGradient(0, FIELD.topY, 0, FIELD.hitY);
+// hold-note body: ONE unit gradient (0 = tail, 1 = head) per colour set / holding state, cached on the colour object.
+// A hold is drawn by scaling the canvas so its tail..head span becomes 0..1, so no gradient is built per hold per frame
+// and the look is exactly the old one (clear at the tail, solid at the head). buildSprites() clears the cache when colours change.
+function holdUnitGradient(c, colr, holding) {
+  const g = colr._ug || (colr._ug = [null, null]), k = holding ? 1 : 0;
+  if (!g[k]) {
+    const gr = c.createLinearGradient(0, 0, 0, 1);
     gr.addColorStop(0, colr.h0);
     gr.addColorStop(1, holding ? colr.h2 : colr.h1);
-    holdG[k] = gr; holdGK[k] = key; holdGV[k] = layoutVer;
+    g[k] = gr;
   }
-  return holdG[k];
+  return g[k];
+}
+function holdPath(c, cxT, bwT, yT, cxH, bwH, yH) {
+  c.beginPath();
+  c.moveTo(cxT - bwT / 2, yT); c.lineTo(cxT + bwT / 2, yT);
+  c.lineTo(cxH + bwH / 2, yH); c.lineTo(cxH - bwH / 2, yH);
+  c.closePath();
 }
 
 function drawField(now, dt) {
@@ -2370,17 +2418,16 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          if (fxLight()) c.fillStyle = n.holding ? colr.h2 : colr.h1;     // R2 and up (or Graphics off): flat body, no gradient built per frame
-          else {
-            const gr = c.createLinearGradient(0, yT, 0, yH);       // original look: each hold fades from clear at its tail to solid at its head
-            gr.addColorStop(0, colr.h0);
-            gr.addColorStop(1, n.holding ? colr.h2 : colr.h1);
-            c.fillStyle = gr;
+          if (fxLight()) {                                                 // R2 and up (or Graphics off): flat body
+            c.fillStyle = n.holding ? colr.h2 : colr.h1;
+            holdPath(c, cxT, bwT, yT, cxH, bwH, yH); c.fill();
+          } else {
+            c.translate(0, yT); c.scale(1, yH - yT);                       // tail..head = 0..1 for the cached gradient
+            c.fillStyle = holdUnitGradient(c, colr, n.holding);
+            holdPath(c, cxT, bwT, 0, cxH, bwH, 1); c.fill();
+            c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);                      // back to normal for the outline
+            holdPath(c, cxT, bwT, yT, cxH, bwH, yH);
           }
-          c.beginPath();
-          c.moveTo(cxT - bwT / 2, yT); c.lineTo(cxT + bwT / 2, yT);
-          c.lineTo(cxH + bwH / 2, yH); c.lineTo(cxH - bwH / 2, yH);
-          c.closePath(); c.fill();
           c.strokeStyle = colr.hk; c.lineWidth = 2;
           c.stroke();
         }
@@ -2436,7 +2483,7 @@ function drawField(now, dt) {
   // rings
   for (let i = fxRings.length - 1; i >= 0; i--) {
     const r = fxRings[i], age = (wall - r.t0) / 500;
-    if (age >= 1) { fxRings[i] = fxRings[fxRings.length - 1]; fxRings.pop(); continue; }
+    if (age >= 1) { ringFree.push(r); fxRings[i] = fxRings[fxRings.length - 1]; fxRings.pop(); continue; }
     if (age < 0) continue;
     const k = (1 + 1.4 * age) * (r.m || 1);
     const w = F.noteW * 1.04 * k, h = F.recH * k;
@@ -2448,7 +2495,7 @@ function drawField(now, dt) {
   // particles
   for (let i = fxParts.length - 1; i >= 0; i--) {
     const p = fxParts[i], age = (wall - p.t0) / 550;
-    if (age >= 1) { fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
+    if (age >= 1) { partFree.push(p); fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
     const e = 1 - (1 - age) * (1 - age);
     c.globalAlpha = 1 - age;
     const px = p.x + Math.cos(p.a) * p.d * e, py = p.y + Math.sin(p.a) * p.d * e;
@@ -2481,35 +2528,40 @@ function particleSprite(col, star) {
 
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
+function addRing(lane, col, t0, m, lw) {
+  const r = fxRings.length >= 12 ? fxRings.shift() : (ringFree.pop() || {});     // at the cap the oldest ring is reused
+  r.lane = lane; r.col = col; r.t0 = t0; r.m = m; r.lw = lw;
+  fxRings.push(r);
+}
+function releaseFx() {                     // drop every live effect (the objects go back to the pools)
+  while (fxRings.length) ringFree.push(fxRings.pop());
+  while (fxParts.length) partFree.push(fxParts.pop());
+  fxPops.length = 0; fxFlares.length = 0;
+}
+
 function spawnShockwave(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
   const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
   const col = fxColor(judgement), t = performance.now();
-  for (let i = 0; i < n; i++) {
-    if (fxRings.length >= 12) fxRings.shift();
-    fxRings.push({ lane: laneIndex, col, t0: t + i * 70 });
-  }
-  if (isP && n > 0) {                                                        // PERFECT only: one more big, thick, white ring that spreads wider than the rest
-    if (fxRings.length >= 12) fxRings.shift();
-    fxRings.push({ lane: laneIndex, col: '#ffffff', t0: t, m: 1.7, lw: 3.5 });
-  }
+  for (let i = 0; i < n; i++) addRing(laneIndex, col, t + i * 70, 0, 0);
+  if (isP && n > 0) addRing(laneIndex, '#ffffff', t, 1.7, 3.5);              // PERFECT only: one more big, thick, white ring that spreads wider than the rest
 }
 
 function spawnParticles(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : 1;             // R2: half the particles
+  const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : qRung >= 1 ? 0.75 : 1;   // R1: 3/4, R2: half the particles
   const n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 64; i++) {
-    fxParts.push({
-      x, y, t0: t,
-      col: isP && (i & 1) ? '#ffffff' : col,
-      a: (Math.PI * 2 * i / n) + Math.random() * 0.4,
-      d: (60 + Math.random() * (isP ? 100 : 70)) * sc * (isP ? 1.25 : 1),
-      r: isP ? 5.5 : 4.5,
-      star: isP,
-    });
+    const p = partFree.pop() || {};
+    p.x = x; p.y = y; p.t0 = t;
+    p.col = isP && (i & 1) ? '#ffffff' : col;
+    p.a = (Math.PI * 2 * i / n) + Math.random() * 0.4;
+    p.d = (60 + Math.random() * (isP ? 100 : 70)) * sc * (isP ? 1.25 : 1);
+    p.r = isP ? 5.5 : 4.5;
+    p.star = isP;
+    fxParts.push(p);
   }
 }
 
@@ -2545,7 +2597,7 @@ function triggerMissFlash(kind) {
 // Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
-  if (fxMid()) return;                         // R1 and up: no shaking at all
+  if (fxMid()) return;                         // R2 and up: no shaking at all
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
@@ -4123,8 +4175,9 @@ function songFxUpdate(dt) {
 // ============================================================
 //  QUALITY LADDER  (replaces the old all-or-nothing "lite" switch)
 //   R0 = Graphics ON, full look
-//   R1 = nearly invisible: ambience at ~20 fps and half the petals, no beat glow, no screen shake, cheer sparks off, cheer aura frozen
-//   R2 = lighter hit effects: 1 ring (PERFECT 2), half the particles, flares without light column / core, flat hold bodies, no glow text
+//   R1 = invisible trims only: ambience at ~25 fps and 70% of the petals, 3/4 of the particles, cheer sparks off, cheer aura frozen
+//   R2 = small trims you would only spot if you looked: ambience ~16 fps and 40% of the petals, no beat glow, no screen shake,
+//        1 ring (PERFECT 2), half the particles, flares without light column / core, flat hold bodies, no glow text
 //   R3 = lite (the old lite look). Only R3 is "lite"; it is the LAST rung.
 //  It steps down one rung when the 95th-percentile frame time over the last ~5 s is above Q_DOWN_P95, and up one rung only after
 //  ~20 s at a good p95 (with a longer wait, and finally no more going up, if going up keeps failing).
@@ -4152,10 +4205,11 @@ function qApply() {
   const b = document.body;
   b.classList.toggle('low-fx', !OPT.gfx || qRung >= 3);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
   b.classList.toggle('lite-fx', qRung >= 3);              // CSS (injected below): hides the hit flash and tier glow
-  b.classList.toggle('q1', qRung >= 1);                   // CSS (injected below): no beat glow, no cheer sparks, frozen cheer aura
-  const rq = [1, 0.5, 0.3, 0][qRung];                     // petals / ambience amount
+  b.classList.toggle('q1', qRung >= 1);                   // CSS (injected below): no cheer sparks, frozen cheer aura
+  b.classList.toggle('q2', qRung >= 2);                   // CSS (injected below): no beat glow layer
+  const rq = [1, 0.7, 0.4, 0][qRung];                     // petals / ambience amount
   petals.setQuality(OPT.gfx ? rq : Math.min(0.3, rq));
-  if (qRung >= 1) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; }
+  if (qRung >= 2) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; }
 }
 
 // A song is about to start: pick the rung to start at (the saved one for this device) and the canvas size that goes with it.
@@ -4215,14 +4269,14 @@ function trackPerformance(dt) {
 // Applies the Graphics option (called at start and whenever the player flips it). The ladder sits on top of it.
 function applyGfx() {
   qApply();
-  if (!OPT.gfx) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; fxParts.length = 0; fxRings.length = 0; fxPops.length = 0; }
+  if (!OPT.gfx) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; releaseFx(); }
   measureLane();                                                  // playfield resolution depends on it
 }
 applyGfx();
 (function addLiteStyles() {
   const st = document.createElement('style');
   st.textContent = 'body.lite-fx #screen-flash, body.lite-fx #tier-glow { display: none !important; }' +
-    'body.q1 #beat-pulse { display: none; } body.q1 .cc-spark { display: none !important; } body.q1 .cc-aura { animation: none !important; }';
+    'body.q2 #beat-pulse { display: none; } body.q1 .cc-spark { display: none !important; } body.q1 .cc-aura { animation: none !important; }';
   document.head.appendChild(st);
 })();
 
@@ -4387,23 +4441,23 @@ function showTierBanner(tier, c, isTierUp) {
   ], { duration: 900, easing: 'ease-out' });
 }
 
-function handleComboIncrement() {
-  const stepIdx = TIER_STEPS.indexOf(combo);
+function handleComboIncrement(c) {                       // c = the combo this hit reached (the effect runs a frame later)
+  const stepIdx = TIER_STEPS.indexOf(c);
   const isTierUp = stepIdx >= 0;
-  const isMilestone = isTierUp || (combo >= 300 && combo % 100 === 0);
+  const isMilestone = isTierUp || (c >= 300 && c % 100 === 0);
   if (!isMilestone) return;
 
-  playComboSound(combo);
+  playComboSound(c);
   comboEl.classList.remove('milestone');
   void comboEl.offsetWidth;
   comboEl.classList.add('milestone');
   setTimeout(() => comboEl.classList.remove('milestone'), 400);
 
-  showTierBanner(isTierUp ? stepIdx + 1 : getTier(combo), combo, isTierUp);
+  showTierBanner(isTierUp ? stepIdx + 1 : getTier(c), c, isTierUp);
   petals.burst(isTierUp ? 26 : 14);
   kick = Math.min(1, kick + 0.5);
-  if (combo >= 100) triggerScreenFlash();
-  shakeScreen(1.6 + getTier(combo) * 0.4);
+  if (c >= 100) triggerScreenFlash();
+  shakeScreen(1.6 + getTier(c) * 0.4);
 }
 
 // ---------- NOTE TOKEN ----------
@@ -4418,7 +4472,7 @@ function clearNotes() {
     n.el = null;
   }
   active = [];
-  fxPops.length = 0; fxRings.length = 0; fxParts.length = 0; fxFlares.length = 0;
+  releaseFx();
 }
 
 function buildQueue(chart) {
@@ -4492,8 +4546,7 @@ function laneDown(lane) {
     if (best.dur > 0) startHold(best, bestDiff, bestSigned);
     else judgeTap(best, bestSigned);
   } else {
-    flashLane(lane);
-    try { playEmptyTap(lane); } catch (e) { /* audio unavailable */ }
+    queueHitFx(HFX_EMPTY, lane, '', 0, 0, false);       // flash + tap sound, played next frame
   }
 }
 
@@ -4516,14 +4569,97 @@ function laneUp(lane) {
 }
 
 // ---------- JUDGEMENT ----------
-// Every 10th PERFECT in a row: a burst on all four lanes + a quick screen flash. Any other judgement (or a miss) resets the streak.
+// Every 10th PERFECT in a row sets off a burst on all four lanes (played by flushHitFx). Any other judgement (or a miss) resets the streak.
+// Returns true when this hit is a 10th.
 function perfectStreakStep(name) {
-  if (name !== 'PERFECT') { perfectStreak = 0; return; }
-  if (++perfectStreak % 10 !== 0 || fxLite()) return;
+  if (name !== 'PERFECT') { perfectStreak = 0; return false; }
+  return ++perfectStreak % 10 === 0;
+}
+
+// ---------- COSMETIC HIT EFFECTS (batched, one step per frame) ----------
+// The touch / key handler only does the GAME LOGIC of a hit (judgement, combo, score, life, the note's state). Everything the player can only
+// see or feel (judgement text, EARLY / LATE, rings, particles, flares, beams, shake, vibration, HUD pops, combo milestones) is written
+// into this small fixed queue and played once per frame by flushHitFx() from update(), right before drawField. The hit still shows on the very
+// next frame, but the input handler returns almost at once and several hits in one frame share one DOM update.
+const HFX_TAP = 0, HFX_HOLD_START = 1, HFX_HOLD_END = 2, HFX_EMPTY = 3, HFX_MAX = 48;
+const hfxPool = [];
+for (let i = 0; i < HFX_MAX; i++) hfxPool.push({ k: 0, lane: 0, name: '', signed: 0, combo: 0, burst: false });
+let hfxN = 0;
+function queueHitFx(k, lane, name, signed, comboAt, burst) {
+  if (hfxN >= HFX_MAX) return;                      // only cosmetics are dropped, never game logic
+  const e = hfxPool[hfxN++];
+  e.k = k; e.lane = lane; e.name = name; e.signed = signed; e.combo = comboAt; e.burst = burst;
+}
+function streakBurst() {
+  if (fxLite()) return;
   for (let l = 0; l < 4; l++) { spawnShockwave(l, 'perfect', 1); spawnFlare(l, 'PERFECT'); }
   if (!fxLight()) triggerScreenFlash();
   buzz(30);
 }
+function flushHitFx() {
+  const n = hfxN;
+  if (!n) return;
+  hfxN = 0;
+  let kickAdd = 0, judgeEv = null, timingEv = null, timingClear = false, scored = false;
+  for (let i = 0; i < n; i++) {
+    const e = hfxPool[i], lane = e.lane;
+    if (e.k === HFX_EMPTY) { flashLane(lane); try { playEmptyTap(lane); } catch (err) { /* audio unavailable */ } continue; }
+    const name = e.name, bad = name === 'BAD';
+    scored = true;
+    flashLane(lane);
+    flashJudgementLine(lane, bad ? 'miss' : name);
+    beamHit(lane, name);
+    playHitSound(name, e.combo);
+    if (e.burst) streakBurst();
+    if (e.k === HFX_HOLD_END) {
+      kickAdd += 0.35; timingEv = null; timingClear = true;
+      const tier = getTier(e.combo);
+      spawnShockwave(lane, 'perfect', 1 + Math.min(tier, 2));
+      spawnFlare(lane, 'PERFECT');
+      spawnParticles(lane, 'perfect', 6 + tier);
+      shakeScreen(1.2 + tier * 0.25);
+      buzz(20);
+      continue;
+    }
+    kickAdd += JUDGE[name].kick;
+    judgeEv = e; timingEv = e; timingClear = false;
+    if (e.k === HFX_HOLD_START) {
+      spawnShockwave(lane, bad ? 'miss' : name, 1);
+      spawnFlare(lane, name);
+      spawnParticles(lane, bad ? 'miss' : name, 3);
+      buzz(12);
+      continue;
+    }
+    if (bad) {
+      triggerMissFlash('bad');
+      shakeScreen(2.2);
+      if (navigator.vibrate && OPT.vib) navigator.vibrate([40, 25, 40]);
+      continue;
+    }
+    const tier = getTier(e.combo), isP = name === 'PERFECT';
+    spawnShockwave(lane, name, isP ? 1 + Math.min(tier, 2) : 1);
+    spawnParticles(lane, name, isP ? 8 + tier * 2 : name === 'GREAT' ? 4 + Math.floor(tier / 2) : 3);
+    spawnFlare(lane, name);
+    if (isP && window.Shop) Shop.pulse();
+  }
+  if (!scored) return;
+  kick = Math.min(0.7, kick + kickAdd);
+  if (judgeEv) showJudgement(judgeEv.name, JUDGE[judgeEv.name].color);        // only the last one of the frame is visible anyway
+  if (timingEv) showTiming(timingEv.name, timingEv.signed);
+  else if (timingClear) timingEl.style.opacity = 0;
+  updateScoreboard();
+  popScore();
+  let nonMilestone = false;
+  for (let i = 0; i < n; i++) {
+    const e = hfxPool[i];
+    if (e.k !== HFX_TAP && e.k !== HFX_HOLD_END) continue;
+    const c = e.combo;
+    if (TIER_STEPS.indexOf(c) >= 0 || (c >= 300 && c % 100 === 0)) handleComboIncrement(c);   // milestones use the combo the hit really reached
+    else nonMilestone = true;
+  }
+  if (nonMilestone) popCombo();
+}
+
 function classify(diffMs) {
   if (diffMs <= HIT_WINDOWS.PERFECT) return JUDGE.PERFECT;
   if (diffMs <= HIT_WINDOWS.GREAT) return JUDGE.GREAT;
@@ -4532,88 +4668,37 @@ function classify(diffMs) {
 }
 
 function judgeTap(n, signedDiff) {
-  const lane = n.lane;
   const j = classify(Math.abs(signedDiff));
   const name = j.name;
-  const isBad = name === 'BAD';
-  const prevCombo = combo;
 
   stats[name]++;
   judgedCount++;
   if (name === 'PERFECT') healFromPerfect();
-  perfectStreakStep(name);
+  const burst = perfectStreakStep(name);
 
   combo++;                                               // a BAD never breaks the combo: it counts like any other hit
   maxCombo = Math.max(maxCombo, combo);
   addScore(j.points);
 
-  showJudgement(name, j.color);
-  showTiming(name, signedDiff);
-  updateScoreboard();
-  flashLane(lane);
-  flashJudgementLine(lane, isBad ? 'miss' : name);
-  beamHit(lane, name);
-  playHitSound(name, combo);
-  kick = Math.min(0.7, kick + j.kick);
-
-  popScore();
-  const isMilestone = TIER_STEPS.indexOf(combo) >= 0 || (combo >= 300 && combo % 100 === 0);
-  if (!isMilestone) popCombo();
-
-  if (isBad) {
-    triggerMissFlash('bad');
-    shakeScreen(2.2);
-    handleComboIncrement();                              // milestones / tier changes still trigger when a BAD reaches them
-    if (navigator.vibrate && OPT.vib) navigator.vibrate([40, 25, 40]);
-    removeNote(n);
-    return;
-  }
-
-  const tier = getTier(combo);
-  const ringCount = name === 'PERFECT' ? 1 + Math.min(tier, 2) : 1;
-  const particleCount = name === 'PERFECT' ? 8 + tier * 2 : (name === 'GREAT' ? 4 + Math.floor(tier / 2) : 3);
-
-  if (name === 'PERFECT' && window.Shop) Shop.pulse();
-  spawnShockwave(lane, name, ringCount);
-  spawnParticles(lane, name, particleCount);
-  spawnFlare(lane, name);
-
-  // (no screen shake on ordinary taps: it was under 1 px and cost an animation per hit; shakes stay for milestones, holds and misses)
-  // no vibration on normal taps (PERFECT / GREAT / GOOD); only the every-10-PERFECTs burst, holds and BAD / MISS still vibrate
-
-  handleComboIncrement();
-  removeNoteAnimated(n);
+  // everything visible / audible / vibrating is played next frame by flushHitFx()
+  queueHitFx(HFX_TAP, n.lane, name, signedDiff, combo, burst);
+  if (name === 'BAD') removeNote(n); else removeNoteAnimated(n);
 }
 
 function startHold(n, diffMs, signedDiff) {
-  const lane = n.lane;
   const j = classify(diffMs);
   const name = j.name;
 
   addScore(j.points);
-  perfectStreakStep(name === 'BAD' ? 'MISS' : name);
+  const burst = perfectStreakStep(name === 'BAD' ? 'MISS' : name);
   n.headJ = name;
   n.holding = true;
   n.lastTick = Math.round(getSongTime());
   if (n.el) n.el.classList.add('holding');
-
-  updateScoreboard();
-  showJudgement(name, j.color);
-  showTiming(name, signedDiff);
-  flashLane(lane);
-  flashJudgementLine(lane, name === 'BAD' ? 'miss' : name);
-  beamHit(lane, name);
-  playHitSound(name, combo);
-  kick = Math.min(0.7, kick + j.kick);
-  spawnShockwave(lane, name === 'BAD' ? 'miss' : name, 1);
-  spawnFlare(lane, name);
-  spawnParticles(lane, name === 'BAD' ? 'miss' : name, 3);
-  popScore();
-  buzz(12);
+  queueHitFx(HFX_HOLD_START, n.lane, name, signedDiff, combo, burst);
 }
 
 function completeHold(n) {
-  const lane = n.lane;
   const endTime = n.time + n.dur;
   const remainingTicks = Math.floor((endTime - (n.lastTick || n.time)) / HOLD_TICK_INTERVAL);
   if (remainingTicks > 0) {
@@ -4628,27 +4713,7 @@ function completeHold(n) {
   judgedCount++;
   if ((n.headJ || 'PERFECT') === 'PERFECT') healFromPerfect();
 
-  timingEl.style.opacity = 0;
-  updateScoreboard();
-  flashLane(lane);
-  flashJudgementLine(lane, 'perfect');
-  beamHit(lane, 'PERFECT');
-  playHitSound('PERFECT', combo);
-  kick = Math.min(0.7, kick + 0.35);
-
-  popScore();
-  const isMilestone = TIER_STEPS.indexOf(combo) >= 0 || (combo >= 300 && combo % 100 === 0);
-  if (!isMilestone) popCombo();
-
-  const tier = getTier(combo);
-  spawnShockwave(lane, 'perfect', 1 + Math.min(tier, 2));
-  spawnFlare(lane, 'PERFECT');
-  spawnParticles(lane, 'perfect', 6 + tier);
-  shakeScreen(1.2 + tier * 0.25);
-
-  buzz(20);
-
-  handleComboIncrement();
+  queueHitFx(HFX_HOLD_END, n.lane, 'PERFECT', 0, combo, false);
   removeNoteAnimated(n);
 }
 
@@ -4694,6 +4759,7 @@ function resetRunState() {
   stats = { PERFECT: 0, GREAT: 0, GOOD: 0, BAD: 0, MISS: 0 };
   judgedCount = 0;
   perfectStreak = 0;
+  hfxN = 0;
   lastCountdownNum = 0;
   frameEma = 16.7;
   shownScoreInt = -1;
@@ -4808,7 +4874,7 @@ function warmFx() {
     spawnShockwave(1, 'perfect', 2); spawnShockwave(2, 'great', 2);
     spawnParticles(1, 'perfect', 8); spawnParticles(2, 'great', 6); spawnParticles(3, 'good', 4);
     spawnFlare(1, 'PERFECT'); spawnFlare(2, 'GREAT');
-    fxRings.length = 0; fxParts.length = 0; fxFlares.length = 0; fxPops.length = 0;   // none of these can exist before the song starts
+    releaseFx();   // none of these can exist before the song starts
   } catch (e) { /* ignore */ }
   warmFxPending = true;
 }
@@ -5541,7 +5607,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- LOOP ----------
 function updateBeat(now, dt) {
-  if (fxMid()) return;                          // R1 and up: no beat glow
+  if (fxMid()) return;                          // R2 and up: no beat glow
   let v = kick;
   kick *= Math.exp(-dt / 140);
   if (kick < 0.01) kick = 0;
@@ -5642,6 +5708,9 @@ function update(ts) {
 
   }
 
+  // 2b) cosmetic effects of the hits / releases that happened since the last frame, in one batch
+  flushHitFx();
+
   // 3) HUD: score counts up smoothly instead of jumping
   if (displayScore !== score) {
     const diff = score - displayScore;
@@ -5656,7 +5725,7 @@ function update(ts) {
   // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
   //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~30 fps with graphics on, ~20 off, ~12 in lite mode)
   accFx += dt; accBeat += dt;
-  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 50 : 30;   // petals / song effects: 33 fps, 20 fps at R1, 16 fps at R2
+  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30;   // petals / song effects: 33 fps, 25 fps at R1, 16 fps at R2
   if (accFx >= ambT) {
     const d = accFx; accFx = 0;
     if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
