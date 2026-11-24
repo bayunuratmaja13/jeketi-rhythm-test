@@ -23,16 +23,13 @@
 <script>
 (function () {
   var coarse = matchMedia('(pointer: coarse)').matches;
-  // computers: just open the game directly
   if (!coarse) { location.replace('game.html' + location.search + location.hash); return; }
 
-  // the install button of Chrome looks at THIS page, so it needs the service worker here too (same file and address
-  // as game.html registers, so there is still only one worker)
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)) {
     addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=' + (window.GAME_VERSION || 0)).catch(function () {}); });
   }
 
-  var VW = 1536, VH = 776;            // virtual screen size: matches how the PC (125% Windows scaling) lays the game out
+  var VW = 1536, VH = 776;
   var debug = /[?&]debug/.test(location.search);
   var f = document.createElement('iframe');
   f.id = 'g';
@@ -44,28 +41,26 @@
   if (debug) { dbg = document.createElement('div'); dbg.id = 'dbg'; document.body.appendChild(dbg); }
 
   var playing = false;
-  var PW = 1000;                        // while playing: virtual screen is only 1000px wide, so lanes and notes are big
+  var PW = 1000;
   var lastKey = '';
   function fit() {
     var w = window.innerWidth, h = window.innerHeight;
     var key = w + 'x' + h + (playing ? 'P' : 'M');
-    if (key === lastKey) return;          // nothing changed: do not touch the frame
+    if (key === lastKey) return;
     lastKey = key;
-    if (w > h && playing) {             // song on screen: the game runs at the phone's real size (crisp, no scaling cost)
+    if (w > h && playing) {
       f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
-    } else if (w > h && (w < VW || h < VH)) {  // menus: a virtual PC screen, scaled to fit and centered
+    } else if (w > h && (w < VW || h < VH)) {
       var s = Math.min(w / VW, h / VH);
       f.style.width = VW + 'px';
       f.style.height = VH + 'px';
       f.style.transform = 'translate(' + ((w - VW * s) / 2) + 'px,' + ((h - VH * s) / 2) + 'px) scale(' + s + ')';
-    } else {                            // portrait / big screens: normal
+    } else {
       f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
     }
     if (dbg) dbg.textContent = (playing ? 'PLAY ' : 'MENU ') + w + 'x' + h + '  frame ' + f.style.width + ' x ' + f.style.height + '  dpr ' + devicePixelRatio;
   }
   fit();
-  // Going fullscreen / rotating changes the window size in steps, and some phones report the final size without a last
-  // resize event. So: refit on every kind of size change, a few times while it settles, and keep a light safety check.
   function refit() { fit(); [100, 300, 700, 1500].forEach(function (t) { setTimeout(fit, t); }); }
   addEventListener('resize', refit);
   addEventListener('orientationchange', refit);

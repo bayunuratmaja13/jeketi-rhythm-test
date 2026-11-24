@@ -1,29 +1,23 @@
-// leaderboard.js - online per-song leaderboard (Supabase, plain fetch, no library needed)
-// Adds: a LEADERBOARD button on the "PLAY THIS SONG?" pop up, a SUBMIT TO LEADERBOARD button on the result card,
-// a name pop up and a leaderboard pop up. Loaded after game.js (see game.html).
 (function () {
   'use strict';
 
-  // ================= 1) PASTE YOUR TWO VALUES HERE =================
-  var SUPABASE_URL = 'https://gpbffmigrfacgwdjcqhj.supabase.co';   // Project URL
-  var SUPABASE_KEY = 'sb_publishable_sAuwhgZR34XPG--2Pk6uvw_A6kpAmVR';                // Publishable key (safe to be public)
-  // =================================================================
+  var SUPABASE_URL = 'https://gpbffmigrfacgwdjcqhj.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_sAuwhgZR34XPG--2Pk6uvw_A6kpAmVR';
 
   var NAME_RE = /^[A-Za-z0-9]{1,10}$/;
   var LS_NAME = 'jeketi.lb.name';
   var LS_SESSION = 'jeketi.lb.session';
-  var LS_MINE = 'jeketi.lb.mine.';        // + song id -> {name, score} of this device's entry (to highlight it)
+  var LS_MINE = 'jeketi.lb.mine.';
   var API = SUPABASE_URL.replace(/\/+$/, '');
   var configured = SUPABASE_URL.indexOf('YOUR') === -1 && SUPABASE_KEY.indexOf('YOUR') === -1;
 
-  // ---------- tiny Supabase client (REST) ----------
   var HEAD = { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' };
 
   function req(url, opts) {
     return fetch(url, opts).then(function (r) {
       return r.text().then(function (t) {
         var j = null;
-        try { j = t ? JSON.parse(t) : null; } catch (e) { /* not json */ }
+        try { j = t ? JSON.parse(t) : null; } catch (e) {  }
         if (!r.ok) {
           var err = new Error((j && (j.message || j.msg || j.error_description)) || ('HTTP ' + r.status));
           err.status = r.status;
@@ -42,10 +36,9 @@
         refresh_token: s.refresh_token,
         expires_at: s.expires_at || (Math.floor(Date.now() / 1000) + (s.expires_in || 3600))
       }));
-    } catch (e) { /* storage blocked */ }
+    } catch (e) {  }
   }
 
-  // anonymous sign-in = a hidden per-device ID (no login screen for the player)
   function signInAnon() {
     return req(API + '/auth/v1/signup', { method: 'POST', headers: HEAD, body: JSON.stringify({ data: {} }) })
       .then(function (s) { saveSession(s); return s.access_token; });
@@ -59,7 +52,6 @@
       return req(API + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: HEAD, body: JSON.stringify({ refresh_token: s.refresh_token }) })
         .then(function (n) { saveSession(n); return n.access_token; })
         .catch(function (e) {
-          // only start a brand new identity if the server rejected the old one; a network error just fails (can retry)
           if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 422) return signInAnon();
           throw e;
         });
@@ -83,10 +75,7 @@
     return req(url, { headers: { 'apikey': SUPABASE_KEY } });
   }
 
-  // ---------- styles ----------
   var css = '' +
-    // SUBMIT button: lives in the left column of the result card, right under the grade + points (two rows of text)
-    // The space is always reserved (visibility, not display) so the card never changes size when it appears.
     "#lb-submit{display:block;visibility:hidden;flex:none;margin:6px auto 0;font:800 17px/1.05 Fredoka,var(--font-game,sans-serif);letter-spacing:.06em;" +
       "text-align:center;color:#fff;text-shadow:0 2px 0 rgba(160,40,90,.35);padding:.42em 1em .5em;border:2px solid #fff;border-radius:999px;" +
       "background:linear-gradient(180deg,#ff9cc4,#ff66a3);box-shadow:0 3px 0 #c23b79,0 4px 10px rgba(0,0,0,.3);cursor:pointer;touch-action:manipulation}" +
@@ -98,7 +87,6 @@
     '@media (max-height:700px) and (min-height:501px){#lb-submit{font-size:15px}}' +
     '@media (max-height:500px){#lb-submit{font-size:12px;margin-top:3px;border-width:2px}}' +
     '.cp-lb{margin-top:8px}' +
-    // pop ups: same look as the "PLAY THIS SONG?" box (cp-box)
     '.lb-ov{position:fixed;left:0;top:0;right:0;bottom:0;z-index:3000;display:none;align-items:center;justify-content:center;padding:12px;' +
       'background:rgba(5,2,10,.72);touch-action:manipulation;-webkit-tap-highlight-color:transparent}' +
     '.lb-ov.show{display:flex;animation:cp-fade .18s ease-out}' +
@@ -124,7 +112,6 @@
     '.lb-extra{font:700 clamp(12px,3dvh,16px)/1.25 Fredoka,sans-serif;color:#b0630a;margin:0 0 6px}' +
     '.lb-extra:empty{display:none}' +
     '.lb-hint{flex:none;font:500 clamp(11px,2.6dvh,14px)/1 Fredoka,sans-serif;opacity:.5;margin-top:clamp(6px,1.6dvh,10px)}' +
-    // iOS Safari will not let you type in a field inside a body that has user-select:none, so the input opts back in
     '.lb-input{width:100%;box-sizing:border-box;font:800 clamp(22px,6dvh,32px)/1.1 Fredoka,sans-serif;text-align:center;letter-spacing:2px;' +
       'padding:clamp(6px,1.6dvh,10px);border:3px solid #e0488a;border-radius:12px;background:#fff;color:#3a2140;outline:none;' +
       '-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}' +
@@ -143,7 +130,6 @@
 
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
 
-  // ---------- leaderboard pop up ----------
   var lbPop = el('div', 'lb-ov');
   lbPop.id = 'lb-pop';
   lbPop.innerHTML =
@@ -171,7 +157,7 @@
     lbListEl.textContent = '';
     if (!rows || !rows.length) { showMsg('No scores yet.\nBe the first!'); return; }
     var mine = null;
-    try { mine = JSON.parse(localStorage.getItem(LS_MINE + songId) || 'null'); } catch (e) { /* ignore */ }
+    try { mine = JSON.parse(localStorage.getItem(LS_MINE + songId) || 'null'); } catch (e) {  }
     var markedMine = false;
     rows.forEach(function (r, i) {
       var row = el('div', 'lb-row');
@@ -199,10 +185,9 @@
     });
   }
   function closeBoard() { lbToken++; lbPop.classList.remove('show'); }
-  lbPop.addEventListener('click', closeBoard);        // click anywhere closes it (back to the pop up underneath)
+  lbPop.addEventListener('click', closeBoard);
 
-  // ---------- name pop up ----------
-  var run = null;      // the run that is currently on the result card: {song, score, acc, sent}
+  var run = null;
   var busy = false;
 
   var namePop = el('div', 'lb-ov');
@@ -238,8 +223,8 @@
     var r = run;
     submitScore(r.song.id, name, r.score, r.acc).then(function (updated) {
       busy = false; nGo.disabled = false; nGo.textContent = 'SUBMIT';
-      try { localStorage.setItem(LS_NAME, name); } catch (e) { /* ignore */ }
-      if (updated) { try { localStorage.setItem(LS_MINE + r.song.id, JSON.stringify({ name: name, score: r.score })); } catch (e) { /* ignore */ } }
+      try { localStorage.setItem(LS_NAME, name); } catch (e) {  }
+      if (updated) { try { localStorage.setItem(LS_MINE + r.song.id, JSON.stringify({ name: name, score: r.score })); } catch (e) {  } }
       r.sent = true;
       if (run === r) { submitBtn.textContent = 'SUBMITTED ✓'; submitBtn.disabled = true; }
       closeName();
@@ -254,18 +239,17 @@
 
   function openName() {
     if (!run || run.sent) return;
-    if (!configured) { openBoard(run.song); return; }       // shows "not set up yet"
+    if (!configured) { openBoard(run.song); return; }
     nSong.textContent = run.song.title || run.song.id || '';
     nScore.textContent = run.score.toLocaleString('en-US');
     var saved = '';
-    try { saved = localStorage.getItem(LS_NAME) || ''; } catch (e) { /* ignore */ }
+    try { saved = localStorage.getItem(LS_NAME) || ''; } catch (e) {  }
     nInput.value = NAME_RE.test(saved) ? saved : '';
     nErr.textContent = '';
     namePop.classList.add('show');
-    setTimeout(function () { try { nInput.focus(); nInput.select(); } catch (e) { /* ignore */ } }, 60);
+    setTimeout(function () { try { nInput.focus(); nInput.select(); } catch (e) {  } }, 60);
   }
 
-  // ---------- SUBMIT TO LEADERBOARD button (inside the result overlay) ----------
   var submitBtn = el('button', '');
   submitBtn.id = 'lb-submit';
   submitBtn.type = 'button';
@@ -273,29 +257,27 @@
   submitBtn.addEventListener('click', function (e) { e.stopPropagation(); openName(); });
   var resultsEl = document.getElementById('results');
   var gradeRow = resultsEl && resultsEl.querySelector('.rl-grade-row');
-  if (gradeRow && gradeRow.parentNode) gradeRow.parentNode.insertBefore(submitBtn, gradeRow.nextSibling);   // under the grade + points
+  if (gradeRow && gradeRow.parentNode) gradeRow.parentNode.insertBefore(submitBtn, gradeRow.nextSibling);
   else if (resultsEl) resultsEl.appendChild(submitBtn);
 
-  // ---------- LEADERBOARD button on the "PLAY THIS SONG?" pop up ----------
   function addConfirmButton() {
     var box = document.querySelector('#confirm-play .cp-box');
     if (!box) return false;
     if (box.querySelector('.cp-lb')) return true;
-    var b = el('button', 'cp-hs cp-lb');       // same look as VIEW HIGH SCORE
+    var b = el('button', 'cp-hs cp-lb');
     b.type = 'button';
     b.textContent = 'LEADERBOARD';
     var hs = box.querySelector('.cp-hs');
     if (hs && hs.parentNode) hs.parentNode.insertBefore(b, hs.nextSibling); else box.appendChild(b);
     b.addEventListener('click', function (e) {
       e.stopPropagation();
-      var s = (typeof confirmSong !== 'undefined') ? confirmSong : null;     // the song shown in the pop up (from game.js)
+      var s = (typeof confirmSong !== 'undefined') ? confirmSong : null;
       if (s) openBoard(s);
     });
     return true;
   }
   if (!addConfirmButton()) document.addEventListener('DOMContentLoaded', addConfirmButton);
 
-  // ---------- keyboard: Esc closes our pop ups first; typing in the name box never reaches the game ----------
   document.addEventListener('keydown', function (e) {
     var inName = namePop.classList.contains('show'), inBoard = lbPop.classList.contains('show');
     if (!inName && !inBoard) return;
@@ -306,7 +288,6 @@
     }
   }, true);
 
-  // ---------- called by game.js when the result card is built ----------
   window.Leaderboard = {
     onResults: function (song, score, acc) {
       var ok = !!(song && song.id && score > 0);

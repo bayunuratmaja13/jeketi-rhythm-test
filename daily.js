@@ -1,18 +1,12 @@
-// ============================================================
-//  JEKETI RHYTHM — daily.js
-//  Daily missions · 7-day check-in calendar (never resets) · featured song (+50% Points)
-//  Everything is kept in one object under localStorage 'jeketi.daily' (easy to sync to a server later).
-// ============================================================
 (() => {
   'use strict';
 
   const KEY = 'jeketi.daily';
-  const MISSION_REWARD = { easy: 40, med: 80, hard: 120 };   // Points per mission
-  const ALL_BONUS = 100;                                       // Points for finishing all three
-  const FEATURED_MULT = 1.5;                                   // Points multiplier on the featured song
+  const MISSION_REWARD = { easy: 40, med: 80, hard: 120 };
+  const ALL_BONUS = 100;
+  const FEATURED_MULT = 1.5;
   const RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
-  // 7-day calendar. 'low' / 'high' packs are picked at runtime: cheapest / most expensive paid pack that doesn't need an oshi.
   const DAYS = [
     { t: 'pts', n: 50 },
     { t: 'pts', n: 75 },
@@ -23,7 +17,6 @@
     { t: 'pack', slot: 'high' },
   ];
 
-  // mission pool: one of each difficulty is picked per day (same pick for everyone on the same date)
   const POOL = {
     easy: [
       { id: 'e_fin2',   text: 'Finish 2 songs',               type: 'finish',   target: 2 },
@@ -65,38 +58,34 @@
   const DEF = {};
   Object.keys(POOL).forEach(tier => POOL[tier].forEach(d => { DEF[d.id] = Object.assign({ tier }, d); }));
 
-  // ---------- date helpers (local midnight is the daily reset) ----------
-  let dayOffset = 0;                                           // only used by the console helpers for testing
+  let dayOffset = 0;
   const nowDate = () => new Date(Date.now() + dayOffset * 864e5);
   const pad = (n) => String(n).padStart(2, '0');
   const dateKey = () => { const d = nowDate(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
   const dayNum = () => { const d = nowDate(); return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); };
   const msToMidnight = () => { const d = nowDate(), n = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); return n - d; };
-  function rng(seed) {                                         // small seeded random generator
+  function rng(seed) {
     let h = 1779033703 ^ seed.length;
     for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
     let a = h >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
-  // ---------- save ----------
   const fresh = () => ({ v: 1, day: 0, last: '', total: 0, m: { date: '', bonus: 0, list: [] } });
   function load() {
     try {
       const o = JSON.parse(localStorage.getItem(KEY));
       if (o && typeof o === 'object') { const s = Object.assign(fresh(), o); if (!s.m || !Array.isArray(s.m.list)) s.m = fresh().m; return s; }
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
     return fresh();
   }
   let S = load();
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage blocked */ } };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {  } };
 
-  // ---------- featured song ----------
   const songs = () => (Array.isArray(window.SONGS) ? window.SONGS : []);
   function featuredSong() { const s = songs(); return s.length ? s[dayNum() % s.length] : null; }
   const isFeatured = (id) => { const f = featuredSong(); return !!f && id != null && f.id === id; };
 
-  // ---------- missions ----------
   function ensureToday() {
     const t = dateKey();
     const ok = S.m && S.m.date === t && S.m.list.length === 3 && S.m.list.every(it => DEF[it.id]);
@@ -106,7 +95,7 @@
     S.m = { date: t, bonus: 0, list: [pick(POOL.easy), pick(POOL.med), pick(POOL.hard)].map(d => ({ id: d.id, p: 0, c: 0 })) };
     save();
   }
-  function onRun(info) {                                       // called by game.js when a song is finished
+  function onRun(info) {
     ensureToday();
     S.m.list.forEach(it => {
       const d = DEF[it.id];
@@ -136,7 +125,6 @@
     S.m.bonus = 1; Points.add(ALL_BONUS); save(); refreshDot(); render();
   }
 
-  // ---------- check-in ----------
   const canCheckIn = () => S.last !== dateKey();
   const nextDay = () => (S.day >= 7 ? 1 : S.day + 1);
   function packKinds() {
@@ -146,22 +134,22 @@
     } catch (e) { return []; }
   }
   const packFor = (slot) => { const k = packKinds(); return k.length ? (slot === 'low' ? k[0] : k[k.length - 1]) : null; };
-  function giveReward(r) {                                     // true when delivered
+  function giveReward(r) {
     try {
       if (r.t === 'pts') { Points.add(r.n); return true; }
       if (r.t === 'card') {
         const ms = Cards.MEMBERS, m = ms[Math.floor(Math.random() * ms.length)];
         const drop = Cards.give(m.id, r.tier);
         if (!drop) return false;
-        setTimeout(() => { try { Cards.reveal(drop, true); } catch (e) { /* ignore */ } }, 450);
+        setTimeout(() => { try { Cards.reveal(drop, true); } catch (e) {  } }, 450);
         return true;
       }
       if (r.t === 'pack') {
         const k = packFor(r.slot);
-        if (!k) { Points.add(150); return true; }              // no paid pack exists: fall back to Points
+        if (!k) { Points.add(150); return true; }
         return !!Packs.open(k);
       }
-    } catch (e) { /* fall through */ }
+    } catch (e) {  }
     return false;
   }
   function checkIn() {
@@ -172,7 +160,6 @@
     save(); refreshDot(); render();
   }
 
-  // ---------- red dot ----------
   function hasNew() {
     ensureToday();
     return canCheckIn() || S.m.list.some(it => !it.c && DEF[it.id] && it.p >= DEF[it.id].target) || (allClaimed() && !S.m.bonus);
@@ -180,7 +167,6 @@
   const btn = document.getElementById('daily-btn');
   function refreshDot() { if (btn) btn.classList.toggle('has-new', hasNew()); }
 
-  // ---------- screen ----------
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const screen = document.createElement('div');
   screen.id = 'daily-screen';
@@ -244,7 +230,7 @@
     if (!el) return;
     const s = Math.ceil(msToMidnight() / 1000);
     el.textContent = [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => pad(v)).join(':');
-    if (dateKey() !== S.m.date) { ensureToday(); render(); refreshDot(); }       // midnight passed while open
+    if (dateKey() !== S.m.date) { ensureToday(); render(); refreshDot(); }
   }
   function show() { ensureToday(); render(); screen.classList.add('show'); clearInterval(timer); timer = setInterval(tickReset, 1000); }
   function hide() { screen.classList.remove('show'); clearInterval(timer); refreshDot(); }
@@ -264,7 +250,6 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshDot(); if (isOpen()) render(); } });
   setInterval(refreshDot, 60000);
 
-  // keep the Daily button right under the Points chip (top-right), whatever the screen size
   const chip = document.querySelector('#menu-screen .menu-header .points-chip');
   function place() {
     if (!btn || !chip) return;
@@ -285,7 +270,6 @@
   window.Daily = {
     isFeatured, featuredSong, featuredId: () => { const f = featuredSong(); return f ? f.id : null; },
     FEATURED_MULT, onRun, show, hide, refresh: refreshDot,
-    // console helpers for testing:  Daily.debugNextDay()  (jump one day ahead)  /  Daily.reset()
     debugNextDay() { dayOffset++; ensureToday(); refreshDot(); if (isOpen()) render(); return dateKey(); },
     reset() { S = fresh(); dayOffset = 0; save(); ensureToday(); refreshDot(); if (isOpen()) render(); },
   };

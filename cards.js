@@ -1,18 +1,12 @@
-// ============================================================
-//  JEKETI RHYTHM — cards.js  (My Cards collection)
-// ============================================================
 (() => {
   'use strict';
 
-  // ---------- SETTINGS ----------
   const CFG = {
-    previewAll: false,     // true  = every card shows as owned (example/preview mode)
-                          // false = real mode, cards only appear once earned
+    previewAll: false,
   };
 
   const STORE_KEY = 'jeketi.cards';
 
-  // Tier order = left to right in the collection
   const TIERS = [
     { id: 'C',  name: 'Common',        hint: 'Buy packs in shop' },
     { id: 'B',  name: 'Bronze',        hint: 'Combine cards to unlock' },
@@ -21,7 +15,6 @@
     { id: 'SS', name: 'Dazzling Gold', hint: 'Combine cards to unlock' },
   ];
 
-  // Add a member = add her name to her team's list. Her art is images/cards/<lowercase name>.webp
   const TEAMS = [
     { id: 'Love', color: '#e0488a', back: 'images/cards/love_back.webp',
       members: ['Anindya', 'Lia', 'Lana', 'Elin', 'Cynthia', 'Fiony', 'Fritzy', 'Gracie', 'Lily', 'Indah', 'Trisha', 'Michie', 'Nayla'] },
@@ -30,7 +23,6 @@
     { id: 'Passion', color: '#e8541e', back: 'images/cards/passion_back.webp',
       members: ['Aralie', 'Christy', 'Erine', 'Oniel', 'Danella', 'Daisy', 'Feni', 'Jessi', 'Kathrina', 'Lulu', 'Levi', 'Muthe', 'Raisha', 'Ribka', 'Kimmy'] },
   ];
-  // every list shows members A to Z by nickname (the name used here), not by full name
   const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' });
   TEAMS.forEach(T => T.members.sort(byName));
   const MEMBERS = TEAMS.flatMap(T => T.members.map(name => {
@@ -43,17 +35,15 @@
     S: ['#ffd23f', '#fffbd2', '#ffb300'], SS: ['#ffe680', '#ff9fd0', '#7fe0ff', '#ffffff', '#c9a0ff'],
   };
 
-  // ---------- STORAGE ----------
   const load = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } };
-  const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* storage blocked */ } };
+  const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {  } };
   let store = load();
 
   const keyOf = (m, t) => m.id + ':' + t.id;
 
-  // "seen" = the player has owned this card at least once. Unseen = locked (back + padlock), seen but empty = greyed out
   const SEEN_KEY = 'jeketi.cardsSeen';
   let seen = (() => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; } catch (e) { return {}; } })();
-  const persistSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* storage blocked */ } };
+  const persistSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) {  } };
   (() => { let ch = false; Object.keys(store).forEach(k => { if (!seen[k]) { seen[k] = 1; ch = true; } }); if (ch) persistSeen(); })();
   const isSeen = (m, t) => !!seen[keyOf(m, t)];
   const isOshiId = (id) => { try { return !!(window.Shop && Shop.getOshi && Shop.getOshi() === id); } catch (e) { return false; } };
@@ -70,10 +60,8 @@
     return CFG.previewAll ? { n: 1, fresh: false } : null;
   }
   const ownedCount = (m) => TIERS.filter(t => entry(m, t)).length;
-  // a card won but not yet looked at (red dot on its team tab and member tab)
   const hasFresh = (m) => TIERS.some(t => { const e = store[keyOf(m, t)]; return !!(e && e.fresh); });
 
-  // ---------- ELEMENTS ----------
   const $ = (id) => document.getElementById(id);
   const screen = $('cards-screen'), tabsEl = $('cards-tabs'), rowEl = $('cards-row');
   const progEl = $('cards-progress'), membersEl = $('cards-members'), toastEl = $('cards-toast'), openBtn = $('my-cards-btn');
@@ -83,8 +71,7 @@
     .map(([x, y, d]) => `<span class="sp" style="left:${x}%;top:${y}%;animation-delay:${d}s">✦</span>`).join('');
   const LOCK ='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg>';
 
-  // ---------- CARD ----------
-  function makeCard(m, t, owned, ghost, lite) {   // lite = flat squad-bar card: no back face (its image is never fetched), front art decodes off the main thread
+  function makeCard(m, t, owned, ghost, lite) {
     const c = document.createElement('div');
     c.className = `tcard t-${t.id.toLowerCase()}` + (owned ? '' : (ghost ? ' ghost' : ' locked'));
     c.dataset.m = m.id;
@@ -99,7 +86,6 @@
     return c;
   }
 
-  // 3D tilt + light that follows the finger / pointer
   function enableTilt(root) {
     root.addEventListener('pointermove', (e) => {
       const c = e.target.closest('.tcard');
@@ -125,7 +111,6 @@
     root.addEventListener('pointercancel', (e) => { const c = e.target.closest('.tcard'); if (c) reset(c); });
   }
 
-  // ---------- COLLECTION SCREEN ----------
   function renderTabs() {
     const cur = MEMBERS.find(x => x.id === tab) || MEMBERS[0];
     tabsEl.innerHTML = '';
@@ -195,7 +180,7 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
   }
 
-  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) { /* ignore */ } };
+  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) {  } };
   const screenOpen = () => screen.style.display !== 'none';
 
   function showScreen() {
@@ -225,13 +210,12 @@
     openViewer(m, t);
   });
   enableTilt(rowEl);
-  rowEl.addEventListener('pointerover', (e) => {          // desktop: soft tick when the mouse reaches a card
+  rowEl.addEventListener('pointerover', (e) => {
     if (e.pointerType !== 'mouse') return;
     const c = e.target.closest('.tcard');
     if (c && !c.contains(e.relatedTarget)) snd('hover');
   });
 
-  // ---------- VIEWER / REVEAL ----------
   const V = document.createElement('div');
   V.id = 'card-viewer';
   V.innerHTML =
@@ -266,7 +250,7 @@
     try {
       if (t.id === 'S' || t.id === 'SS') { if (typeof playStampSound === 'function') playStampSound('S'); }
       if (t.id !== 'C' && t.id !== 'B' && typeof playRecordSound === 'function') playRecordSound();
-    } catch (e) { /* audio blocked */ }
+    } catch (e) {  }
   }
 
   function openViewer(m, t, opts = {}) {
@@ -285,12 +269,11 @@
     drawActions(m, t);
 
     if (opts.reveal) {
-      c.classList.add('flipped');                   // starts face-down, then flips over
+      c.classList.add('flipped');
       revealTimer = setTimeout(() => { c.classList.remove('flipped'); burst(t); sfx(t); }, 650);
     }
   }
 
-  // combine / oshi / sell buttons under the card
   let sellArm = false, sellTimer = 0;
   function drawActions(m, t) {
     vActs.innerHTML = '';
@@ -349,12 +332,10 @@
     if (screenOpen()) { renderTabs(); renderRow(false); renderProgress(); }
   }
   V.addEventListener('click', (e) => {
-    if (e.target.closest('.cv-close')) closeViewer();                       // button already clicks
+    if (e.target.closest('.cv-close')) closeViewer();
     else if (e.target === V || e.target.classList.contains('cv-stage')) { snd('close'); closeViewer(); }
   });
 
-  // ---------- EARNING CARDS ----------
-  // grade C/B/A/S sets the tier; a Full Combo bumps it up one (max SS)
   function tierFor(grade, fullCombo) {
     let i = Math.max(0, 'CBAS'.indexOf(grade));
     if (fullCombo) i = Math.min(TIERS.length - 1, i + 1);
@@ -367,7 +348,6 @@
     return give(m.id, t.id);
   }
 
-  // hand over one specific card (the future card shop calls this after Points.spend)
   function give(memberId, tierId) {
     const m = MEMBERS.find(x => x.id === memberId), t = TIERS.find(x => x.id === tierId);
     if (!m || !t) return null;
@@ -382,11 +362,10 @@
   function reveal(drop, force) {
     if (!drop) return;
     const results = $('results');
-    if (!force && !(results && results.classList.contains('show'))) return;  // player already left
+    if (!force && !(results && results.classList.contains('show'))) return;
     openViewer(drop.m, drop.t, { reveal: true, isNew: drop.isNew, n: drop.n });
   }
 
-  // ---------- INVENTORY (used by the shop, lineup and combine) ----------
   const memberOf = (id) => MEMBERS.find(x => x.id === id);
   const tierIndex = (tid) => TIERS.findIndex(t => t.id === tid);
   const countOf = (id, ti) => { const e = store[id + ':' + TIERS[ti].id]; return e ? e.n : 0; };
@@ -399,9 +378,9 @@
     persist(); refreshBadge();
     return true;
   }
-  const COMBINE_NEED = [2, 3, 4, 5];           // cards of the same member and tier needed: C->B 2, B->A 3, A->S 4, S->SS 5
+  const COMBINE_NEED = [2, 3, 4, 5];
   const combineNeed = (ti) => COMBINE_NEED[ti] || 2;
-  const SELL_VALUE = [10, 20, 45, 90, 180];    // Points per spare card
+  const SELL_VALUE = [10, 20, 45, 90, 180];
   function canCombine(id, ti) { return ti >= 0 && ti < TIERS.length - 1 && countOf(id, ti) >= combineNeed(ti); }
   function combine(id, ti) {
     if (!canCombine(id, ti)) return null;
@@ -422,9 +401,6 @@
   const ownedIds = () => MEMBERS.filter(m => bestOf(m.id) >= 0).map(m => m.id);
   const canCombineAny = () => MEMBERS.some(m => TIERS.some((t, i) => canCombine(m.id, i)));
 
-  // combine animation (light version): the cards slide together into one glowing core, then a short pop.
-  // Everything uses the Web Animations API on transform / opacity only (no per-frame JS, no filters, no shaking),
-  // so it stays smooth on phones. The higher the new tier, the slightly longer build-up and the slightly bigger pop.
   function playCombine(m, ti, done) {
     const T = ti + 1, n = combineNeed(ti), cols = BURST_COLORS[TIERS[T].id];
     const PARTY = ['#ffd23f', '#ff7ab3', '#7fe0ff', '#ffffff', '#c9a0ff', '#8dff9c'];
@@ -456,20 +432,18 @@
 
     snd('mergeCharge', gather / 1000, T);
 
-    // 1) the cards start side by side and glide into the middle (one animation each, runs on the GPU)
     wraps.forEach((w, i) => {
       const r = w.getBoundingClientRect();
-      const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);      // from where the card sits to the centre
+      const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);
       const sx = (i - (n - 1) / 2) * gap;
       w.animate([
         { transform: `translate(${ox + sx}px,${oy}px) scale(${sz})`, opacity: 1 },
-        { transform: `translate(${ox + sx * 1.06}px,${oy}px) scale(${sz * 1.04})`, opacity: 1, offset: .25 },     // tiny wind-up
+        { transform: `translate(${ox + sx * 1.06}px,${oy}px) scale(${sz * 1.04})`, opacity: 1, offset: .25 },
         { transform: `translate(${ox}px,${oy}px) scale(${sz * .6})`, opacity: .9 },
       ], { duration: gather, easing: 'cubic-bezier(.55,0,.9,.45)', fill: 'forwards' });
       w.style.zIndex = i;
     });
 
-    // 2) the core glows up and a few sparks are pulled in
     core.animate([
       { transform: 'translate(-50%,-50%) scale(.3)', opacity: .15 },
       { transform: `translate(-50%,-50%) scale(${1 + T * .12})`, opacity: 1 },
@@ -489,12 +463,11 @@
 
     setTimeout(impact, gather);
 
-    // 3) one short pop: a flash, a ring and a handful of sparkles. No screen shake.
     function impact() {
       if (!ov.isConnected) return;
       row.innerHTML = '';
       snd('mergeBoom', T);
-      try { if (navigator.vibrate) navigator.vibrate(T >= 3 ? 40 : 20); } catch (e) { /* no haptics */ }
+      try { if (navigator.vibrate) navigator.vibrate(T >= 3 ? 40 : 20); } catch (e) {  }
 
       fl.animate([{ opacity: 0 }, { opacity: .8, offset: .15 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
       core.animate([
@@ -538,7 +511,6 @@
     }
   }
 
-  // ---------- WIRING ----------
   openBtn.addEventListener('click', showScreen);
   $('cards-back-btn').addEventListener('click', () => {
     hideScreen();
@@ -558,7 +530,6 @@
     makeCard, enableTilt, TIERS, MEMBERS, TEAMS,
     count: countOf, best: bestOf, remove: removeCards, canCombine, combine, sellSpare, ownedIds, canCombineAny, memberOf, tierIndex, openViewer, COMBINE_NEED, combineNeed, SELL_VALUE,
     refresh() { if (screenOpen()) { renderTabs(); renderRow(false); renderProgress(); } },
-    // console helpers:  Cards.debugDrop('S', true)  /  Cards.reset()
     debugDrop(grade = 'S', fullCombo = false) { reveal(award(grade, fullCombo), true); },
     reset() { store = {}; persist(); refreshBadge(); if (screenOpen()) renderAll(true); },
   };

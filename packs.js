@@ -1,13 +1,8 @@
-// ============================================================
-//  JEKETI RHYTHM — packs.js  (card packs + opening animation)
-// ============================================================
 (() => {
   'use strict';
 
   const STARTER_KEY = 'jeketi.starterClaimed';
 
-  // ---------- PACK DEFINITIONS ----------
-  // odds = weight per tier. count = cards inside. price = Points (the future shop charges this).
   const PACKS = {
     starter: {
       name: 'Starter Pack', count: 5, price: 0,
@@ -16,31 +11,26 @@
       greeting: '<span class="pk-welcome">Welcome to</span>' +
       '<img class="pk-logo" src="images/title.gif" alt="JEKETI RHYTHM" draggable="false" onerror="this.replaceWith(document.createTextNode(\'JEKETI RHYTHM\'))">', sub: 'Here is a free Starter Pack, just for you',
     },
-    // Shop packs. price = Points, cooldown and first-time-free are handled by shop.js
     daily: {
       name: 'Daily Pack', count: 5, price: 0, minBest: 'B',
       odds: { C: 70, B: 24, A: 6 },
       p1: '#6fd68a', p2: '#1d6b45', accent: '#e8ffb0', emblem: '☀', sub: 'Your free pack for today',
     },
     standard: {
-      name: 'Standard Pack', count: 5, price: 800, minBest: 'B',
+      name: 'Standard Pack', count: 5, price: 1000, minBest: 'B',
       odds: { C: 70, B: 24, A: 6 },
       p1: '#6cb8ff', p2: '#1d4a9c', accent: '#d8f0ff', emblem: '★', sub: 'At least one B or better',
     },
     premium: {
-      name: 'Premium Pack', count: 5, price: 1600, minBest: 'A',
+      name: 'Premium Pack', count: 5, price: 2400, minBest: 'A',
       odds: { C: 35, B: 45, A: 20 },
       p1: '#ffd54a', p2: '#9a5b00', accent: '#fff6c2', emblem: '♛', sub: 'At least one A guaranteed',
     },
     oshi: {
-      name: 'Oshi Pack', count: 5, price: 1000, minBest: 'B', oshi: 0.5,
+      name: 'Oshi Pack', count: 5, price: 1600, minBest: 'B', oshi: 0.5,
       odds: { C: 70, B: 24, A: 6 },
       p1: '#ff7ab3', p2: '#9c1f5a', accent: '#ffe0f0', emblem: '♥', sub: 'Boosted chance of your oshi',
     },
-    // (old comment) same shape, just better odds and a higher price, e.g.
-    // bronze: { name: 'Bronze Pack', count: 5, price: 300, odds: { C: 0.7, B: 0.25, A: 0.05 },
-    //           p1: '#e0a56b', p2: '#6b3a12', accent: '#fff0a0', emblem: '★' },
-    // gold:   { name: 'Gold Pack',   count: 5, price: 1500, odds: { B: 0.5, A: 0.35, S: 0.13, SS: 0.02 }, ... },
   };
 
   const BURST = {
@@ -48,12 +38,11 @@
     S: ['#ffd23f', '#fffbd2', '#ffb300'], SS: ['#ffe680', '#ff9fd0', '#7fe0ff', '#ffffff', '#c9a0ff'],
   };
 
-  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) { /* ignore */ } };
+  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) {  } };
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const claimed = () => { try { return localStorage.getItem(STARTER_KEY) === '1'; } catch (e) { return false; } };
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-  // pick the cards (a different member for each), weakest first so the best one is revealed last
   function roll(pack, packId) {
     const { TIERS, MEMBERS } = Cards;
     const members = shuffle(MEMBERS.slice()).slice(0, pack.count);
@@ -64,12 +53,10 @@
       for (const [tid, w] of entries) { if ((r -= w) < 0) { id = tid; break; } }
       return { m, t: TIERS.find(x => x.id === id) };
     });
-    // Oshi pack: each card may become your oshi
     const oshi = window.Shop ? Shop.getOshi() : null;
     if (pack.oshi && oshi) {
       picks.forEach(p => { if (Math.random() < pack.oshi && !picks.some(q => q.m.id === oshi)) p.m = MEMBERS.find(x => x.id === oshi); });
     }
-    // guarantees: at least one card of the pack's minimum tier, and pity for the first A
     const idx = (id) => TIERS.findIndex(x => x.id === id);
     const need = (window.Shop && packId !== 'starter' && Shop.pityA()) ? 'A' : pack.minBest;
     if (need && !picks.some(p => idx(p.t.id) >= idx(need))) {
@@ -80,19 +67,17 @@
     return picks.map(p => Cards.give(p.m.id, p.t.id));
   }
 
-  const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) { /* no haptics */ } };
+  const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {  } };
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const easeIn = (k) => k * k;
   const easeOutBack = (k) => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
   const PARTY = ['#ffd23f', '#ff7ab3', '#7fe0ff', '#ffffff', '#c9a0ff', '#8dff9c'];
 
-  // pack wrapper pieces: the torn-off top and the body share one jagged tear line
   function clipShapes() {
     const N = 24, M = 40, tear = [], topEdge = [], bottomEdge = [];
     for (let i = 0; i <= N; i++) tear.push([i / N * 100, 15 + (i % 2 ? 1.8 : -1.4) + (Math.random() - .5) * 2]);
     for (let i = 0; i <= M; i++) { topEdge.push([i / M * 100, i % 2 ? 1.6 : 0]); bottomEdge.push([i / M * 100, i % 2 ? 98.4 : 100]); }
     const poly = (pts) => 'polygon(' + pts.map(p => `${p[0].toFixed(2)}% ${p[1].toFixed(2)}%`).join(',') + ')';
-    // thin bands along the tear: stressed plastic turns white where it tears
     const up = tear.map(([x, y]) => [x, y - 1.4]), down = tear.map(([x, y]) => [x, y + 1.4]);
     return {
       top: poly(topEdge.concat(tear.slice().reverse())),
@@ -111,11 +96,10 @@
     if (typeof stopPreview === 'function') stopPreview();
 
     const drops = roll(pack, id);
-    if (window.Shop && id !== 'starter') Shop.noteResult(drops.some(d => d.t.id === 'A' || d.t.id === 'S' || d.t.id === 'SS'));                      // cards are added to the collection right away
-    if (id === 'starter') { try { localStorage.setItem(STARTER_KEY, '1'); } catch (e) { /* storage blocked */ } }
+    if (window.Shop && id !== 'starter') Shop.noteResult(drops.some(d => d.t.id === 'A' || d.t.id === 'S' || d.t.id === 'SS'));
+    if (id === 'starter') { try { localStorage.setItem(STARTER_KEY, '1'); } catch (e) {  } }
     const n = drops.length;
 
-    // glossy mylar wrapper: artwork first, then the plastic layers (puff, crumples, hologram, glare) and the crimped seals on top
     const art =
       '<div class="pk-art">' +
         '<div class="pk-brand">JEKETI RHYTHM</div>' +
@@ -171,9 +155,8 @@
     const setPhase = (v) => { phase = v; ov.dataset.phase = v; };
     const tierIdx = (d) => Cards.TIERS.indexOf(d.t);
 
-    setTimeout(() => snd('thump'), 520);           // pack lands
+    setTimeout(() => snd('thump'), 520);
 
-    // ---------- juice helpers ----------
     function confetti(x, y, count, colors, power = 1, up = false) {
       for (let i = 0; i < count; i++) {
         const el = document.createElement('i');
@@ -242,7 +225,6 @@
       });
     }
 
-    // ---------- the rip: p = 0 (sealed) .. 1 (torn off) ----------
     function applyP(v, tilt = 0) {
       p = v;
       packEl.style.setProperty('--p', v.toFixed(4));
@@ -251,7 +233,7 @@
       packEl.style.setProperty('--jx', ((Math.random() - .5) * j).toFixed(1) + 'px');
       packEl.style.setProperty('--jy', ((Math.random() - .5) * j).toFixed(1) + 'px');
       packEl.style.setProperty('--rot', tilt.toFixed(2) + 'deg');
-      while (v - lastStep >= .04) {                // a tear tick, a haptic tick and a few sparks every 4%
+      while (v - lastStep >= .04) {
         lastStep += .04;
         snd('tear', lastStep);
         buzz(5);
@@ -297,7 +279,7 @@
       ring(r.left + r.width / 2, r.top + r.height * .15, pack.accent);
       await wait(230);
       snd('whoosh');
-      drops.forEach((d, i) => {                    // face-down stack slides up out of the pack
+      drops.forEach((d, i) => {
         const c = Cards.makeCard(d.m, d.t, true);
         c.classList.add('pk-deckcard', 'flipped', 'emerge');
         c.style.setProperty('--k', i);
@@ -311,11 +293,10 @@
       hintEl.textContent = 'Tap to reveal your first card';
     }
 
-    // swipe across the pack
     packEl.addEventListener('pointerdown', (e) => {
       if (phase !== 'idle') return;
       drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, t0: performance.now(), moved: 0, w: packEl.getBoundingClientRect().width };
-      try { packEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      try { packEl.setPointerCapture(e.pointerId); } catch (err) {  }
       packEl.classList.add('grab');
       auraEl.classList.add('charging');
       hintEl.textContent = 'Keep going!';
@@ -334,14 +315,13 @@
       const tap = drag.moved < 10 && performance.now() - drag.t0 < 450;
       drag = null;
       if (phase !== 'idle') return;
-      if (tap) finishTear(true);                   // a plain tap rips it for you
+      if (tap) finishTear(true);
       else if (p >= .5) finishTear(false);
       else { hintEl.textContent = 'Swipe across the pack to rip it open!'; springBack(); }
     };
     packEl.addEventListener('pointerup', release);
     packEl.addEventListener('pointercancel', release);
 
-    // ---------- reveal ----------
     function celebrate(c, d, last) {
       const r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       const ti = tierIdx(d), cols = BURST[d.t.id].concat(PARTY.slice(0, 3));
@@ -359,7 +339,7 @@
       const d = drops[idx], c = cards[idx], last = idx === n - 1;
       setPhase('revealing');
       hintEl.textContent = '';
-      c.classList.add('lift');                     // little wind-up before the flip
+      c.classList.add('lift');
       await wait(170);
       c.classList.remove('flipped');
       snd('flip');
@@ -372,7 +352,6 @@
       hintEl.textContent = 'Tap to keep it';
     }
 
-    // fly the top card into its slot in the row (FLIP: measure, move, animate back)
     function sendCard() {
       const c = cards[idx], slot = slots[idx];
       infoEl.innerHTML = '';
@@ -451,7 +430,7 @@
       else if (phase === 'revealed') sendTop();
     }
 
-    function onKey(e) {                            // keep arrows / Esc from reaching the menu underneath
+    function onKey(e) {
       if (!ov.isConnected || !['Space', 'Enter', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.code)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -471,12 +450,10 @@
     return drops;
   }
 
-  // title screen "Play": new players get the free starter pack
   function onFirstPlay() {
     if (claimed()) return;
     setTimeout(() => {
       if (claimed()) return;
-      // new players choose their oshi first, then rip the starter pack
       if (window.Shop && !Shop.getOshi()) Shop.pickOshi(() => setTimeout(() => open('starter'), 350));
       else open('starter');
     }, 500);
@@ -484,10 +461,9 @@
 
   window.Packs = {
     PACKS, open, onFirstPlay, needsStarter: () => !claimed(),
-    // the future shop:  if (Points.spend(Packs.PACKS.bronze.price)) Packs.open('bronze')
     resetStarter() {
-      try { localStorage.removeItem(STARTER_KEY); } catch (e) { /* ignore */ }
-      if (window.Shop) Shop.setOshi(null);          // so the "Who is your oshi?" screen shows again
-    },   // console: test the welcome again
+      try { localStorage.removeItem(STARTER_KEY); } catch (e) {  }
+      if (window.Shop) Shop.setOshi(null);
+    },
   };
 })();

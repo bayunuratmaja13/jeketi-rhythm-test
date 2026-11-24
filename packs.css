@@ -1,10 +1,7 @@
-/* ============================================================ */
-/*  JEKETI RHYTHM — packs.css  (card pack opening)              */
-/* ============================================================ */
 
 #pack-overlay {
-  --cw: clamp(96px, min(58vw, calc((100dvh - 300px) * .75)), 250px);   /* big card / pack */
-  --sw: clamp(34px, min(11vw, 7.5dvh), 70px);                          /* small slot card */
+  --cw: clamp(96px, min(58vw, calc((100dvh - 300px) * .75)), 250px);
+  --sw: clamp(34px, min(11vw, 7.5dvh), 70px);
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -28,7 +25,6 @@
 @keyframes pk-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pk-out { to { opacity: 0; } }
 
-/* ---------- background rays + flash ---------- */
 .pk-rays {
   position: absolute;
   left: 50%; top: 46%;
@@ -37,7 +33,7 @@
   background: repeating-conic-gradient(rgba(255, 255, 255, .09) 0 8deg, transparent 8deg 20deg);
   -webkit-mask-image: radial-gradient(closest-side, #000 10%, transparent 72%);
   mask-image: radial-gradient(closest-side, #000 10%, transparent 72%);
-  opacity: calc(var(--tp, 0) * .8);               /* rays fade in as you tear */
+  opacity: calc(var(--tp, 0) * .8);
   transition: opacity .4s ease;
   animation: pk-spin 38s linear infinite;
   pointer-events: none;
@@ -64,13 +60,11 @@
   box-shadow: 0 0 24px currentColor, inset 0 0 24px rgba(255, 255, 255, .4);
 }
 
-/* screen shake on impacts */
 .quake { animation: pk-quake .42s linear; }
 .quake-big { animation: pk-quake-big .6s linear; }
 @keyframes pk-quake { 0%, 100% { transform: none; } 15% { transform: translate(-6px, 3px); } 30% { transform: translate(5px, -4px); } 45% { transform: translate(-4px, -2px); } 60% { transform: translate(3px, 3px); } 80% { transform: translate(-2px, 1px); } }
 @keyframes pk-quake-big { 0%, 100% { transform: none; } 10% { transform: translate(-12px, 6px) rotate(-.4deg); } 22% { transform: translate(11px, -8px) rotate(.4deg); } 36% { transform: translate(-9px, -5px); } 50% { transform: translate(7px, 6px); } 65% { transform: translate(-5px, 3px); } 82% { transform: translate(3px, -2px); } }
 
-/* ---------- header ---------- */
 .pk-head { position: relative; z-index: 2; text-align: center; pointer-events: none; padding: 0 12px; }
 .pk-head h2 {
   margin: 0;
@@ -98,7 +92,6 @@
 #pack-overlay[data-phase="ready"] .pk-skip,
 #pack-overlay[data-phase="revealed"] .pk-skip { opacity: 1; pointer-events: auto; }
 
-/* ---------- stage ---------- */
 .pk-stage { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.4dvh, 12px); }
 .pk-grid { position: relative; width: var(--cw); height: calc(var(--cw) * 4 / 3); }
 
@@ -114,7 +107,6 @@
 #pack-overlay.open .pk-aura { animation: pk-aura-out 1s ease-out forwards; }
 @keyframes pk-aura-out { from { transform: scale(1.5); opacity: 1; } to { transform: scale(1.1); opacity: .22; } }
 
-/* ---------- the pack ---------- */
 .pk-pack {
   position: absolute; inset: 0; z-index: 2;
   cursor: grab;
@@ -132,7 +124,6 @@
 }
 @keyframes pk-float { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-2.5%) rotate(1deg); } }
 
-/* while you're swiping: the pack follows your finger and trembles harder the more you tear */
 .pk-pack.grab {
   animation: none;
   cursor: grabbing;
@@ -141,7 +132,6 @@
 
 .pk-body, .pk-flap { position: absolute; inset: 0; }
 
-/* the foil strip is two pieces: the part already torn (flap l, peels up) and the part still sealed (flap r) */
 .pk-flap .pk-part { position: absolute; inset: 0; }
 .pk-flap.r { z-index: 2; clip-path: inset(0 0 0 calc(var(--p, 0) * 100%)); }
 .pk-flap.l {
@@ -150,7 +140,6 @@
   transform-origin: calc(var(--p, 0) * 100%) 15%;
   transform: translate(0, calc(var(--p, 0) * -4%)) rotate(calc(var(--p, 0) * 38deg)) scaleY(calc(1 - var(--p, 0) * .12));
 }
-/* light spilling out of the opening */
 .pk-leak {
   position: absolute; z-index: 1; left: 0; top: 15%;
   width: calc(var(--p, 0) * 100%);
@@ -169,7 +158,6 @@
   opacity: clamp(0, calc(var(--p, 0) * 8), .95);
   pointer-events: none;
 }
-/* the "swipe here" hint: a glowing dashed line with a dot sliding along it */
 .pk-guide {
   position: absolute; z-index: 5; left: 7%; right: 7%; top: 15%; height: 0;
   border-top: 3px dashed rgba(255, 255, 255, .9);
@@ -190,7 +178,6 @@
 }
 .pk-pack.grab .pk-guide, .pk-pack.torn .pk-guide { opacity: 0; }
 
-/* the aura behind the pack charges up as you tear */
 .pk-aura {
   position: absolute; inset: -32%; z-index: 0;
   background: radial-gradient(closest-side, var(--accent), transparent 70%);
@@ -203,7 +190,6 @@
 #pack-overlay.open .pk-aura { animation: pk-aura-out 1s ease-out forwards; }
 @keyframes pk-aura-out { from { transform: scale(1.5); opacity: 1; } to { transform: scale(1.1); opacity: .22; } }
 
-/* ---------- the rip: flap flies off, light and a beam shoot out ---------- */
 .pk-pack.torn { animation: none; transform: scale(1.08); cursor: default; }
 .pk-pack.torn .pk-flap.l { animation: pk-flap-fly .8s cubic-bezier(.3, 0, .7, .6) forwards; }
 .pk-pack.torn .pk-body { animation: pk-body-slump .75s .12s ease-in forwards; }
@@ -255,7 +241,6 @@
 }
 .pk-art > i { position: absolute; inset: 0; pointer-events: none; }
 
-/* the artwork on the wrapper */
 .pk-center { position: relative; display: flex; flex-direction: column; align-items: center; margin-top: 3%; }
 .pk-emblem {
   font-size: calc(var(--cw) * .46); line-height: 1;
@@ -281,7 +266,6 @@
 }
 .pk-count { margin-top: 5%; font: 700 calc(var(--cw) * .07)/1 'Fredoka', var(--font-game), sans-serif; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .92); text-shadow: 0 .08em 0 rgba(0, 0, 0, .4); }
 
-/* plastic layers: inflated bag, crumpled mylar, rainbow hologram, moving glare */
 .pk-puff {
   background:
     radial-gradient(ellipse 72% 60% at 50% 45%, rgba(255, 255, 255, .3), transparent 62%),
@@ -293,7 +277,7 @@
   background-size: 100% 100%;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='360'><filter id='f' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.014 .03' numOctaves='3' seed='7'/><feDiffuseLighting lighting-color='%23fff' surfaceScale='5'><feDistantLight azimuth='235' elevation='50'/></feDiffuseLighting></filter><rect width='260' height='360' filter='url(%23f)'/></svg>");
 }
-.pk-wrinkle::after {                              /* sharper creases */
+.pk-wrinkle::after {
   content: ''; position: absolute; inset: 0;
   mix-blend-mode: soft-light; opacity: .9;
   background-size: 100% 100%;
@@ -313,10 +297,8 @@
   animation: pk-foil 3s ease-in-out infinite;
 }
 @keyframes pk-foil { 0% { background-position: 130% 0; } 60%, 100% { background-position: -130% 0; } }
-/* while tearing, the glare slides with the tear instead of looping */
 .pk-pack.grab .pk-foil { animation: none; background-position: calc(130% - var(--p, 0) * 260%) 0; }
 
-/* crimped heat-sealed fins, top and bottom */
 .pk-crimp {
   inset: 0 0 auto 0 !important; height: 9%;
   background:
@@ -328,7 +310,6 @@
     repeating-linear-gradient(90deg, rgba(0, 0, 0, .34) 0 calc(var(--cw) * .004), rgba(255, 255, 255, .5) calc(var(--cw) * .004) calc(var(--cw) * .01), rgba(255, 255, 255, .06) calc(var(--cw) * .01) calc(var(--cw) * .02)),
     linear-gradient(0deg, rgba(255, 255, 255, .4), rgba(0, 0, 0, .2)); }
 
-/* plastic tears white along the edge, and the lifted flap catches different light */
 .pk-fray { position: absolute; inset: 0; z-index: 1; clip-path: inset(0 calc((1 - var(--p, 0)) * 100%) 0 0); pointer-events: none; }
 .pk-fray i { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(255, 255, 255, .25)); }
 .pk-fray-u { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(255, 255, 255, .98), rgba(255, 255, 255, .25)); pointer-events: none; }
@@ -339,7 +320,6 @@
   opacity: calc(var(--p, 0) * 1.3);
 }
 
-/* ---------- the face-down stack ---------- */
 .pk-deck { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .pk-deckcard {
   position: absolute; left: 0; top: 0;
@@ -353,7 +333,6 @@
 .pk-deckcard.emerge { animation: pk-emerge .8s cubic-bezier(.2, 1.25, .4, 1) calc(var(--k, 0) * 90ms) backwards; }
 @keyframes pk-emerge { from { transform: translateY(70%) scale(.8); opacity: 0; } 60% { opacity: 1; } }
 
-/* ---------- info, hint, buttons ---------- */
 .pk-info {
   min-height: clamp(34px, 6.4dvh, 52px);
   display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 10px;
@@ -392,7 +371,6 @@
 .pk-done:active { transform: translateY(4px); box-shadow: 0 2px 0 #a02763, 0 4px 10px rgba(0, 0, 0, .4); }
 #pack-overlay[data-phase="done"] .pk-done { display: block; animation: pk-title .55s .3s cubic-bezier(.3, 1.5, .5, 1) both; }
 
-/* ---------- the row of collected cards ---------- */
 .pk-row { position: relative; z-index: 3; display: flex; justify-content: center; align-items: center; gap: calc(var(--sw) * .16); order: 2; }
 .pk-slot {
   width: var(--sw); aspect-ratio: 3 / 4; flex: none;
@@ -403,7 +381,6 @@
 .pk-slot .tcard { --cw: var(--sw); }
 .pk-slot:has(.tcard) { border-color: transparent; background: none; }
 
-/* finished: the stage collapses and the five cards get big */
 #pack-overlay[data-phase="done"] { --sw: clamp(56px, min(17vw, calc((100dvh - 190px) * .75)), 160px); }
 #pack-overlay[data-phase="done"] .pk-grid,
 #pack-overlay[data-phase="done"] .pk-info,
@@ -417,14 +394,12 @@
 #pack-overlay[data-phase="done"] .pk-slot:nth-child(5) .tcard { animation-delay: .28s; }
 @keyframes pk-celebrate { from { transform: translateY(24px) scale(.7); opacity: 0; } }
 
-/* phone in landscape: tighter */
 @media (orientation: landscape) and (max-height: 500px) {
   #pack-overlay { --cw: clamp(90px, min(30vw, calc((100dvh - 190px) * .75)), 250px); gap: 4px; }
   .pk-head p { display: none; }
   .pk-head h2 { font-size: 20px; }
 }
 
-/* ---------- welcome greeting with the game logo ---------- */
 .pk-welcome { display: block; font: 700 clamp(14px, 3dvh, 22px)/1 'Fredoka', var(--font-game), sans-serif; color: rgba(255, 255, 255, .9); text-shadow: 0 2px 0 rgba(0, 0, 0, .35); margin-bottom: 2px; }
 .pk-logo {
   display: block; margin: 0 auto;
@@ -437,9 +412,6 @@
   .pk-welcome { font-size: 13px; }
   #pack-overlay:has(.pk-logo) { --cw: clamp(90px, min(30vw, calc((100dvh - 235px) * .75)), 250px); }
 }
-/* ============================================================ */
-/*  FOIL BOOSTER LOOK (v2): glossy metallic wrapper, ridged heat-sealed fins, holo sparkle, starburst art  */
-/* ============================================================ */
 .pk-pack { filter: drop-shadow(0 1.1em 1.4em rgba(0, 0, 0, .6)) drop-shadow(0 0 .6em color-mix(in srgb, var(--accent) 35%, transparent)); }
 .pk-art {
   border-radius: 2.2%;
@@ -448,14 +420,12 @@
     linear-gradient(165deg, color-mix(in srgb, var(--p1) 70%, #fff) 0%, var(--p1) 22%, color-mix(in srgb, var(--p1) 45%, var(--p2)) 48%, var(--p2) 74%, color-mix(in srgb, var(--p2) 60%, #000) 100%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), inset 0 0 0 3px rgba(0, 0, 0, .18), inset 3px 4px 9px rgba(255, 255, 255, .5), inset -4px -5px 11px rgba(0, 0, 0, .45);
 }
-/* diagonal metallic light bands + a soft top-to-bottom shine over everything */
 .pk-art::before {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: soft-light;
   background:
     linear-gradient(118deg, transparent 12%, rgba(255, 255, 255, .55) 22%, transparent 30%, transparent 52%, rgba(255, 255, 255, .45) 60%, transparent 68%),
     linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 30%, transparent 70%, rgba(0, 0, 0, .3));
 }
-/* fine glitter specks */
 .pk-art::after {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: overlay; opacity: .55;
   background-image:
@@ -468,7 +438,6 @@
 @keyframes pk-glitter { 0%, 100% { opacity: .25; } 50% { opacity: .75; } }
 .pk-holo { opacity: 1; background-size: 300% 300%; }
 
-/* heat-sealed fins: tight vertical ridges, metal shading, a crisp inner seam line */
 .pk-crimp {
   height: 8.5%;
   background:
@@ -481,7 +450,6 @@
     repeating-linear-gradient(90deg, rgba(0, 0, 0, .42) 0 calc(var(--cw) * .0045), rgba(255, 255, 255, .62) calc(var(--cw) * .0045) calc(var(--cw) * .0095), rgba(255, 255, 255, .1) calc(var(--cw) * .0095) calc(var(--cw) * .0145)),
     linear-gradient(0deg, rgba(255, 255, 255, .55), rgba(0, 0, 0, .28)) !important; }
 
-/* artwork: starburst behind the emblem, glowing emblem, bolder title plate */
 .pk-center::before {
   content: ''; position: absolute; left: 50%; top: 42%; width: calc(var(--cw) * 1.25); aspect-ratio: 1; transform: translate(-50%, -50%); z-index: -1; pointer-events: none;
   background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .38) 0 6deg, transparent 6deg 15deg);
@@ -503,7 +471,6 @@
   letter-spacing: .16em; font-weight: 800;
 }
 
-/* mini packs in the shop get the same wrapper */
 .sh-art .shp {
   border-radius: 4%;
   background:
@@ -528,7 +495,6 @@
 .sh-art .shp-emb { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .5)) drop-shadow(0 0 6px #fff); }
 @media (prefers-reduced-motion: reduce) { .pk-art::after, .pk-center::before { animation: none; } }
 
-/* ---------- booster details: game brand across the top, "BOOSTER PACK" strip along the bottom ---------- */
 .pk-art .pk-center { margin-top: 7%; }
 .pk-brand {
   position: absolute; left: 0; right: 0; top: 11.5%; text-align: center; z-index: 1; pointer-events: none; white-space: nowrap;
@@ -543,10 +509,6 @@
   border-top: 1px solid rgba(255, 255, 255, .55); border-bottom: 1px solid rgba(255, 255, 255, .55); text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
 }
 
-/* ============================================================ */
-/*  PERFORMANCE PASS: no looping animations on the wrapper, no SVG lighting textures, no stacked filters / blend modes  */
-/*  (the wrapper is drawn 3x, body + two tear flaps, so every effect on it costs triple)                               */
-/* ============================================================ */
 .pk-pack { filter: none; }
 .pk-wrinkle {
   mix-blend-mode: normal; opacity: .5;
@@ -567,16 +529,11 @@
 .pk-brand { text-shadow: 0 .07em 0 rgba(0, 0, 0, .4); }
 .sh-art .shp::before { mix-blend-mode: normal; opacity: .5; }
 
-/* ---------- torn strip (the two flaps): keep it a plain, flat layer so no phone GPU smears it ---------- */
 .pk-flap .pk-wrinkle, .pk-flap .pk-holo, .pk-flap .pk-puff, .pk-flap .pk-foil { display: none; }
 .pk-flap .pk-art::before, .pk-flap .pk-art::after { display: none; }
 .pk-flap .pk-art { box-shadow: none; }
 .pk-flap, .pk-body { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 
-/* ---------- after the rip: nothing of the opening may stay behind ---------- */
-/* The glow along the tear (.pk-leak), the bright dot at its end (.pk-spark) and the white torn edge (.pk-fray) are driven by --p,
-   which stays at 1 after the rip, so they used to hang in the air until the whole pack was removed (about a second later).
-   The big flash / light / beam of the rip takes over from the glow, and the torn edge now slumps away together with the pack body. */
 .pk-pack.torn .pk-leak, .pk-pack.torn .pk-spark { animation: pk-trace-out .2s ease-out forwards; }
 @keyframes pk-trace-out { to { opacity: 0; } }
 .pk-pack.torn .pk-fray { animation: pk-body-slump .75s .12s ease-in forwards; }

@@ -1,34 +1,22 @@
-// ============================================================
-//  JEKETI RHYTHM — downloader.js  (first-launch download)
-//  Step 1 (shows a loading screen, first launch only): UI images, song covers, card images and the starter songs.
-//  Step 2 (silent, in the background, no text on screen): every other song, one at a time, paused while a song is being played.
-//  Everything is saved on the device through sw.js. If anything here fails, the game simply works as before
-//  (files that are not saved yet just stream from the internet).
-//  Emergency off switch: ?nosw
-// ============================================================
 (() => {
   'use strict';
   if (!('serviceWorker' in navigator) || location.protocol === 'file:' || /[?&]nosw/.test(location.search)) return;
   if (!Array.isArray(window.SONGS)) return;
 
-  // ---------- WHAT TO DOWNLOAD (edit here) ----------
-  const PACK_ID = 'p1';                                   // change it to show the loading screen again to everybody
-  const STARTER_SONGS = ['ayo_senyumlah', 'wakaka_people', '12_seconds'];   // downloaded in step 1, before the game opens
+  const PACK_ID = 'p1';
+  const STARTER_SONGS = ['ayo_senyumlah', 'wakaka_people', '12_seconds'];
   const UI_IMAGES = [
     'title.gif', 'play.webp', 'back.webp', 'pick-song.gif', 'shop.gif', 'my-cards.gif', 'cards-shop.gif',
     'exit.gif', 'finish.gif', 'game-over.gif', 'play-again.gif'
   ];
-  // card pictures (images/cards/<name>.webp). When you add a card, add its name here.
-  // A card that is not listed still works: it just loads from the internet like before.
   const CARDS = [
     'anindya', 'aralie', 'bernadya', 'christy', 'cynthia', 'daisy', 'danella', 'delynn', 'dream_back', 'eli', 'elin',
     'ella', 'erine', 'feni', 'fiony', 'freya', 'fritzy', 'gita', 'gracie', 'greesel', 'indah', 'jessi', 'kathrina',
     'kimmy', 'lana', 'levi', 'lia', 'lily', 'love_back', 'lulu', 'lyn', 'marsha', 'michie', 'muthe', 'nachia', 'nala',
     'nayla', 'oline', 'olla', 'oniel', 'passion_back', 'pia', 'raisha', 'ribka', 'trisha'
   ];
-  const STEP1_PARALLEL = 4;                               // small files, a few at a time
-  const MIN_FREE_MB = 120;                                // step 2 stops when the phone has less free space than this
-  // --------------------------------------------------
+  const STEP1_PARALLEL = 4;
+  const MIN_FREE_MB = 120;
 
   const FLAG = 'jeketi.pack.' + PACK_ID;
   const abs = (u) => new URL(u, document.baseURI).href;
@@ -37,7 +25,7 @@
   const mb = (b) => (b / 1048576).toFixed(b < 10485760 ? 1 : 0);
   const store = {
     get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {  } }
   };
 
   const starter = window.SONGS.filter((s) => STARTER_SONGS.indexOf(s.id) >= 0);
@@ -51,7 +39,6 @@
     [].concat.apply([], starter.map(songFiles))
   )).map(abs);
 
-  // ---------- screen ----------
   let ui = null;
   function css() {
     if (document.getElementById('dl-css')) return;
@@ -101,7 +88,6 @@
     el.classList.add('dl-out');
     setTimeout(() => el.remove(), 600);
   }
-  // ---------- talking to sw.js ----------
   function getSW() {
     return Promise.race([
       navigator.serviceWorker.ready.then((r) => r.active || navigator.serviceWorker.controller),
@@ -122,14 +108,11 @@
     const r = await ask(sw, { type: 'pack-status', urls }, 20000);
     return r && Array.isArray(r.missing) ? r.missing : urls.slice();
   }
-  // guard = true (step 2): while this file downloads, a song that starts stops it at once (pack-abort). The file is then tried
-  // again after the song, and that does not count as a failed attempt.
   async function fetchOne(sw, url, guard) {
     for (let i = 0; i < 3; i++) {
       let watch = 0, giveUp = null, giveUpTimer = 0;
       const stop = () => {
-        try { sw.postMessage({ type: 'pack-abort' }); } catch (e) { /* ignore */ }
-        // if sw.js does not answer the abort quickly, stop waiting for it: the file is retried after the song
+        try { sw.postMessage({ type: 'pack-abort' }); } catch (e) {  }
         if (!giveUpTimer) giveUpTimer = setTimeout(() => giveUp && giveUp({ ok: false, aborted: true }), 1500);
       };
       if (guard) { watch = setInterval(() => { if (gameBusy()) stop(); }, 250); addEventListener('jeketi:busy', stop); }
@@ -150,7 +133,6 @@
     return { ok: false };
   }
 
-  // ---------- step 1 ----------
   async function step1(sw, visible) {
     let missing = await missingOf(sw, STEP1);
     const total = STEP1.length;
@@ -176,8 +158,7 @@
       };
       await Promise.all(Array.from({ length: STEP1_PARALLEL }, worker));
       if (!failed.length || skipped) break;
-      if (!visible) break;                          // silent run: the next launch tries again
-      // some files did not arrive: let the player choose
+      if (!visible) break;
       if (ui) {
         ui.sub.innerHTML = 'Some files did not download.<br>Check your connection.';
         ui.info.textContent = done + ' / ' + total + ' files';
@@ -191,8 +172,6 @@
     hideScreen();
   }
 
-  // ---------- step 2 ----------
-  // "in a song" = playing / paused / starting, AND the moment a song is picked while its chart is still loading (game.js: playBusy)
   const gameBusy = () => { try { return typeof playBusy === 'function' ? playBusy() : (typeof mode !== 'undefined' && mode !== 'idle'); } catch (e) { return false; } };
   async function lowStorage() {
     try {
@@ -202,31 +181,30 @@
   }
   async function step2(sw) {
     const c = navigator.connection;
-    if (c && c.saveData) return;                                   // the player turned on Data Saver: do not download extra
+    if (c && c.saveData) return;
     const songs = later.filter((s) => s.audio);
     const list = [].concat.apply([], songs.map(songFiles)).map(abs);
     const missing = new Set(await missingOf(sw, list));
     const todo = songs.filter((s) => songFiles(s).some((f) => missing.has(abs(f))));
     if (!todo.length) return;
     for (const s of todo) {
-      while (gameBusy() || document.hidden) await sleep(2500);    // never compete with a song that is playing
-      if (await lowStorage()) return;                              // phone almost full: the other songs just stream
+      while (gameBusy() || document.hidden) await sleep(2500);
+      if (await lowStorage()) return;
       let ok = true;
       for (const f of songFiles(s)) {
         const r = await fetchOne(sw, abs(f), true);
         if (!r.ok) { ok = false; break; }
       }
-      if (!ok) return;                                             // connection problem: continues next launch
+      if (!ok) return;
     }
   }
 
-  // ---------- start ----------
   async function run() {
     const first = !store.get(FLAG);
     if (first) { showScreen(); }
     const sw = await getSW();
-    if (!sw) { hideScreen(); return; }                             // no service worker: the game works as before
-    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* ignore */ }
+    if (!sw) { hideScreen(); return; }
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {  }
     await step1(sw, first);
     await sleep(1500);
     await step2(sw);
@@ -234,5 +212,5 @@
   const start = () => run().catch(() => { hideScreen(); });
   if (document.body) start(); else addEventListener('DOMContentLoaded', start);
 
-  window.JeketiPack = { step1Files: STEP1.length, reset: () => { try { localStorage.removeItem(FLAG); } catch (e) { /* ignore */ } } };
+  window.JeketiPack = { step1Files: STEP1.length, reset: () => { try { localStorage.removeItem(FLAG); } catch (e) {  } } };
 })();

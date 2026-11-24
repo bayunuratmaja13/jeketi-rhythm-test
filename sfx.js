@@ -1,7 +1,3 @@
-// ============================================================
-//  JEKETI RHYTHM — sfx.js  (UI sounds for cards and points)
-//  Uses the AudioContext from game.js (ensureAudio / audioCtx)
-// ============================================================
 (() => {
   'use strict';
   const C = () => { ensureAudio(); return audioCtx; };
@@ -17,7 +13,6 @@
     return noiseBuf;
   }
 
-  // one oscillator note: type, start freq, end freq, delay (s), length (s), volume
   function tone(type, f0, f1, at, dur, vol) {
     const c = C(), t = c.currentTime + at;
     const o = c.createOscillator(), g = c.createGain();
@@ -32,7 +27,6 @@
     o.stop(t + dur + 0.02);
   }
 
-  // filtered noise burst (dur must stay under 0.18s)
   function hiss(at, dur, vol, type, f0, f1) {
     const c = C(), t = c.currentTime + at;
     const s = c.createBufferSource();
@@ -49,14 +43,12 @@
     s.start(t, Math.random() * 0.2, dur + 0.02);
   }
 
-  // a cluster of tiny clicks = crinkling plastic / mylar
   function crackle(at, n, span, vol) {
     for (let i = 0; i < n; i++) {
       hiss(at + Math.random() * span, 0.025 + Math.random() * 0.02, vol * (0.5 + Math.random() * 0.5), 'highpass', 2500 + Math.random() * 4500);
     }
   }
 
-  // a long swelling note (volume rises with the pitch): for charge-ups
   function swell(type, f0, f1, dur, vol, at = 0) {
     const c = C(), t = c.currentTime + at;
     const o = c.createOscillator(), g = c.createGain();
@@ -70,7 +62,6 @@
     o.start(t);
     o.stop(t + dur + 0.06);
   }
-  // long rising wash of filtered noise
   function wash(dur, vol, f0, f1) {
     const c = C(), t = c.currentTime;
     const s = c.createBufferSource();
@@ -89,13 +80,11 @@
     s.stop(t + dur + 0.08);
   }
 
-  const NOTES = [880, 1109, 1319, 1760, 2217];   // pentatonic climb, one more note per tier
+  const NOTES = [880, 1109, 1319, 1760, 2217];
 
   const SFX = {
-    // mouse moves over a card
     hover() { tone('triangle', 2400, 2000, 0, 0.02, 0.025); },
 
-    // opening a card you own: thump + click, then a chime that gets richer with the tier (0 = C ... 4 = SS)
     cardTap(tier = 0) {
       tone('sine', 230, 80, 0, 0.14, 0.28);
       tone('triangle', 1900, 1000, 0, 0.035, 0.1);
@@ -104,49 +93,42 @@
         tone('sine', NOTES[k], NOTES[k], 0.05 + k * 0.055, 0.5, 0.1);
         tone('triangle', NOTES[k] * 2, NOTES[k] * 2, 0.05 + k * 0.055, 0.25, 0.03);
       }
-      if (tier >= 3) {                              // S and SS get a sparkle on top
+      if (tier >= 3) {
         for (let j = 0; j < 3; j++) tone('sine', 3800 + j * 500, 3800 + j * 500, 0.22 + j * 0.05, 0.25, 0.05);
         hiss(0.2, 0.15, 0.05, 'highpass', 6000);
       }
     },
 
-    // card flips over
     flip() {
       hiss(0, 0.17, 0.12, 'bandpass', 500, 3200);
       tone('triangle', 1300, 800, 0.17, 0.03, 0.08);
     },
 
-    // tapping a locked card
     locked() {
       tone('triangle', 210, 120, 0, 0.15, 0.25);
       tone('triangle', 170, 95, 0.09, 0.17, 0.22);
       tone('square', 90, 70, 0, 0.1, 0.04);
     },
 
-    // viewer closes
     close() { tone('triangle', 760, 430, 0, 0.09, 0.1); },
 
-    // pack lands on the table: deep thump + paper slap
     thump() {
       tone('sine', 150, 42, 0, 0.32, 0.38);
       tone('triangle', 90, 50, 0, 0.2, 0.15);
       hiss(0, 0.12, 0.1, 'lowpass', 900, 300);
     },
 
-    // pack rattles (i = 0..3): crinkly plastic that gets louder and higher each time
     shake(i = 0) {
       crackle(0, 5 + i * 2, 0.13, 0.09 + i * 0.03);
       hiss(0, 0.13, 0.05 + i * 0.02, 'bandpass', 3200 + i * 500, 5000 + i * 600);
       tone('triangle', 180 + i * 70, 230 + i * 90, 0, 0.12, 0.04 + i * 0.015);
     },
 
-    // one little plastic tear tick while the pack is being pulled (p = 0..1, higher and louder)
     tear(p = 0) {
       crackle(0, 4, 0.07, 0.1 + p * 0.1);
       hiss(0, 0.08, 0.05 + p * 0.06, 'bandpass', 3500 + p * 3000, 5000 + p * 3000);
     },
 
-    // the plastic finally cracks open: sharp crackle, an air-release whump, a boom, a rising sparkle run
     rip() {
       crackle(0, 16, 0.17, 0.3);
       hiss(0, 0.17, 0.24, 'highpass', 1500, 9000);
@@ -161,13 +143,11 @@
       hiss(0.1, 0.17, 0.08, 'highpass', 7000);
     },
 
-    // cards slide up out of the pack
     whoosh() {
       hiss(0, 0.17, 0.14, 'bandpass', 300, 2800);
       tone('sine', 280, 900, 0, 0.25, 0.07);
     },
 
-    // a card is revealed (i = how many cards in so far, tier = 0..4): impact + chord that climbs with every card
     pull(i = 0, tier = 0) {
       const L = [523, 587, 659, 784, 880, 1047, 1175], f = L[Math.min(i, L.length - 1)];
       tone('sine', 120, 42, 0, 0.26, 0.38);
@@ -179,27 +159,23 @@
       if (tier >= 3) { tone('sine', f * 3, f * 3, 0.1, 0.6, 0.08); hiss(0.1, 0.17, 0.07, 'highpass', 6000); }
     },
 
-    // the NEW stamp slams down
     slam() {
       tone('sine', 220, 50, 0, 0.2, 0.42);
       tone('square', 130, 60, 0, 0.05, 0.05);
       hiss(0, 0.07, 0.16, 'lowpass', 1600, 300);
     },
 
-    // confetti cannon
     pop() {
       tone('triangle', 900, 260, 0, 0.07, 0.18);
       hiss(0, 0.1, 0.12, 'bandpass', 2500, 6000);
     },
 
-    // card sent to its slot: whoosh + soft tap
     deal() {
       hiss(0, 0.12, 0.1, 'bandpass', 900, 2600);
       tone('triangle', 520, 300, 0.1, 0.06, 0.1);
       tone('sine', 160, 90, 0.1, 0.09, 0.12);
     },
 
-    // all cards collected: bright arpeggio into a held chord
     fanfare() {
       [523, 659, 784, 1047, 1319].forEach((f, k) => {
         tone('triangle', f, f, k * 0.09, 0.35, 0.12);
@@ -211,7 +187,6 @@
       [0, 0.18, 0.36].forEach(d => { tone('triangle', 900, 260, d, 0.07, 0.16); hiss(d, 0.1, 0.1, 'bandpass', 2500, 6000); });
     },
 
-    // combining cards: a power-up that swells for `dur` seconds (T = tier being made, 1 B .. 4 SS), bigger every tier
     mergeCharge(dur = 1.2, T = 1) {
       swell('sine', 45, 90, dur, 0.16);
       swell('sawtooth', 90, 90 * (6 + T * 2), dur, 0.04 + T * 0.012);
@@ -236,7 +211,6 @@
       if (T >= 4) swell('square', 55, 330, dur, 0.03);
     },
 
-    // the merge explodes: sub drop, crack, a chord that gets bigger with every tier, sparkle shower
     mergeBoom(T = 1) {
       tone('sine', 150, 28, 0, 0.6 + T * 0.15, 0.5 + T * 0.05);
       tone('sine', 70, 24, 0, 0.9 + T * 0.2, 0.35);
@@ -268,13 +242,11 @@
       }
     },
 
-    // rising tick while Points count up (n = 1, 2, 3 ...)
     tick(n = 1) {
       const f = 900 + n * 70;
       tone('sine', f, f * 1.2, 0, 0.04, 0.08);
     },
 
-    // cha-ching when the count finishes
     coin() {
       tone('sine', 1319, 1319, 0, 0.35, 0.14);
       tone('triangle', 2637, 2637, 0, 0.25, 0.06);
@@ -284,8 +256,7 @@
     },
   };
 
-  // never let a blocked / missing audio context break the game
   window.SFX = new Proxy(SFX, {
-    get: (o, k) => (...a) => { try { o[k](...a); } catch (e) { /* audio unavailable */ } },
+    get: (o, k) => (...a) => { try { o[k](...a); } catch (e) {  } },
   });
 })();

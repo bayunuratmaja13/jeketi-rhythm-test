@@ -1,8 +1,4 @@
-/* ============================================================ */
-/*  JEKETI RHYTHM — cards.css  (My Cards collection)            */
-/* ============================================================ */
 
-/* ---------- entry button on song select ---------- */
 #my-cards-btn {
   position: fixed;
   bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px));
@@ -22,7 +18,7 @@
   border-radius: 10px;
   box-shadow: 0 4px 0 rgba(180, 40, 100, 1);
 }
-#my-cards-btn .btn-fallback { font-size: 17.6px; padding: 8px 13px; border-radius: 8px; box-shadow: 0 3px 0 rgba(180, 40, 100, 1); }  /* 20% smaller, matches the equip bar */
+#my-cards-btn .btn-fallback { font-size: 17.6px; padding: 8px 13px; border-radius: 8px; box-shadow: 0 3px 0 rgba(180, 40, 100, 1); }
 #my-cards-btn.has-new::after {
   content: '';
   position: absolute;
@@ -36,7 +32,6 @@
 }
 @keyframes dot-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
 
-/* ---------- collection screen ---------- */
 #cards-screen {
   position: fixed;
   inset: 0;
@@ -59,7 +54,7 @@
 }
 #cards-title-gif { height: clamp(44px, 11vh, 96px); width: auto; display: block; }
 #cards-back-btn {
-  position: fixed;                                   /* top left (the Points / progress note is top right) */
+  position: fixed;
   top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
   left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
   z-index: 20;
@@ -89,7 +84,6 @@
 .cards-progress span { font-size: clamp(14px, 2.6vh, 20px); font-weight: 600; }
 .cards-progress small { display: block; margin-top: 2px; font-size: clamp(9px, 1.6vh, 12px); font-weight: 600; color: #7a6a80; }
 
-/* folder tabs, one per member */
 #cards-tabs {
   display: flex;
   gap: 6px;
@@ -131,7 +125,6 @@
 .cards-tab.complete small { color: #c98a00; opacity: 1; }
 .cards-tab.complete small::after { content: ' ★'; }
 
-/* the sheet the cards are pinned to */
 #cards-sheet {
   position: relative;
   background-color: var(--paper);
@@ -185,9 +178,6 @@
 }
 #cards-toast.show { opacity: 1; translate: -50% 0; }
 
-/* ============================================================ */
-/*  THE CARD                                                    */
-/* ============================================================ */
 .tcard {
   position: relative;
   width: var(--cw);
@@ -246,9 +236,8 @@
   border-radius: calc(var(--cw) * .05);
   overflow: hidden;
   background: #231526;
-  box-shadow: 0 0 0 .09em rgba(10, 4, 16, .75);        /* thin dark line between the frame and the art, like the reference */
+  box-shadow: 0 0 0 .09em rgba(10, 4, 16, .75);
 }
-/* soft light along the inside of the frame + a dark corner so the big letter stays readable */
 .tc-art::after {
   content: '';
   position: absolute; inset: 0;
@@ -273,15 +262,14 @@
 .tcard:not(.locked):hover .tc-sweep { animation: sweep .9s ease-out; }
 @keyframes sweep { 0%, 55% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
 
-/* the big beveled tier letter, top left (gradient fill + dark outline + glow, no pill behind it) */
 .tc-badge {
   position: absolute;
-  left: -.35em; top: -.3em;                /* hangs off the corner of the card (em here = the letter's own size) */
+  left: -.35em; top: -.3em;
   z-index: 3;
   padding: 0 .1em;
   font: normal 900 4.1em/1 var(--font-impact);
   letter-spacing: -.02em;
-  color: transparent;                    /* the real text only reserves the space; the two layers below draw it */
+  color: transparent;
   filter: drop-shadow(0 .025em 0 rgba(0, 0, 0, .6)) drop-shadow(0 0 .05em var(--lg, rgba(255, 255, 255, .5)));
   pointer-events: none;
   user-select: none;
@@ -292,11 +280,11 @@
   padding: inherit;
   white-space: nowrap;
 }
-.tc-badge::before {                      /* dark outline layer */
+.tc-badge::before {
   color: var(--ol, #2a1600);
   -webkit-text-stroke: .05em var(--ol, #2a1600);
 }
-.tc-badge::after {                       /* gradient letter layer + thin bright rim so the edges stay crisp */
+.tc-badge::after {
   color: transparent;
   background: var(--ltr);
   -webkit-background-clip: text; background-clip: text;
@@ -315,7 +303,6 @@
 @keyframes new-bob { 0%, 100% { transform: rotate(8deg) scale(1); } 50% { transform: rotate(8deg) scale(1.12); } }
 .tc-count { right: .3em; bottom: .3em; background: rgba(10, 5, 20, .82); color: #fff; }
 
-/* locked: show the back, dimmed, with the tier it needs */
 .tcard.locked { filter: grayscale(.9) brightness(.6); cursor: help; }
 .tcard.locked .tc-glow, .tcard.locked .tc-sheen { display: none; }
 .tc-lock {
@@ -329,9 +316,6 @@
 .tc-lock svg { width: 2.6em; height: 2.6em; filter: drop-shadow(0 .1em .3em rgba(0, 0, 0, .6)); }
 .tc-lock b { font: 900 2.6em/1 var(--font-impact); text-shadow: 0 .06em .3em rgba(0, 0, 0, .7); }
 
-/* ---------- tiers ---------- */
-/* Looks copied from the Superstar references:
-   C bronze · B glossy red frame, orange letter · A glossy purple frame, silver letter · S glowing gold · SS = the glittery "R" gold card */
 .t-c  { --tier-ink: #3f1f07; --ol: #3a1c06; --lg: rgba(255, 150, 70, .55); --inner: rgba(255, 170, 100, .3);
         --metal: linear-gradient(145deg, #4a2508 0%, #b8743a 26%, #f0b886 44%, #92521f 66%, #4a2508 100%);
         --ltr: linear-gradient(180deg, #ffe6c8 0%, #f0ac72 50%, #d98a4c 78%, #b36a2e 100%); }
@@ -349,7 +333,6 @@
         --gc: rgba(255, 205, 60, .95); }
 .t-ss { --tier-ink: #5a3600; --ol: #3a2400; --lg: rgba(255, 224, 110, 1); --inner: rgba(255, 230, 120, .85);
         --metal: linear-gradient(135deg, #a86c00, #ffd34d 16%, #fffbe0 30%, #ffc933 46%, #fff3a8 60%, #ffb800 76%, #a86c00);
-        /* gold with glitter dots = the sparkly "R" letter */
         --ltr: radial-gradient(circle, rgba(255, 255, 255, .95) 0 7%, transparent 9%) 0 0 / .62em .56em,
                radial-gradient(circle, rgba(255, 255, 255, .8) 0 6%, transparent 8%) .27em .24em / .48em .44em,
                linear-gradient(180deg, #fff8c4 0%, #ffe25a 50%, #ffc61f 78%, #ec9f00 100%);
@@ -389,9 +372,6 @@
 }
 @keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
 
-/* ============================================================ */
-/*  CARD VIEWER / REVEAL                                        */
-/* ============================================================ */
 #card-viewer {
   --cw: min(56vw, calc((100dvh - 200px) * .75), 360px);
   position: fixed; inset: 0;
@@ -435,7 +415,6 @@
   100% { transform: rotate(var(--a)) translate(var(--d), 0) scale(.2); opacity: 0; }
 }
 
-/* short landscape phones */
 @media (orientation: landscape) and (max-height: 500px) {
   #cards-sheet { padding: 14px 12px 8px; }
   .cards-tab { padding: 5px 12px 4px; }
@@ -448,7 +427,6 @@
   .tc-inner { transition-duration: .01s; }
 }
 
-/* ---------- member picker inside each team ---------- */
 #cards-members {
   position: relative;
   display: flex;
@@ -479,7 +457,6 @@
 .cards-chip.on small { opacity: .85; }
 .cards-chip.complete small::after { content: ' ★'; }
 
-/* member without art yet */
 .tc-ph {
   width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3em;
@@ -489,9 +466,6 @@
 .tc-ph b { font: 700 1.5em/1.1 'Fredoka', var(--font-game), sans-serif; }
 .tc-ph small { font: 500 .9em/1 'Fredoka', var(--font-game), sans-serif; opacity: .75; }
 
-/* ============================================================ */
-/*  JEKETI POINT                                                */
-/* ============================================================ */
 .points-chip {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--paper);
@@ -517,7 +491,7 @@
   position: absolute;
   z-index: 11;
   right: max(12px, calc(env(safe-area-inset-right, 0px) + 8px));
-  top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));   /* very top-right corner */
+  top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
   transform: none;
 }
 .cards-progress .points-chip { box-shadow: none; border: none; background: none; padding: 6px 0 0; justify-content: center; }
@@ -537,7 +511,6 @@
   .points-earned b { font-size: 18px; }
   .points-earned { margin-top: 4px; }
 }
-/* ---------- red dot on tabs that hold cards you haven't looked at yet ---------- */
 .cards-tab.has-new, .cards-chip.has-new { position: relative; }
 .cards-tab.has-new::after, .cards-chip.has-new::after {
   content: '';
@@ -552,16 +525,14 @@
   animation: dot-pop 1.1s ease-in-out infinite;
 }
 
-/* ---------- seen before, but none in your inventory right now: greyed out (never-seen cards stay locked) ---------- */
 .tcard.ghost { filter: grayscale(1) brightness(.5) contrast(.9); opacity: .8; cursor: pointer; }
 .tcard.ghost *, .tcard.ghost::before { animation: none !important; }
 .tcard.ghost .tc-glow, .tcard.ghost .tc-sheen, .tcard.ghost .tc-sweep, .tcard.ghost .tc-foil { display: none; }
 
-/* ---------- oshi heart, top right of the card ---------- */
 .tc-heart {
   position: absolute; z-index: 6;
   right: -.5em; top: -.5em;
-  display: block; width: 1em; text-align: center; /* 1em wide, centred on the right edge: half in, half out */
+  display: block; width: 1em; text-align: center;
   color: #ff2d8a;
   font: 900 3em/1 sans-serif;
   filter: drop-shadow(0 0 .08em #fff) drop-shadow(0 0 .2em #fff) drop-shadow(0 0 .4em rgba(255, 255, 255, .95)) drop-shadow(0 0 .7em rgba(255, 255, 255, .7));

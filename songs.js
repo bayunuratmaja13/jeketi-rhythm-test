@@ -1,28 +1,5 @@
 console.log('songs.js loaded');
 
-// Optional per-song fields (all safe to leave out):
-//   bpm:          song tempo -> the background pulses on the beat
-//   beatOffset:   ms until the first beat (default 0)
-//   previewStart: second where the song-select preview starts (default 15)
-//   preview:      set to false to disable the preview for that song
-//   volume:       music loudness for this song (default 1; 1.2 = 20% louder; above 1 uses a gain node)
-//   fx:           gameplay effect that replaces the sakura petals: 'moon', 'sparkler', 'lightning' or 'meteors' (background meteor showers) (registered in SONG_FX in game.js)
-//   theme:        'crimson' | 'white' | 'popfight' | 'blackwhite' -> petals, lights, hit effects, track and atmosphere turn crimson red (notes change only from 100 combo; see THEMES in game.js)
-//                 'blackwhite': left two lanes = soft white notes, right two lanes = soft black notes, white + black petals, no colour changes at any combo
-//   petalText:    a word that flies around like the sakura petals, instead of petals (e.g. 'oaoeeee')
-//   team:         'dream' | 'love' | 'passion' -> only that team's cards are equipped
-//                 (leave it out, or use null, to allow every member's cards)
-//   petalFruit:   true -> fruits fly around instead of petals; glow from 50 combo, all turn into avocados at 100, avocados glow from 200
-//   petalChoco:   true -> chocolate bars fly around instead of petals; no colour change, just more of them from 100 and 200 combo
-//   petalNotes:   true -> musical notes fly around instead of petals, with the same colour changes as the petals
-//   petalSpell:   true -> orange wand-spell sparkles twinkle in the background instead of petals, more at 100 and 200 combo (Magic Hour)
-//   petalSakura:  true -> bright pink sakura petals (no colour change, no glow; more of them as the combo grows)
-//   coldMist:     true -> from 100 combo the stage turns subtly cold (Magic Hour)
-//   petalIndo:    true -> the Indonesian flag and a skull emoji fly around instead of petals (no colour change; glow from 100 combo, more from 200)
-//   petalRoach:   true -> cockroaches fly around instead of petals (no colour change, no glow; more from 100 and 200 combo)
-//   mascot:       'grasshopper' -> a giant grasshopper waves its arms in the top right corner of the screen
-//   slots:        how many cards are equipped for this song (1-12, default 12). The highest-tier owned cards fill them.
-//   duet:         true -> the equipped card bar says "DUET WITH <guest>" instead of "ALL MEMBERS WITH <guest>"
 window.SONGS = [
   {
     id: 'ayo_senyumlah',
@@ -221,8 +198,8 @@ window.SONGS = [
     only: ['marsha', 'christy', 'feni', 'fiony', 'freya', 'gita', 'jessi', 'kathrina', 'muthe'],
     audio: 'music/magic_hour.ogg',
     chart: 'charts/magic_hour.js',
-    petalSpell: true,    // orange sparkles twinkle in the background instead of petals
-    coldMist: true,      // 100 combo: subtle cold atmosphere (200 combo: a little colder)
+    petalSpell: true,
+    coldMist: true,
     cover: 'images/magic_hour.webp',
     volume: 2
   },
@@ -677,7 +654,7 @@ window.SONGS = [
     team: null,
     audio: 'music/pesawat_kertas_365_hari.ogg',
     chart: 'charts/pesawat_kertas_365_hari.js',
-    petalPlane: true,   // slow gliding paper airplanes instead of petals
+    petalPlane: true,
     cover: 'images/mahagita.webp',
     volume: 1.2
   },
@@ -686,7 +663,7 @@ window.SONGS = [
     title: 'Persentase Meteor',
     artist: 'JKT48',
     team: null,
-    fx: 'meteors',      // meteor showers in the background at 50 / 100 / 200 / 300 / 400 / 480 combo
+    fx: 'meteors',
     audio: 'music/persentase_meteor.ogg',
     chart: 'charts/persentase_meteor.js',
     cover: 'images/dewi_theater.webp'
@@ -714,7 +691,7 @@ window.SONGS = [
     title: 'Sakura no Hanabiratachi',
     artist: 'JKT48',
     team: null,
-    petalSakura: true,  // bright pink sakura petals, no colour change, no glow, more at higher combos
+    petalSakura: true,
     audio: 'music/sakura_no_hanabiratachi.ogg',
     chart: 'charts/sakura_no_hanabiratachi.js',
     cover: 'images/gingham_check.webp'
@@ -727,7 +704,7 @@ window.SONGS = [
     slots: 2,
     audio: 'music/dua_orang_yang_terlarang.ogg',
     chart: 'charts/dua_orang_yang_terlarang.js',
-    theme: 'blackwhite',   // left lanes white, right lanes black, black & white petals
+    theme: 'blackwhite',
     cover: 'images/seishun_girls.webp'
   },
     {

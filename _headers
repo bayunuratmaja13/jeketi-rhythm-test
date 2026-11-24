@@ -1,4 +1,3 @@
-# Cloudflare Pages: always re-check the game's own files (a tiny 304 when nothing changed), so updates are never held back
 /*.html
   Cache-Control: no-cache
 /*.js

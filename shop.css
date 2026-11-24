@@ -1,8 +1,4 @@
-/* ============================================================ */
-/*  JEKETI RHYTHM — shop.css  (shop, squad bar, combine, card strip) */
-/* ============================================================ */
 
-/* ---------- entry button on song select ---------- */
 #shop-btn {
   position: fixed;
   bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px));
@@ -21,7 +17,6 @@
   animation: dot-pop 1.1s ease-in-out infinite;
 }
 
-/* ---------- screens ---------- */
 .sh-screen {
   position: fixed; inset: 0; z-index: 60;
   display: none; flex-direction: column;
@@ -34,12 +29,11 @@
 }
 .sh-screen.show { display: flex; animation: fade-in .22s ease-out; }
 .sh-head { position: relative; min-height: clamp(40px, 11dvh, 68px); flex: none; display: flex; align-items: center; gap: 10px; padding: 2px 0 6px; }
-.sh-back { position: relative; z-index: 3; flex: none; }   /* top left of the header row; Points is top right */
-.sh-pts { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); z-index: 2; }   /* Points: top right */
-.sh-shop .sh-foot { min-height: clamp(34px, 6dvh, 46px); align-items: center; }               /* just the ODDS link now: the room that used to be kept for Back goes to the packs */
+.sh-back { position: relative; z-index: 3; flex: none; }
+.sh-pts { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); z-index: 2; }
+.sh-shop .sh-foot { min-height: clamp(34px, 6dvh, 46px); align-items: center; }
 .sh-title { flex: 1; text-align: center; font: 900 clamp(22px, 6dvh, 38px)/1 var(--font-impact); letter-spacing: 2px; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
 .sh-pts .points-chip { box-shadow: none; transform: none; position: static; }
-/* CARD SHOP title image: dead centre of the top bar, independent of the back button / Points widths */
 .sh-title.has-img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none; z-index: 1; pointer-events: none; line-height: 0; }
 .sh-title-img { display: block; height: clamp(40px, 11dvh, 68px); width: auto; max-width: 52vw; object-fit: contain; }
 .sh-body { flex: 1; min-height: 0; display: flex; }
@@ -56,7 +50,6 @@
 .sh-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
 .sh-btn:disabled { background: #6b6f78; box-shadow: 0 4px 0 #3c3f46; color: #c9ccd3; cursor: default; text-shadow: none; }
 
-/* ---------- shop ---------- */
 .sh-shop .sh-body { flex-direction: column; justify-content: center; gap: 8px; }
 .sh-row { flex: 1; min-height: 0; display: flex; gap: clamp(8px, 2vw, 20px); justify-content: center; align-items: stretch; overflow-x: auto; padding: 4px 2px; scrollbar-width: none; }
 .sh-row::-webkit-scrollbar { display: none; }
@@ -80,7 +73,6 @@
 .sh-foot { flex: none; display: flex; justify-content: center; }
 .sh-odds { background: none; border: 0; color: rgba(255,255,255,.8); font: 700 13px/1 'Fredoka', sans-serif; text-decoration: underline; cursor: pointer; padding: 6px 12px; }
 
-/* mini pack art for the tiles */
 .shp {
   position: relative; height: 100%; max-height: 100%; aspect-ratio: 3 / 4; max-width: 100%;
   border-radius: 6%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -97,7 +89,6 @@
 .shp-ct { margin-top: 6%; font: 700 .8em/1 'Fredoka', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.92); text-shadow: 0 1px 0 rgba(0,0,0,.4); }
 .shp-gloss { position: absolute; inset: 0; background: linear-gradient(112deg, transparent 38%, rgba(255,255,255,.55) 49%, rgba(255,255,255,.1) 54%, transparent 62%); pointer-events: none; }
 
-/* ---------- modals ---------- */
 .sh-modal { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(5,2,10,.78); opacity: 0; transition: opacity .18s; padding: 10px; touch-action: manipulation; }
 .sh-modal.in { opacity: 1; }
 .sh-mbox { position: relative; max-width: min(560px, 96vw); max-height: 92dvh; overflow: auto; background: var(--paper); color: #3a2140; border-radius: 14px; padding: 14px 16px 16px; font-family: 'Fredoka', sans-serif; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
@@ -111,9 +102,8 @@
 .sh-pm { padding: 8px 12px; border-radius: 999px; background: #fff; border: 2px solid var(--tc); color: #3a2140; font: 700 14px/1 'Fredoka', sans-serif; cursor: pointer; }
 .sh-pm:active { background: var(--tc); color: #fff; }
 
-/* ---------- squad bar: bottom of song select (12 equipped cards) ---------- */
 #squad-bar {
-  --sq-s: 1;   /* overall scale of the equip cards tab (1 = original size) */
+  --sq-s: 1;
   --sq-cols: 12; --sq-rows: 1; --sq-gap: clamp(3px, .6vw, 8px); --sq-pad: 10px; --sq-maxh: 32dvh; --sq-cap: 16px; --sq-bw: clamp(160px, 18vw, 340px); --sq-colgap: clamp(10px, 1.2vw, 24px);
   --sq-cw: calc(var(--sq-s) * min(
     calc((100vw - 2 * var(--sq-pad) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--sq-bw) - var(--sq-colgap) - (var(--sq-cols) - 1) * var(--sq-gap)) / var(--sq-cols)),
@@ -133,7 +123,7 @@
   align-self: stretch; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 3px;
   padding: 6px 8px; border-radius: 14px; border: 2px solid rgba(255, 226, 122, .55);
   background: radial-gradient(ellipse at 50% 0%, rgba(255, 226, 122, .22), rgba(0, 0, 0, .28) 70%);
-  overflow: hidden; container-type: size;   /* size containment: this panel never changes the bar's height; its text scales to the panel instead */
+  overflow: hidden; container-type: size;
 }
 .sb-label { font: 700 min(11cqh, 13cqw)/1 'Fredoka', sans-serif; letter-spacing: .16em; color: #ffe27a; text-shadow: 0 1px 0 rgba(0,0,0,.6); }
 .sb-grade { font: 900 min(44cqh, 50cqw)/.9 var(--font-impact, 'Fredoka', sans-serif); color: #fff; text-shadow: 0 3px 0 #a86f00, 0 0 18px rgba(255, 210, 63, .55); }
@@ -141,15 +131,13 @@
 .sb-fc { font: 800 min(10cqh, 10cqw)/1 'Fredoka', sans-serif; letter-spacing: .12em; color: #4a2e00; background: linear-gradient(180deg, #ffe27a, #f0a800); padding: 3px 9px; border-radius: 999px; }
 .sb-none { font: 700 min(15cqh, 17cqw)/1.15 'Fredoka', sans-serif; color: #fff; opacity: .6; letter-spacing: .06em; padding: 6px 0; }
 .sq-cap {
-  position: relative; z-index: 8; translate: calc((var(--sq-bw) + var(--sq-colgap)) / -2) 0;   /* centred on the whole screen (not just the card area), drawn above the cards */
+  position: relative; z-index: 8; translate: calc((var(--sq-bw) + var(--sq-colgap)) / -2) 0;
   height: calc(var(--sq-cap) * var(--sq-s)); margin-bottom: 3px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font: 700 calc(clamp(9px, 2.3dvh, 12px) * var(--sq-s))/calc(var(--sq-cap) * var(--sq-s)) 'Fredoka', sans-serif; letter-spacing: .14em; color: #ffe27a; text-shadow: 0 1px 0 rgba(0,0,0,.6);
 }
 .sq-cap em { font-style: normal; color: #fff; opacity: .85; }
 .sq-grid {
-  display: flex; flex-wrap: wrap; gap: var(--sq-gap); justify-content: center;   /* flex, not grid: fewer than 12 cells stay centered */
-  /* The cards sit right of the BEST SCORE panel, so "centered" meant centered in that area, not on the screen.
-     Slide them left by half the panel width, but never more than the free space in the row (a full row stays put). */
+  display: flex; flex-wrap: wrap; gap: var(--sq-gap); justify-content: center;
   --sq-row-n: min(var(--sq-n, 12), var(--sq-cols));
   --sq-row-w: calc(var(--sq-row-n) * var(--sq-cw) + (var(--sq-row-n) - 1) * var(--sq-gap));
   --sq-main-w: calc(100vw - 2 * var(--sq-pad) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--sq-bw) - var(--sq-colgap));
@@ -157,7 +145,7 @@
 }
 .sq-cell { position: relative; width: var(--sq-cw); aspect-ratio: 3 / 4; }
 .sq-cell .tcard { pointer-events: none; }
-#squad-bar .tc-badge { scale: .9; }                      /* tier letters 10% smaller so they stop covering the caption */
+#squad-bar .tc-badge { scale: .9; }
 .sq-blank {
   width: 100%; height: 100%; box-sizing: border-box; border-radius: 8%; border: 2px dashed rgba(255, 255, 255, .26);
   background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .04) 0 6px, rgba(255, 255, 255, .09) 6px 12px), rgba(0, 0, 0, .38);
@@ -174,12 +162,10 @@
 }
 .sq-tag b { font: 900 1.15em/1 var(--font-impact); } .sq-tag small { opacity: .7; font-weight: 700; }
 .sq-tag.none { background: rgba(10, 5, 20, .85); color: #fff; box-shadow: none; }
-/* keep the shop button and the page content above the bar */
 body.squad-on #shop-btn, body.squad-on #my-cards-btn { bottom: calc(var(--sq-h, 0px) + 8px); }
 body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h, 0px); }
 @media (prefers-reduced-motion: reduce) { #squad-bar.show { animation: none; } }
 
-/* ---------- card strip in the game ---------- */
 .card-hud {
   position: fixed; z-index: 120; pointer-events: none;
   top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
@@ -191,7 +177,6 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .hud-bonus { margin-left: 4px; font: 900 13px/1 var(--font-impact); color: #ffe27a; text-shadow: 0 1px 0 rgba(0,0,0,.6); }
 @media (max-width: 520px) { .card-hud .tcard { --cw: 24px; } }
 
-/* ---------- viewer actions + combine ---------- */
 .cv-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; max-width: min(92vw, 520px); }
 .cv-actions:empty { display: none; }
 .cv-bonus { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.16); color: #ffe27a; font: 800 13px/1 'Fredoka', sans-serif; }
@@ -213,7 +198,6 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .cmb-title { font: 900 clamp(26px, 8dvh, 48px)/1 var(--font-impact); color: var(--gold); text-shadow: 3px 3px 0 rgba(0,0,0,.7), 0 0 16px currentColor; min-height: 1em; }
 .cmb.hit .cmb-title { animation: stamp-in .45s cubic-bezier(.3,1.8,.5,1) both; }
 
-/* ---------- oshi picker ---------- */
 .oshi-pick {
   --tc: #ff66a3;
   position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; overflow: hidden;
@@ -228,18 +212,17 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 @keyframes op-rise { 0% { transform: translateY(0) rotate(-10deg); opacity: 0; } 12% { opacity: .55; } 100% { transform: translateY(-115dvh) rotate(14deg); opacity: 0; } }
 
 .op-top { position: relative; z-index: 2; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0 4px; }
-.op-top { --sw: clamp(250px, 42vw, 400px); }   /* same value as .op-main: the title is centred over the highlighted card */
+.op-top { --sw: clamp(250px, 42vw, 400px); }
 .op-title { position: absolute; left: calc(50% - var(--sw) / 2); top: 50%; transform: translate(-50%, -50%); white-space: nowrap; font: 900 clamp(20px, 6.4dvh, 32px)/1 var(--font-impact); letter-spacing: .5px; text-shadow: 0 3px 0 rgba(0,0,0,.4), 0 0 16px var(--tc); }
 .op-title span { color: #ff5d93; display: inline-block; animation: op-beat 1.1s ease-in-out infinite; }
 @keyframes op-beat { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.3); } 40% { transform: scale(1); } }
-.op-filters { display: flex; gap: 8px; margin-left: auto; }   /* stays on the right now that the title is positioned over the card */
+.op-filters { display: flex; gap: 8px; margin-left: auto; }
 .op-filters button { padding: 8px 18px; border-radius: 999px; border: 3px solid rgba(255,255,255,.45); background: rgba(0,0,0,.3); color: #fff; font: 700 clamp(15px, 4.6dvh, 20px)/1 'Fredoka', sans-serif; cursor: pointer; }
 .op-filters button.on { background: #fff; color: #3a2140; border-color: #fff; }
 
 .op-main { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 8px; }
 .op-main { --ph: calc(100dvh - 62px); --pw: calc(var(--ph) * .75); --sw: clamp(250px, 42vw, 400px); }
-.op-car { position: relative; z-index: 0; flex: 1; min-width: 0; touch-action: none; cursor: grab; }   /* z-index: 0 keeps the cards' own z-indexes inside the carousel, so they can never cover the side panel */
-/* cards are laid out by shop.js as a fan (transform + z-index per card); no scrolling, so selecting is instant */
+.op-car { position: relative; z-index: 0; flex: 1; min-width: 0; touch-action: none; cursor: grab; }
 .op-item { position: absolute; left: calc(50% - var(--sw) / 2); top: 50%; width: var(--pw); height: var(--ph); margin: calc(var(--ph) / -2) 0 0 calc(var(--pw) / -2);
   cursor: pointer; transform-origin: 50% 135%; transition: transform .18s cubic-bezier(.2,.85,.3,1), opacity .2s, visibility .18s; }
 .op-item.sel { cursor: default; }
@@ -257,14 +240,11 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .op-ph b { font: 800 clamp(18px, 5dvh, 28px)/1.1 var(--font-impact); } .op-ph small { opacity: .8; font-weight: 600; }
 
 .op-arrow { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: 3px solid #fff; background: rgba(10,5,20,.55); color: #fff; font-size: 16px; cursor: pointer; }
-/* arrows hug the highlighted card: card edge = 50% - sw/2 +- pw/2 (same centre the fan uses); drawn above the fan and the info box */
 .op-arrow { z-index: 4; }
 .op-arrow.l { left: calc(50% - var(--sw) / 2 - var(--pw) / 2 - 52px); right: auto; }
 .op-arrow.r { left: calc(50% - var(--sw) / 2 + var(--pw) / 2 + 8px); right: auto; }
 .op-arrow:active { transform: scale(.92); }
 
-/* info box: right side of the picker, drawn on top of the unselected cards (just inside the right arrow).
-   pointer-events: none so a swipe that starts on the box still scrolls the fan; only the button is tappable. */
 .op-side { position: absolute; top: 50%; transform: translateY(-50%); left: auto; right: 54px; width: var(--sw); box-sizing: border-box; padding: 18px 22px; border-radius: 22px; pointer-events: none;
   background: color-mix(in srgb, var(--tc) 16%, rgba(13,4,22,.72)); box-shadow: 0 8px 24px rgba(0,0,0,.45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; z-index: 2; }
@@ -293,16 +273,14 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
   .op-arrow.r { left: auto; right: 0; }
 }
 
-/* oshi confirmation pop up (above the picker) */
 .oshi-confirm { position: fixed; inset: 0; z-index: 1600; display: flex; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;
   background: rgba(5, 2, 10, .72); touch-action: manipulation; user-select: none; -webkit-user-select: none; font-family: 'Fredoka', var(--font-game), sans-serif; animation: fade-in .18s ease-out; }
 .oc-box { width: min(94vw, 680px); box-sizing: border-box; padding: clamp(18px, 4dvh, 30px) clamp(16px, 3vw, 30px); border-radius: 20px; text-align: center; background: var(--paper); color: #3a2140; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
-.oc-title { white-space: nowrap; overflow: hidden; font: 900 clamp(24px, 7dvh, 42px)/1.15 var(--font-impact); }   /* always one line: shop.js shrinks the font if a long name would not fit */
+.oc-title { white-space: nowrap; overflow: hidden; font: 900 clamp(24px, 7dvh, 42px)/1.15 var(--font-impact); }
 .oc-title b { color: #e0488a; }
 .oc-btns { display: flex; gap: 16px; justify-content: center; margin-top: clamp(14px, 3.4dvh, 26px); }
 .oc-btns .sh-btn { flex: 1; max-width: 240px; min-height: clamp(52px, 11dvh, 72px); font-size: clamp(20px, 5.4dvh, 30px); border-radius: 34px; }
 
-/* ---------- combine: orbit, charge, explode ---------- */
 .cmb { overflow: hidden; }
 .cmb-row { position: relative; display: block; width: 100%; height: calc(var(--cw) * 1.5); }
 .cmb-c { position: absolute; left: 50%; top: 50%; width: var(--cw); margin: calc(var(--cw) * -.667) 0 0 calc(var(--cw) * -.5); will-change: transform, filter; }
@@ -336,19 +314,15 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .cmb-fx i:not(.cmb-ring) { border-radius: 50%; }
 .cmb-ring { width: calc(var(--cw) * 1.2); aspect-ratio: 1; border: 6px solid #fff; border-radius: 50%; box-shadow: 0 0 24px currentColor, inset 0 0 24px rgba(255, 255, 255, .4); }
 
-/* ============================================================
-   PERFORMANCE: the squad-bar cards are never flipped or tilted, so they are flat
-   (no perspective / preserve-3d / backface stack = far fewer GPU layers). Same look, nothing animates in the bar.
-   ============================================================ */
 #squad-bar .tcard.flat { perspective: none; }
 #squad-bar .tcard.flat .tc-tilt,
 #squad-bar .tcard.flat .tc-inner { transform: none; transform-style: flat; transition: none; }
 #squad-bar .tcard.flat .tc-face { backface-visibility: visible; -webkit-backface-visibility: visible; }
 #squad-bar .tcard.flat .tc-sweep,
-#squad-bar .tcard.flat .tc-sheen { display: none; }                       /* hover shine: the bar has no pointer */
+#squad-bar .tcard.flat .tc-sheen { display: none; }
 #squad-bar .tcard.flat *,
-#squad-bar .tcard.flat { animation: none !important; }                    /* tier shimmer / sparkle loops are paused in the bar */
-#squad-bar .tcard.flat .tc-glow { filter: none; background: radial-gradient(closest-side, var(--gc, transparent) 40%, transparent 100%); }  /* static, no blur filter */
+#squad-bar .tcard.flat { animation: none !important; }
+#squad-bar .tcard.flat .tc-glow { filter: none; background: radial-gradient(closest-side, var(--gc, transparent) 40%, transparent 100%); }
 #squad-bar .tcard.flat .tc-foil { display: none; }
 #squad-bar .tcard.flat .tc-spark, #squad-bar .tcard.flat .sp { display: none; }
 #squad-bar .tcard.flat .tc-heart { filter: none; }
@@ -356,12 +330,9 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 #squad-bar { contain: layout style; }
 
 
-/* ============================================================
-   CENTER PICK: pop out after PLAY -> YES, the bottom bar becomes clickable, and the CENTER tag
-   ============================================================ */
 #center-pick {
   position: fixed; inset: 0; z-index: 2600; display: none; align-items: center; justify-content: center; box-sizing: border-box;
-  padding: 12px 12px calc(var(--sq-h, 0px) + 12px);      /* the pop out sits in the space above the bottom bar */
+  padding: 12px 12px calc(var(--sq-h, 0px) + 12px);
   background: rgba(5, 2, 10, .72); touch-action: manipulation; -webkit-user-select: none; user-select: none;
 }
 #center-pick.show { display: flex; animation: cp-fade .18s ease-out; }
@@ -372,21 +343,19 @@ body.squad-on #menu-screen { box-sizing: border-box; padding-bottom: var(--sq-h,
 .cpk-sub small { opacity: .65; font-weight: 600; }
 .cpk-back { margin-top: clamp(6px, 1.6dvh, 10px); padding: 6px 14px; background: none; border: 0; cursor: pointer; font: 700 13px/1 'Fredoka', sans-serif; letter-spacing: .12em; color: #3a2140; opacity: .6; }
 .cpk-back:focus-visible { outline: 3px solid #ffd23f; outline-offset: 2px; }
-#center-pick:not(.confirm) .cpk-btns { display: none; }       /* step 1: just the instruction */
-#center-pick.confirm .cpk-back { display: none; }             /* step 2: YES / NO */
+#center-pick:not(.confirm) .cpk-btns { display: none; }
+#center-pick.confirm .cpk-back { display: none; }
 
-/* the equipped cards are only clickable while picking, and sit above the dim layer */
 body.center-picking #squad-bar { z-index: 2650; pointer-events: auto; }
 body.center-picking .sq-cell:not(.empty) { cursor: pointer; }
 .sq-cell { transition: transform .15s ease-out; }
-body.center-picking:not(.cp-has-sel) .sq-cell:not(.empty) { animation: cpk-hint 1.1s ease-in-out infinite; }   /* a little hop: "tap me" */
+body.center-picking:not(.cp-has-sel) .sq-cell:not(.empty) { animation: cpk-hint 1.1s ease-in-out infinite; }
 @keyframes cpk-hint { 50% { transform: translateY(-4px); } }
 @media (hover: hover) { body.center-picking .sq-cell:not(.empty):hover { transform: translateY(-6px); } }
 body.center-picking .sq-cell.sel, body.center-picking .sq-cell.sel:hover {
   transform: translateY(-8px) scale(1.08); z-index: 5; filter: drop-shadow(0 0 8px #ffd23f) drop-shadow(0 0 3px #fff);
 }
 
-/* CENTER tag: on the picked card in the bottom bar, and on that card in the in-game cheering cards */
 .cc-center, .eq-center, .sq-cell.sel::after {
   position: absolute; left: 50%; translate: -50% 0; z-index: 7; white-space: nowrap; pointer-events: none;
   padding: 1px 7px; border-radius: 999px; background: linear-gradient(180deg, #ffe27a, #f0a800); color: #4a2e00;
@@ -398,10 +367,6 @@ body.center-picking .sq-cell.sel, body.center-picking .sq-cell.sel:hover {
 @media (prefers-reduced-motion: reduce) { body.center-picking .sq-cell { animation: none !important; } #center-pick.show { animation: none; } }
 
 
-/* ============================================================
-   PERFORMANCE (in-game): the cheering cards are flat like the squad-bar cards (no 3D stack, no shimmer / sparkle loops,
-   no blur filter), and light mode (body.low-fx, set by game.js when the phone struggles) removes the extra layers
-   ============================================================ */
 .card-cheer .tcard.flat { perspective: none; }
 .card-cheer .tcard.flat .tc-tilt,
 .card-cheer .tcard.flat .tc-inner { transform: none !important; transform-style: flat; transition: none; }

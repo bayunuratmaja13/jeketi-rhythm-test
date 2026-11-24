@@ -1,6 +1,3 @@
-/* ============================================ */
-/* ============ CUSTOM FONTS ==== */
-/* ============================================ */
 @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=M+PLUS+Rounded+1c:wght@800;900&family=Fredoka:wght@600;700&display=swap');
 
 @font-face {
@@ -34,7 +31,6 @@ html {
   background: #05020a;
 }
 
-/* Dark backdrop so any sub-pixel gap during flash/shake matches the game, not white */
 html {
   background: #05020a;
 }
@@ -43,7 +39,6 @@ html {
   --font-ui: 'GameFont1', 'Arial Rounded MT Bold', sans-serif;
   --font-text: 'GameFont2', 'Verdana', sans-serif;
 
-  /* Gameplay theme fonts */
   --font-game: 'Baloo 2', 'Segoe UI', sans-serif;
   --font-impact: 'M PLUS Rounded 1c', 'Arial Black', sans-serif;
 
@@ -61,7 +56,6 @@ html {
   --black: #111111;
   --white: #ffffff;
 
-  /* New gameplay theme palette */
   --sakura: #ff6ba6;
   --sky: #4da8ff;
   --mint: #66d9a8;
@@ -84,9 +78,6 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ============================================ */
-/* ============ STAGE / GAME THEME ==== */
-/* ============================================ */
 #game {
   position: relative;
   width: 100vw;
@@ -98,13 +89,9 @@ body {
   overflow: hidden;
   perspective: 1000px;
   perspective-origin: 50% 30%;
-  /* Overshoot edge so the body never shows through during shake */
   box-shadow: 0 0 0 6px #05020a;
 }
 
-/* ============================================ */
-/* ============ AMBIENT / TIER GLOW ==== */
-/* ============================================ */
 #tier-glow {
   position: fixed;
   inset: 0;
@@ -144,9 +131,6 @@ body[data-tier="4"] #tier-glow {
   50%      { opacity: 1; }
 }
 
-/* ============================================ */
-/* ============ PLAYFIELD ==== */
-/* ============================================ */
 #playfield {
   position: absolute;
   left: 50%;
@@ -177,9 +161,6 @@ body[data-tier="4"] #tier-glow {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 107, 166, 0.26) 100%);
 }
 
-/* ============================================ */
-/* ============ NOTES ==== */
-/* ============================================ */
 .note {
   position: absolute;
   left: 8%;
@@ -292,9 +273,6 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   100% { transform: scale(2) rotate(20deg);   opacity: 0; }
 }
 
-/* ============================================ */
-/* ============ RECEPTORS ==== */
-/* ============================================ */
 .judgement-line {
   position: absolute;
   left: 8%;
@@ -363,9 +341,6 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   70% { transform: translateX(4px); }
 }
 
-/* ============================================ */
-/* ============ LANE LABEL ==== */
-/* ============================================ */
 .lane-label {
   position: absolute;
   left: 8%;
@@ -391,14 +366,10 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   text-shadow: 0 0 8px var(--sakura);
 }
 
-/* Hide keyboard hints on touch devices */
 @media (pointer: coarse), (hover: none) {
   .lane-label { display: none; }
 }
 
-/* ============================================ */
-/* ============ HIT RINGS ==== */
-/* ============================================ */
 .hit-ring {
   position: absolute;
   left: 8%;
@@ -422,9 +393,6 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   100% { transform: scale(2.4); opacity: 0; }
 }
 
-/* ============================================ */
-/* ============ PARTICLES ==== */
-/* ============================================ */
 .particle {
   position: absolute;
   left: 50%;
@@ -448,9 +416,6 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   100% { transform: rotate(var(--angle)) translate(var(--dist), 0) scale(0.3); opacity: 0; }
 }
 
-/* ============================================ */
-/* ============ SHAKE ==== */
-/* ============================================ */
 @keyframes shake {
   0%, 100% { transform: translate3d(0, 0, 0); }
   25% { transform: translate3d(calc(-1 * var(--shake, 2px)), calc(0.6 * var(--shake, 2px)), 0); }
@@ -463,9 +428,6 @@ body[data-tier="4"] .note.hit-pop::before { display: none; }
   will-change: transform;
 }
 
-/* ============================================ */
-/* ============ HUD: SCORE ==== */
-/* ============================================ */
 #score {
   position: fixed;
   top: max(20px, calc(env(safe-area-inset-top, 0px) + 12px));
@@ -504,9 +466,6 @@ body[data-tier="4"] #score {
   100% { color: var(--sakura); text-shadow: 0 0 6px var(--sakura); }
 }
 
-/* ============================================ */
-/* ============ HUD: COMBO ==== */
-/* ============================================ */
 #combo {
   position: fixed;
   top: 63%;
@@ -601,9 +560,6 @@ body[data-tier="4"] #score {
   100% { transform: translateX(-50%) scale(1.6)  opacity: 0; }
 }
 
-/* ============================================ */
-/* ============ HUD: JUDGEMENT ==== */
-/* ============================================ */
 #judgement {
   position: fixed;
   top: 54%;
@@ -641,9 +597,6 @@ body[data-tier="4"] #score {
   100% { transform: translateX(-50%) scale(1)    rotate(0deg); opacity: 0; }
 }
 
-/* ============================================ */
-/* ============ PAUSE BUTTON ==== */
-/* ============================================ */
 #pause-btn {
   position: fixed;
   top: max(20px, calc(env(safe-area-inset-top, 0px) + 12px));
@@ -671,9 +624,6 @@ body[data-tier="4"] #score {
 #pause-btn:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(255, 107, 166, 0.6); }
 #pause-btn:active { transform: scale(0.95); }
 
-/* ============================================ */
-/* ============ FLASH LAYERS ==== */
-/* ============================================ */
 #screen-flash {
   position: fixed;
   top: -8px;
@@ -685,7 +635,6 @@ body[data-tier="4"] #score {
   pointer-events: none;
   z-index: 500;
   transition: opacity 0.15s;
-  /* Prevent sub-pixel compositing seams on iOS / high-DPI screens */
   transform: translateZ(0);
   will-change: opacity;
   backface-visibility: hidden;
@@ -724,9 +673,6 @@ body[data-tier="4"] #score {
   );
 }
 
-/* ============================================ */
-/* ============ GIF BUTTONS ==== */
-/* ============================================ */
 .gif-btn {
   background: transparent;
   border: none;
@@ -749,8 +695,6 @@ body[data-tier="4"] #score {
   display: block;
 }
 
-/* BACK button: white text in a pastel red pill (same family as the Points chip and the Daily button).
-   Used by song select, My Cards, Card Shop and Daily. Static glow on purpose: no endless animation to repaint. */
 .back-pill {
   display: inline-flex; align-items: center; justify-content: center;
   padding: .42em 1.25em;
@@ -771,7 +715,6 @@ body[data-tier="4"] #score {
   display: block;
 }
 
-/* Big buttons for overlays */
 .pause-card .btn-gif,
 .results-card .btn-gif,
 .gameover-card .btn-gif {
@@ -780,12 +723,9 @@ body[data-tier="4"] #score {
 .pause-card .gif-btn,
 .results-card .gif-btn,
 .gameover-card .gif-btn {
-  padding: 8px 10px;            /* extra tap area around each button */
+  padding: 8px 10px;
 }
 
-/* ============================================ */
-/* ============ OVERLAYS ==== */
-/* ============================================ */
 #pause-overlay, #results, #game-over {
   position: fixed;
   inset: 0;
@@ -823,7 +763,6 @@ body[data-tier="4"] #score {
 }
 .gameover-title { color: var(--red); font-size: 46px; }
 
-/* Album cover shown above the title */
 .results-cover, .gameover-cover {
   width: 104px;
   height: 104px;
@@ -867,7 +806,6 @@ body[data-tier="4"] #score {
   line-height: 1.3;
 }
 
-/* Stats side-by-side */
 .results-stats, .gameover-stats {
   display: flex;
   gap: 22px;
@@ -915,9 +853,6 @@ body[data-tier="4"] #score {
   align-items: center;
 }
 
-/* ============================================ */
-/* ============ MAIN MENU & SONG SELECT ==== */
-/* ============================================ */
 #main-menu-screen, #menu-screen {
   position: fixed;
   inset: 0;
@@ -926,7 +861,6 @@ body[data-tier="4"] #score {
   overflow: hidden;
 }
 
-/* Smaller paper, centered */
 .desk-paper {
   background: var(--paper);
   width: 90vw;
@@ -940,7 +874,7 @@ body[data-tier="4"] #score {
   position: relative;
   border: 1px solid rgba(0,0,0,0.1);
   box-shadow: 8px 15px 35px rgba(0,0,0,0.5);
-  transform: rotate(-1deg) scale(1.5);   /* title card is 50% bigger (back to 1 on phones, see media queries) */
+  transform: rotate(-1deg) scale(1.5);
 }
 .desk-paper::before {
   content: '';
@@ -1040,7 +974,6 @@ body[data-tier="4"] #score {
   transform: rotate(1deg);
 }
 
-/* Song Select Screen */
 #menu-screen {
   background: transparent;
 }
@@ -1057,7 +990,7 @@ body[data-tier="4"] #score {
   align-items: center;
   gap: 0;
 }
-#menu-left-btns {                         /* top-left, same top edge as the Points chip on the right: BACK, then OPTION */
+#menu-left-btns {
   position: absolute;
   top: max(10px, calc(env(safe-area-inset-top, 0px) + 6px));
   left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
@@ -1094,9 +1027,6 @@ body[data-tier="4"] #score {
 #song-grid::-webkit-scrollbar-track { background: transparent; }
 #song-grid::-webkit-scrollbar-thumb { background: var(--paper); border: 2px solid var(--wood); border-radius: 10px; }
 
-/* ============================================ */
-/* ============ SONG CARD ==== */
-/* ============================================ */
 .song-card {
   position: relative;
   display: flex;
@@ -1168,7 +1098,6 @@ body[data-tier="4"] #score {
 .song-card-title { font-family: var(--font-ui); font-size: 32px; color: var(--black); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song-card-artist { font-family: var(--font-text); font-weight: 900; font-size: 14px; color: #555; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Selected card */
 .song-card.selected {
   background: #fff5fa;
   transform: scale(1.04) rotate(0deg);
@@ -1247,9 +1176,6 @@ body[data-tier="4"] #score {
   color: var(--paper);
 }
 
-/* ============================================ */
-/* ============ MOBILE (portrait + general) ==== */
-/* ============================================ */
 @media (max-width: 768px) {
   #playfield { width: 98vw; max-width: 98vw; bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); }
 
@@ -1313,9 +1239,6 @@ body[data-tier="4"] #score {
   }
 }
 
-/* ============================================ */
-/* ============ MOBILE LANDSCAPE ==== */
-/* ============================================ */
 @media (orientation: landscape) and (max-height: 500px) {
   #playfield {
     width: min(600px, 85vh);
@@ -1434,9 +1357,6 @@ body[data-tier="4"] #score {
 }
 
 
-/* ============================================ */
-/* ============ ORIENTATION HINT ==== */
-/* ============================================ */
 #rotate-hint {
   display: none;
   position: fixed;
@@ -1468,17 +1388,12 @@ body[data-tier="4"] #score {
 @media (orientation: portrait) and (pointer: coarse) {
   #rotate-hint { display: flex; }
 }
-/* ================================================================== */
-/* ===== ADDITIONS FOR NEWER game.js FEATURES (themed to match) ===== */
-/* ================================================================== */
 
-/* --- Combo is now <span.combo-num> + <span.combo-label> --- */
 #combo { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 #combo.off { display: none; }
 #combo .combo-num { font-size: 1em; }
 #combo .combo-label { font-size: 0.42em; letter-spacing: 4px; opacity: 0.85; margin-top: 2px; }
 
-/* --- Lane light beams (one per lane, JS sets --beam colour) --- */
 .lane-beam {
   position: absolute; left: 8%; width: 84%; bottom: 40px; height: 75%;
   background: linear-gradient(to top, var(--beam, #ff6ba6) 0%, transparent 100%);
@@ -1486,16 +1401,13 @@ body[data-tier="4"] #score {
   mix-blend-mode: screen;
 }
 
-/* --- Falling petals canvas (sized by JS, must not block input) --- */
 #petals { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; pointer-events: none; z-index: 3; }
 
-/* --- Beat pulse (soft vignette that throbs with the BPM) --- */
 #beat-pulse {
   position: fixed; inset: 0; opacity: 0; pointer-events: none; z-index: 2;
   background: radial-gradient(ellipse at 50% 100%, rgba(255, 107, 166, 0.28) 0%, transparent 60%);
 }
 
-/* --- EARLY / LATE --- */
 #timing {
   position: fixed; top: 48%; left: 50%; transform: translateX(-50%);
   font-family: var(--font-game); font-weight: 800; font-size: 20px; letter-spacing: 3px;
@@ -1503,7 +1415,6 @@ body[data-tier="4"] #score {
   text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
 }
 
-/* --- Tier-up banner --- */
 #tier-banner {
   position: fixed; top: 24%; left: 50%; transform: translateX(-50%);
   text-align: center; opacity: 0; pointer-events: none; z-index: 110; white-space: nowrap;
@@ -1516,7 +1427,6 @@ body[data-tier="4"] #score {
 #tier-banner.t3 { color: var(--gold); }
 #tier-banner.t4 { color: #d65bff; }
 
-/* --- Resume countdown --- */
 #countdown {
   display: none; position: fixed; top: 42%; left: 50%; margin: 0;
   translate: -50% -50%;
@@ -1527,7 +1437,6 @@ body[data-tier="4"] #score {
 }
 #countdown.show { display: block; }
 
-/* --- Life gauge --- */
 .life, #life {
   display: none; position: fixed; top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)); left: 50%;
   transform: translateX(-50%); width: min(300px, 36vw); height: 12px; z-index: 100;
@@ -1543,14 +1452,11 @@ body[data-tier="4"] #score {
 #life.low #life-fill { background: linear-gradient(90deg, var(--red), #ff7a6b); animation: life-low 0.6s ease-in-out infinite; }
 @keyframes life-low { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
-/* --- Held notes --- */
 .note.holding { filter: brightness(1.25); }
 
-/* --- Best score on song cards --- */
 .song-best { font-family: var(--font-text); font-weight: 900; font-size: 12px; color: var(--pink); letter-spacing: 0.5px; margin-top: 2px; }
 .song-best:empty { display: none; }
 
-/* --- Results: two-column layout, grade stamp, judgement counts --- */
 .results-card { max-width: min(780px, 94vw); padding: 30px 36px 26px; }
 .results-layout { display: flex; align-items: center; gap: 30px; text-align: left; }
 .results-left { flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -1600,7 +1506,6 @@ body[data-tier="4"] #score {
 }
 .record-badge.show { display: block; animation: stamp-in 0.4s cubic-bezier(0.3, 1.8, 0.5, 1) both; }
 
-/* --- Results on short landscape screens / narrow portrait --- */
 @media (max-height: 500px) {
   .results-card { padding: 14px 20px 12px; }
   .results-layout { gap: 18px; }
@@ -1622,9 +1527,6 @@ body[data-tier="4"] #score {
   .results-left { flex-basis: auto; }
 }
 
-/* ============================================ */
-/* ============ NOTE RECORDER ================= */
-/* ============================================ */
 #setup-screen, #export-screen {
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: max(30px, env(safe-area-inset-top)) 20px 60px; overflow-y: auto; z-index: 10;
   background: radial-gradient(ellipse at 50% 105%, rgba(255, 107, 166, 0.18) 0%, transparent 55%), radial-gradient(ellipse at 50% -5%, rgba(77, 168, 255, 0.1) 0%, transparent 55%), linear-gradient(180deg, #0a0514 0%, #18092b 45%, #05020a 100%);
@@ -1674,7 +1576,6 @@ body[data-tier="4"] #score {
   .export-actions { flex-direction: column; }
   .export-step { flex-direction: column; gap: 8px; }
 }
-/* --- Image titles on the end cards (finish.gif / game-over.gif) --- */
 .results-title:has(.title-img), .gameover-title:has(.title-img) {
   display: flex; justify-content: center; align-items: center;
   font-size: 0; line-height: 0; margin-bottom: 8px;
@@ -1684,13 +1585,10 @@ body[data-tier="4"] #score {
   max-width: 100%; max-height: clamp(48px, 16vh, 110px);
   object-fit: contain; pointer-events: none; -webkit-user-drag: none;
 }
-/* ================================================================== */
-/* ===== SONG SELECT: HORIZONTAL CAROUSEL (centered, big, pops) ===== */
-/* ================================================================== */
 #menu-screen { justify-content: flex-start; }
 
 #song-grid {
-  --cw: clamp(170px, min(30vw, 50vh), 360px);   /* card width */
+  --cw: clamp(170px, min(30vw, 50vh), 360px);
   display: flex !important;
   flex-direction: row;
   align-items: center;
@@ -1699,7 +1597,6 @@ body[data-tier="4"] #score {
   width: 100%;
   max-width: none;
   margin: 0;
-  /* side padding lets the first / last card reach the exact middle */
   padding: 34px calc(50% - var(--cw) / 2) 34px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1710,7 +1607,6 @@ body[data-tier="4"] #score {
   scrollbar-width: none;
 }
 #song-grid::-webkit-scrollbar { display: none; }
-/* PC mouse: the carousel can be grabbed and dragged */
 @media (hover: hover) and (pointer: fine) {
   #song-grid { cursor: grab; }
   #song-grid .song-card { cursor: grab; }
@@ -1729,9 +1625,8 @@ body[data-tier="4"] #score {
   padding: 12px 12px 14px;
   text-align: center;
   scroll-snap-align: center;
-  scroll-snap-stop: normal;   /* was "always": it made every flick stop on the very next card; now a fling glides past several and settles on one */
-  contain: layout style;      /* a card changing never makes the browser re-check the rest of the page */
-  /* --f (0..1) is set from JS while scrolling: far = small and faded, centre = big and bright */
+  scroll-snap-stop: normal;
+  contain: layout style;
   transform: scale(calc(0.74 + 0.36 * var(--f))) rotate(calc(-2.5deg * (1 - var(--f))));
   opacity: calc(0.5 + 0.5 * var(--f));
   filter: saturate(calc(0.55 + 0.45 * var(--f)));
@@ -1762,9 +1657,8 @@ body[data-tier="4"] #score {
 }
 #song-grid .song-cover-fallback { font-size: calc(var(--cw) * 0.3); }
 
-/* grade stamp of the player's saved best run, bottom-left of the song's cover (only songs that have been played) */
 .song-stamp {
-  position: absolute; left: calc(var(--ss) * -0.15); bottom: calc(var(--ss) * -0.5); z-index: 3;   /* on the cover's bottom-left corner, nudged out over the card padding, half of it over the title area */
+  position: absolute; left: calc(var(--ss) * -0.15); bottom: calc(var(--ss) * -0.5); z-index: 3;
   --ss: clamp(31px, calc(var(--cw, 150px) * 0.24), 77px);
   width: var(--ss); height: var(--ss); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1774,7 +1668,7 @@ body[data-tier="4"] #score {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
-#song-grid .song-cover { overflow: visible; }                      /* so the stamp can hang over the cover's edge */
+#song-grid .song-cover { overflow: visible; }
 #song-grid .song-cover img, #song-grid .song-cover-fallback { border-radius: inherit; }
 .song-stamp.g-SS { color: #d9980a; font-size: calc(var(--ss) * 0.44); letter-spacing: -1px; box-shadow: 0 0 8px rgba(255, 204, 51, 0.8), 0 1px 4px rgba(0, 0, 0, 0.35); }
 .song-stamp.g-S { color: var(--red); }
@@ -1782,7 +1676,7 @@ body[data-tier="4"] #score {
 .song-stamp.g-B { color: var(--blue); }
 .song-stamp.g-C { color: #777; }
 
-#song-grid .song-info { flex: none; margin-top: -8px; }          /* text sits closer to the cover */
+#song-grid .song-info { flex: none; margin-top: -8px; }
 #song-grid .song-card-title {
   font-family: 'Fredoka', 'Baloo 2', 'Arial Rounded MT Bold', sans-serif;
   font-weight: 700;
@@ -1796,8 +1690,7 @@ body[data-tier="4"] #score {
 #song-grid .song-card-artist { font-size: clamp(12px, calc(var(--cw) * 0.052), 19px); }
 #song-grid .song-best { font-size: clamp(10px, calc(var(--cw) * 0.036), 13px); }
 
-/* play button floats over the cover's bottom-right corner so the card never changes height */
-#song-grid { --pb: clamp(44px, calc(var(--cw) * 0.24), 76px); }  /* play button diameter */
+#song-grid { --pb: clamp(44px, calc(var(--cw) * 0.24), 76px); }
 #song-grid .card-play-btn {
   position: absolute;
   right: 12px;
@@ -1827,12 +1720,11 @@ body[data-tier="4"] #score {
 #song-grid .card-play-svg {
   width: 48%;
   height: 48%;
-  margin-left: 6%;   /* optically centre the triangle */
+  margin-left: 6%;
   filter: drop-shadow(0 2px 0 rgba(224, 72, 138, 0.55));
 }
 #song-grid .card-play-btn:hover { background: radial-gradient(circle at 32% 28%, #fff0f6 0%, #ffd0e2 55%, #ffb3d1 100%); }
 
-/* selected = the centred card */
 #song-grid .song-card.selected {
   background: #fff5fa;
   border: 2px solid var(--pink);
@@ -1891,7 +1783,6 @@ body[data-tier="4"] #score {
   #song-grid .song-card.selected .card-play-btn { animation: none; }
 }
 
-/* short landscape phones: keep the cards compact so they fit under the header */
 @media (orientation: landscape) and (max-height: 500px) {
   #song-grid {
     --cw: clamp(130px, min(26vw, 46vh), 220px);
@@ -1912,16 +1803,12 @@ body[data-tier="4"] #score {
 @media (max-height: 500px) {
   .title-img { max-height: clamp(36px, 14vh, 56px); }
 }
-/* rotate hint: tappable */
 #rotate-hint { cursor: pointer; }
 #rotate-hint small { font-size: 13px; letter-spacing: .5px; opacity: .8; font-family: 'Fredoka', var(--font-game), sans-serif; }
 html, body { overscroll-behavior: none; }
 
-/* ============================================ */
-/* ====== CHEERING CARDS (in-game, visual) ==== */
-/* ============================================ */
 .card-cheer {
-  --ch: 0;                      /* combo hype 0..4, follows body[data-tier] */
+  --ch: 0;
   --cw: clamp(46px, 13vh, 84px);
   position: fixed; z-index: 95; pointer-events: none;
   left: 50%; top: calc(env(safe-area-inset-top, 0px) + 36px);
@@ -1959,7 +1846,6 @@ body[data-tier="4"] .card-cheer { --ch: 4; }
 .cc-card.pos-fl { transform: translate(calc(var(--cw) * -1.2), calc(var(--cw) * .1)) scale(.5) rotate(-12deg); opacity: 0; z-index: 1; }
 .cc-card.pos-fr { transform: translate(calc(var(--cw) * 1.2),  calc(var(--cw) * .1)) scale(.5) rotate(12deg);  opacity: 0; z-index: 1; }
 
-/* the cheer itself: a bob that gets faster/taller with combo and card tier */
 .cc-bob {
   --amp: calc(2 + var(--ch) * 1.6 + var(--ct) * .9);
   --rot: calc(.5 + var(--ch) * .55 + var(--ct) * .25);
@@ -1977,7 +1863,6 @@ body[data-tier="4"] .card-cheer { --ch: 4; }
   75%      { transform: translateY(calc(var(--amp) * -1px)) scale(calc(1 + var(--amp) * .007)) rotate(calc(var(--rot) * 1deg)); }
 }
 
-/* soft glow behind the card (opacity/transform only: cheap) */
 .cc-aura {
   position: absolute; left: -35%; right: -35%; top: -20%; bottom: -20%; border-radius: 50%;
   background: radial-gradient(circle, var(--ac) 0%, transparent 62%);
@@ -1988,7 +1873,6 @@ body[data-tier="4"] .card-cheer { --ch: 4; }
 .cc-card.pos-l .cc-aura, .cc-card.pos-r .cc-aura { opacity: calc(.06 + var(--ch) * .05 + var(--ct) * .04); }
 @keyframes cc-aura { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.18); } }
 
-/* twinkling stars on the centre card from combo tier 2 */
 .cc-spark { display: none; position: absolute; color: var(--ac); font-size: calc(var(--cw) * .24); line-height: 1; text-shadow: 0 0 6px var(--ac); animation: cc-twinkle .9s ease-in-out infinite; }
 .cc-spark.s1 { left: -14%; top: 4%; }
 .cc-spark.s2 { right: -12%; top: 28%; animation-delay: -.3s; }
@@ -2001,7 +1885,6 @@ body:is([data-tier="2"], [data-tier="3"], [data-tier="4"]) .cc-card.pos-c .cc-sp
   .cc-bob, .cc-aura, .cc-spark { animation: none; }
 }
 
-/* ---- life bar now sits under the score (top right) ---- */
 #life {
   left: auto; transform: none;
   right: max(28px, calc(env(safe-area-inset-right, 0px) + 16px));
@@ -2015,14 +1898,12 @@ body:is([data-tier="2"], [data-tier="3"], [data-tier="4"]) .cc-card.pos-c .cc-sp
     width: min(150px, 24vw); height: 9px;
   }
 }
-/* cards no longer need to dodge the life bar */
 .card-cheer { top: calc(env(safe-area-inset-top, 0px) + 12px); }
 .cc-bonus { top: 2px; left: calc(var(--cw) * 1.3); }
 @media (orientation: landscape) and (max-height: 500px) {
   .card-cheer { top: calc(env(safe-area-inset-top, 0px) + 8px); }
 }
 
-/* ---- equipped cards on pause / game over / results ---- */
 .eq-strip { --eqw: clamp(24px, 5.5vh, 38px); margin: 10px auto 4px; text-align: center; max-width: 100%; }
 .eq-strip:empty { display: none; }
 .eq-label { font: 800 11px/1 var(--font-game, sans-serif); letter-spacing: 1.5px; opacity: .75; margin-bottom: 6px; }
@@ -2035,7 +1916,6 @@ body:is([data-tier="2"], [data-tier="3"], [data-tier="4"]) .cc-card.pos-c .cc-sp
 }
 
 
-/* ---------- "PLAY THIS SONG?" confirmation ---------- */
 #confirm-play {
   position: fixed; inset: 0; z-index: 2600; display: none; align-items: center; justify-content: center;
   padding: 12px; background: rgba(5, 2, 10, .72); touch-action: manipulation;
@@ -2076,13 +1956,6 @@ body:is([data-tier="2"], [data-tier="3"], [data-tier="4"]) .cc-card.pos-c .cc-sp
 @media (prefers-reduced-motion: reduce) { .cp-box, #confirm-play.show, .cp-yes { animation: none; } }
 
 
-/* ============================================================
-   PERFORMANCE: smoother song carousel (look is unchanged)
-   - the pulsing glows used to animate box-shadow (a full repaint of the big blurred shadow every frame, forever);
-     they now fade an overlay's opacity instead, which the GPU does for free
-   - while the carousel is moving (body.carousel-scrolling) every endless animation in the equipped-cards bar,
-     and the glows, are paused; they resume a moment after the scrolling stops
-   ============================================================ */
 #song-grid .song-card.selected {
   animation: none;
   box-shadow:
@@ -2117,38 +1990,26 @@ body.carousel-scrolling #song-grid .song-card.selected .card-play-btn::after { a
   #song-grid .song-card.selected::after, #song-grid .song-card.selected .card-play-btn::after { animation: none; opacity: 0; }
 }
 
-/* ============================================================
-   PERFORMANCE: carousel cards
-   - filter:saturate() driven by --f repainted every card on every scroll frame; opacity+transform are compositor-only
-   - tape / shadow layers stay; only the per-frame filter goes
-   ============================================================ */
 #song-grid .song-card { filter: none; }
 
 
-/* ============================================================
-   Full song titles: wrap onto up to 2 lines instead of cutting off with "…".
-   Every card reserves 2 lines so all cards keep the same height (the play button position does not depend on this).
-   ============================================================ */
 #song-grid .song-card-title {
-  --tfs: clamp(22px, calc(var(--cw) * 0.118), 40px);   /* base title size: the reserved height always uses this one */
-  --ts: 1;                                             /* shrink factor for long titles (tl-1..3 below) */
+  --tfs: clamp(22px, calc(var(--cw) * 0.118), 40px);
+  --ts: 1;
   font-size: calc(var(--tfs) * var(--ts));
   white-space: normal; overflow: visible; text-overflow: clip;
   overflow-wrap: anywhere; text-wrap: balance;
   display: flex; align-items: center; justify-content: center;
-  height: calc(var(--tfs) * 2.3);            /* 2 lines at the base size, so every card keeps the same height */
+  height: calc(var(--tfs) * 2.3);
   overflow: hidden;
 }
 #song-grid .song-card-title.tl-1 { --ts: 0.86; }
 #song-grid .song-card-title.tl-2 { --ts: 0.74; }
 #song-grid .song-card-title.tl-3 { --ts: 0.64; }
-@media (orientation: landscape) and (max-height: 500px) {   /* short landscape phones: smaller base size */
+@media (orientation: landscape) and (max-height: 500px) {
   #song-grid .song-card-title { --tfs: clamp(16px, calc(var(--cw) * 0.118), 24px); }
 }
 
-/* ============================================ */
-/* ====== PHONE PLAY MODE (set by launcher) ==== */
-/* ============================================ */
 html.play-phone #playfield {
   width: min(900px, 88vw);
   max-width: none;
@@ -2156,7 +2017,6 @@ html.play-phone #playfield {
 }
 html.play-phone .lane-label { display: none; }
 
-/* tap zone: a glowing highlighted band across each lane instead of a boxed hit target */
 html.play-phone .judgement-line {
   left: 2px; right: 2px; bottom: 0; height: 100px;
   border: none; border-top: 3px solid rgba(255, 205, 230, .95);
@@ -2175,20 +2035,12 @@ html.play-phone .judgement-line.hit-great   { background: linear-gradient(180deg
 html.play-phone .judgement-line.hit-good    { background: linear-gradient(180deg, rgba(150, 240, 200, .95), rgba(102, 217, 168, .45)); border-top-color: #fff; box-shadow: 0 -10px 30px var(--mint), inset 0 16px 24px rgba(255, 255, 255, .45); }
 html.play-phone .judgement-line.hit-miss    { background: linear-gradient(180deg, rgba(255, 110, 105, .85), rgba(229, 57, 53, .4)); border-top-color: #ff8a80; box-shadow: 0 -10px 28px #e53935; }
 
-/* ====================================================================== */
-/* ===== PER-SONG EFFECT: MOON (song fx: 'moon') ======================== */
-/* ====================================================================== */
-/* sits inside #game under the lanes; the glow "breathes" with an opacity fade (GPU only) once it is lit */
 #moon-fx { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; z-index: 0; }
 #moon-fx.lit { animation: moon-breathe 2.6s ease-in-out infinite; will-change: opacity; }
 @keyframes moon-breathe { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #moon-fx.lit { animation: none; } }
 
-/* ====================================================================== */
-/* ===== CANVAS PLAYFIELD (replaces the tilted 3D DOM lanes)  ========== */
-/* ====================================================================== */
 #game { perspective: none !important; }
-/* while a song is on screen, anything behind the (shaking) game is dark, never the green grid */
 html.play-phone body { background: #05020a; }
 #playfield, html.play-phone #playfield {
   position: absolute !important;
@@ -2209,22 +2061,17 @@ html.play-phone body { background: #05020a; }
 }
 #field { transform: translateZ(0); }
 
-/* cheaper HUD: no endless animations while playing, own compositor layer for things that flash */
 #score { animation: none !important; }
 #beat-pulse { will-change: opacity; transform: translateZ(0); }
 body[data-tier="4"] #tier-glow { animation: none; }
 
 
-/* ====================================================================== */
-/* ===== RESULTS CARD: fixed size, record + points live in the left column */
-/* ====================================================================== */
-.results-card { overflow: visible !important; }              /* stamps scale up while animating: never show a scrollbar */
+.results-card { overflow: visible !important; }
 .results-layout { align-items: stretch; }
 .results-left { flex: 0 0 172px; justify-content: space-between; align-items: center; gap: 6px; }
 .results-left .rl-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .results-right { align-self: center; }
 
-/* the slots always take their space, so showing them never makes the card taller */
 .results-left .record-badge {
   display: block; visibility: hidden; margin: 0 auto; transform: rotate(-4deg);
   font-size: 15px; letter-spacing: 1px; white-space: nowrap; animation: none;
@@ -2246,10 +2093,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
 }
 
 
-/* ====================================================================== */
-/* ===== CALM HUD: judgement + combo are one fixed stack, mid-track ====== */
-/* ====================================================================== */
-/* judgement word (straight, no tilt) sits on top, the combo number right under it. Nothing moves. */
 #judgement, #combo, #timing, #tier-banner { left: 50%; margin: 0; }
 #judgement {
   top: 34%;
@@ -2268,7 +2111,7 @@ body[data-tier="4"] #tier-glow { animation: none; }
   letter-spacing: 1px;
   line-height: 1;
   opacity: 0.92;
-  animation: none !important;                 /* no endless pulsing or rocking */
+  animation: none !important;
   will-change: auto;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 6px currentColor;
 }
@@ -2292,14 +2135,10 @@ body[data-tier="4"] #tier-glow { animation: none; }
 
 #timing { top: 57%; font-size: clamp(11px, 3.4vh, 16px); letter-spacing: 2px; }
 
-/* tier-up banner: smaller, fades in place */
 #tier-banner { top: 63%; }
 #tier-banner .tb-title { font-size: clamp(16px, 4.6vh, 26px); letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), 0 0 8px currentColor; }
 #tier-banner .tb-sub { font-size: clamp(10px, 2.6vh, 14px); letter-spacing: 3px; }
 
-/* ====================================================================== */
-/* ===== PAUSE CARD: RESUME / RESTART / EXIT text buttons ================ */
-/* ====================================================================== */
 .pause-card .pause-buttons { flex-direction: column; flex-wrap: nowrap; gap: 14px; align-items: stretch; margin-top: 14px; }
 .pause-row { display: flex; gap: 14px; }
 .pause-row .pause-btn-text { flex: 1; }
@@ -2323,18 +2162,14 @@ body[data-tier="4"] #tier-glow { animation: none; }
   .pb-restart, .pb-exit { font-size: 16px; }
 }
 
-/* ====================================================================== */
-/* ===== RESULTS CARD: packed layout, points next to grade, big buttons == */
-/* ====================================================================== */
 #results .results-card { max-width: min(840px, 96vw); padding: 22px 30px 16px; }
 #results .results-layout { gap: 22px; }
 #results .results-left { flex: 0 0 236px; justify-content: center; gap: 8px; }
 #results .results-left .rl-mid { gap: 6px; }
 
-/* grade stamp + points side by side */
 .rl-grade-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 4px; }
-.rl-points { min-width: 96px; text-align: left; line-height: 1.1; visibility: hidden; }   /* slot always reserved: card never changes size */
-.rl-points.show { visibility: visible; }                                                  /* plain reveal, no animation */
+.rl-points { min-width: 96px; text-align: left; line-height: 1.1; visibility: hidden; }
+.rl-points.show { visibility: visible; }
 .rl-pt-line { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .rl-pt-logo { height: 30px; width: auto; display: block; flex: none; }
 .rl-pt-coin { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%;
@@ -2342,20 +2177,16 @@ body[data-tier="4"] #tier-glow { animation: none; }
 .rl-pt-amt { font-family: var(--font-ui); font-size: 28px; color: #d9980a; }
 .rl-pt-daily { margin-top: 3px; font-family: var(--font-ui); font-size: 14px; letter-spacing: 1px; color: var(--pink); white-space: nowrap; }
 
-/* bigger, tighter buttons */
 #results .results-buttons { gap: 10px; margin-top: 2px; flex-wrap: nowrap; }
 #results .results-card .gif-btn { padding: 2px 4px; }
 #results .results-card .btn-gif { height: clamp(64px, 16vh, 124px); }
 
-/* game over: buttons share the card's width instead of overflowing it (was a horizontal scrollbar on laptops).
-   Each button gets half the row; the gif scales down to fit it, capped by the same height clamp as before. */
 #game-over .gameover-card { max-width: min(540px, 94vw); padding-left: 40px; padding-right: 40px; overflow-x: hidden; }
 #game-over .gameover-cover { width: clamp(56px, 12vh, 104px); height: clamp(56px, 12vh, 104px); margin-bottom: 8px; }
 #game-over .gameover-buttons { gap: 10px; margin-top: 2px; flex-wrap: nowrap; width: 100%; }
 #game-over .gameover-card .gif-btn { flex: 1 1 0; min-width: 0; padding: 2px 4px; }
 #game-over .gameover-card .btn-gif { width: 100%; height: auto; max-height: clamp(64px, 16vh, 124px); object-fit: contain; }
 
-/* equipped cards: bigger, 6 per row, a second row is centred under the first */
 #results .eq-strip { --eqw: clamp(28px, 8vh, 62px); margin: 8px auto 0; }
 #results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(24px, 6.2vh, 48px); }
 #results .eq-row { gap: 6px; justify-content: center; max-width: calc(6 * var(--eqw) + 5 * 6px); margin: 0 auto; }
@@ -2377,9 +2208,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
   #results .eq-label { font-size: 9px; margin-bottom: 2px; }
 }
 
-/* ====================================================================== */
-/* ===== RESULTS: cover + song title 2x bigger, "screenshot this" note ==== */
-/* ====================================================================== */
 #results .results-left { flex: 0 0 260px; }
 #results .results-left .results-cover { width: 208px; height: 208px; }
 #results .results-left .results-song { font-size: 26px; line-height: 1.15; }
@@ -2394,9 +2222,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
   #results .results-left .results-song { font-size: 20px; }
 }
 
-/* ====================================================================== */
-/* ===== RESULTS: bigger equipped cards (6 per row, 12 cards = 2 rows) ==== */
-/* ====================================================================== */
 #results .eq-strip { --eqw: clamp(40px, 12vh, 92px); margin: 8px auto 0; }
 #results .eq-strip:has(.tcard:nth-child(7)) { --eqw: clamp(34px, 8.6vh, 68px); }
 #results .eq-label { font-size: 13px; }
@@ -2410,10 +2235,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
   #results .eq-label { font-size: 10px; }
 }
 
-/* ====================================================================== */
-/* ===== "VIEW HIGH SCORE": yellow button in the play confirmation, and ==== */
-/* ===== the result card shown as a pop-up (no buttons, click outside) ==== */
-/* ====================================================================== */
 .cp-hs {
   display: block; width: 100%; margin-top: clamp(10px, 2.4dvh, 16px); min-height: clamp(38px, 8dvh, 48px);
   border-radius: 999px; border: 3px solid #fff; cursor: pointer; letter-spacing: 1px;
@@ -2427,11 +2248,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
 #results.hs-view .results-buttons { display: none; }
 .hs-title { font-family: var(--font-ui); color: #e0488a; letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0, 0, 0, .12); }
 
-/* ============================================ */
-/* ====== CLICKABLE LOOK: card shop / my cards == */
-/* ============================================ */
-/* A soft shadow painted as a plain gradient BEHIND the gif. It is static (no filter, no blur, nothing recomputed per gif frame),
-   so the animated gif costs exactly what it did before. It sits a little low, like a shadow cast on the table. */
 #shop-btn, #my-cards-btn {
   background: radial-gradient(ellipse 52% 40% at 50% 70%, rgba(0, 0, 0, .42) 0%, rgba(0, 0, 0, .2) 55%, rgba(0, 0, 0, 0) 100%);
 }
@@ -2442,24 +2258,17 @@ body[data-tier="4"] #tier-glow { animation: none; }
   background: radial-gradient(ellipse 46% 32% at 50% 62%, rgba(0, 0, 0, .35) 0%, rgba(0, 0, 0, .15) 55%, rgba(0, 0, 0, 0) 100%);
 }
 
-/* ============================================ */
-/* ============ SORT BUTTON (purple pill) ==== */
-/* ============================================ */
 .sort-pill {
   text-shadow: 0 2px 0 rgba(60, 20, 110, .4);
   background: linear-gradient(180deg, #c39bff, #8f5ce0);
   border-color: rgba(60, 20, 110, .28);
   font-size: clamp(12px, 2.6vh, 20px);
-  flex-direction: column;            /* two lines: SORT BY / TITLE (or DEFAULT) */
+  flex-direction: column;
   text-align: center;
   line-height: 1.1;
   padding: .32em 1em;
 }
 
-/* ============================================ */
-/* ============ OPTION BUTTON + CARD ==== */
-/* ============================================ */
-/* OPTION: same pill as BACK, in blue */
 .option-pill {
   text-shadow: 0 2px 0 rgba(20, 70, 130, .35);
   background: linear-gradient(180deg, #8fd3ff, #4aa8e8);
@@ -2505,7 +2314,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
   background: linear-gradient(180deg, #8fd3ff, #4aa8e8);
   border-color: rgba(20, 70, 130, .25);
 }
-/* NOTE SPEED live preview: a mini track, two notes fall to the line at the real speed */
 .opt-speed-demo {
   position: relative; overflow: hidden;
   height: 84px; margin: 2px auto 0; width: min(240px, 100%);
@@ -2532,10 +2340,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
 .opt-done { display: flex; margin: 0 auto; padding: 4px 8px; }
 
 
-/* ====================================================================== */
-/* ===== RESULTS: grade stamp sits on top of the cover, CENTER card takes  */
-/* ===== the old stamp spot next to the Points                            */
-/* ====================================================================== */
 .rl-cover-wrap { position: relative; display: block; line-height: 0; }
 .rl-cover-wrap .results-cover { margin: 0; }
 #results .rl-cover-wrap .grade-stamp {
@@ -2546,7 +2350,6 @@ body[data-tier="4"] #tier-glow { animation: none; }
 }
 #results .rl-cover-wrap .grade-stamp.g-SS { font-size: 30px; box-shadow: 0 0 14px rgba(255, 204, 51, .8), 0 3px 10px rgba(0, 0, 0, .3); }
 
-/* the center card: --rlcw is its width; the slot is empty (no space used) when no center was picked */
 .rl-center { --rlcw: clamp(56px, 13vh, 96px); position: relative; flex: none; margin-bottom: 4px; }
 .rl-center:empty { display: none; }
 .rl-center .tcard { --cw: var(--rlcw); pointer-events: none; }

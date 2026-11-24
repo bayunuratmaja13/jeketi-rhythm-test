@@ -1,34 +1,26 @@
-// ============================================================
-//  JEKETI RHYTHM — shop.js
-//  Card shop (free first time, 24h lock, Points), oshi, and the
-//  12-card squad bar (bottom of song select) that raises the score.  Builds on cards.js,
-//  packs.js and points.js.
-// ============================================================
 (() => {
   'use strict';
 
   const KEY = 'jeketi.shop';
   const COOLDOWN_MS = 24 * 3600 * 1000;
-  const TIER_BONUS = [1, 2, 5, 9, 14];         // % score per equipped card, C B A S SS  (a perfect no-card run = 500,000; S grade = 1,000,000)
-  const CENTER_BONUS = [2, 4, 8, 14, 20];         // % extra score for the CENTER card, by its tier C B A S SS (only that one card; added on top of its own bonus)
-  const OSHI_MULT = 1.5;                       // oshi card bonus multiplier
-  const SONG_MATCH = 1;                        // % per equipped member that sings in the song
-  const TEAM_BONUS = { 3: 3, 4: 5, 5: 8 };     // % when 3 / 4 / 5+ equipped cards share a team
-  const MAX_LINEUP = 12;                       // cards equipped on every song (the 12 highest-tier owned members)
-  // which team's cards may be equipped per song (matched on song title or id). Songs not listed = all members.
+  const TIER_BONUS = [1, 2, 5, 9, 14];
+  const CENTER_BONUS = [2, 4, 8, 14, 20];
+  const OSHI_MULT = 1.5;
+  const SONG_MATCH = 1;
+  const TEAM_BONUS = { 3: 3, 4: 5, 5: 8 };
+  const MAX_LINEUP = 12;
   const SONG_TEAM = { 'ayo senyumlah': null, 'wakaka people': 'dream', '12 seconds': 'love', 'dekat namun jauh': 'passion' };
   const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  function songTeam(song) {                      // -> team id ('dream'|'love'|'passion') or null = every member
+  function songTeam(song) {
     if (!song) return null;
-    if (song.team) return String(song.team).toLowerCase();                 // optional override: team: 'dream' in songs.js
+    if (song.team) return String(song.team).toLowerCase();
     for (const k of [song.title, song.id]) {
       const n = norm(k);
       if (n && Object.prototype.hasOwnProperty.call(SONG_TEAM, n)) return SONG_TEAM[n];
     }
     return null;
   }
-  // optional per-song guest list: only: ['fiony', 'christy', ...] in songs.js -> only these members' cards can be equipped
-  function songOnly(song) {                      // -> Set of member ids, or null = no restriction
+  function songOnly(song) {
     if (!song || !Array.isArray(song.only) || !song.only.length) return null;
     const set = new Set();
     song.only.forEach(x => {
@@ -38,10 +30,8 @@
     });
     return set.size ? set : null;
   }
-  // how many card slots a song shows: every member the song lists (its `only` list plus its `guest`), max MAX_LINEUP.
-  // Songs with no `only` list keep the full MAX_LINEUP slots. Nothing extra to set per song.
   function slotCount(song) {
-    const fixed = song && Math.floor(Number(song.slots));          // optional `slots: 4` in songs.js caps the lineup (works with or without `only`)
+    const fixed = song && Math.floor(Number(song.slots));
     if (fixed > 0) return Math.min(MAX_LINEUP, fixed);
     const only = songOnly(song);
     if (!only) return MAX_LINEUP;
@@ -49,16 +39,15 @@
     songGuests(song).forEach(g => ids.add(g));
     return Math.max(1, Math.min(MAX_LINEUP, ids.size));
   }
-  const PITY_A = 15;                           // a shop pack without an A+ card this many times in a row -> next has one
+  const PITY_A = 15;
   const SHOP_ORDER = ['daily', 'standard', 'premium', 'oshi'];
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) { /* ignore */ } };
+  const snd = (name, ...a) => { try { window.SFX && SFX[name](...a); } catch (e) {  } };
   const fmt = (n) => Math.round(n).toLocaleString();
 
-  // ---------- SAVE ----------
   let S = load();
   function load() {
     let o = {};
@@ -70,14 +59,10 @@
       oshi: typeof o.oshi === 'string' ? o.oshi : null,
     };
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage blocked */ } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {  } }
 
   const C = () => window.Cards;
-  // ---------- GUEST CARDS ----------
-  // Special featured-artist cards (not members, not collectable): they appear automatically in the squad bar of any song that
-  // lists them (in its `only: [...]` or `guest: '...'` in songs.js). Look = SS card, badge says R, scores like SS (see GUEST_TIER).
-  // Art: images/cards/<id>.webp.  To add another guest, add a line here. Optional  label: 'GM'  changes the grade letter on that guest's card (scoring stays the same).
-  const GUEST_TIER = 4;                          // index into Cards.TIERS: 4 = SS (design + score)
+  const GUEST_TIER = 4;
   const GUEST_LABEL = 'R';
   const GUESTS = {
     bernadya: { id: 'bernadya', name: 'Bernadya', team: 'Special', color: '#ff6ad5', front: 'images/cards/bernadya.webp', back: 'images/cards/love_back.webp', guest: true },
@@ -85,26 +70,25 @@
     pia: { id: 'pia', name: 'Pia', caption: 'Pia Meraleo', team: 'Special', color: '#ff6ad5', front: 'images/cards/pia.webp', back: 'images/cards/love_back.webp', guest: true },
     shani: { id: 'shani', name: 'Shani', caption: 'Kak Ci Shani', team: 'Special', color: '#ff6ad5', front: 'images/cards/shani.webp', back: 'images/cards/love_back.webp', guest: true },
     sisca: { id: 'sisca', name: 'Sisca', caption: 'Phi Sisca', team: 'Special', color: '#ff6ad5', front: 'images/cards/sisca.webp', back: 'images/cards/love_back.webp', guest: true },
-    melody: { id: 'melody', name: 'Melody', label: 'GM', team: 'Special', color: '#ff6ad5', front: 'images/cards/melody.webp', back: 'images/cards/love_back.webp', guest: true },     // label: the grade letter on her card (default R); scoring is still GUEST_TIER
+    melody: { id: 'melody', name: 'Melody', label: 'GM', team: 'Special', color: '#ff6ad5', front: 'images/cards/melody.webp', back: 'images/cards/love_back.webp', guest: true },
     yona: { id: 'yona', name: 'Yona', team: 'Special', color: '#ff6ad5', front: 'images/cards/yona.webp', back: 'images/cards/love_back.webp', guest: true },
     zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
     haruka: { id: 'haruka', name: 'Haruka', team: 'Special', color: '#ff6ad5', front: 'images/cards/haruka.webp', back: 'images/cards/love_back.webp', guest: true },
     vienny: { id: 'vienny', name: 'Vienny', team: 'Special', color: '#ff6ad5', front: 'images/cards/vienny.webp', back: 'images/cards/love_back.webp', guest: true },
   };
-  // score bonus (%) of a guest card: R cards give GUEST_BONUS, a guest can override it with  bonus: 48  (Melody's GM card). The same number is her CENTER bonus.
   const GUEST_BONUS = 25;
   GUESTS.melody.bonus = 48;
   const guestBonus = (id) => (GUESTS[id] ? (GUESTS[id].bonus != null ? GUESTS[id].bonus : GUEST_BONUS) : 0);
   const guestLabel = (id) => (GUESTS[id] ? (GUESTS[id].label || GUEST_LABEL) : '');
   const member = (id) => GUESTS[id] || C().memberOf(id);
   const everyone = () => C().MEMBERS.concat(Object.keys(GUESTS).map(k => GUESTS[k]));
-  const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));          // tier index a card counts as
-  function mkCard(id, ti) {                      // a card element for a member or a guest (guests get the R badge)
+  const bestT = (id) => (GUESTS[id] ? GUEST_TIER : C().best(id));
+  function mkCard(id, ti) {
     const m = member(id), el = C().makeCard(m, C().TIERS[ti], true);
-    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { const lb = m.label || GUEST_LABEL; b.textContent = lb; b.dataset.t = lb; } }     // data-t is what the big letter is drawn from
+    if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { const lb = m.label || GUEST_LABEL; b.textContent = lb; b.dataset.t = lb; } }
     return el;
   }
-  function songGuests(song) {                    // guest ids this song features
+  function songGuests(song) {
     if (!song) return [];
     const raw = [].concat(Array.isArray(song.only) ? song.only : [], song.guest || []);
     const out = [];
@@ -112,21 +96,19 @@
     return out;
   }
 
-  // ---------- OSHI ----------
   const getOshi = () => (S.oshi && member(S.oshi) ? S.oshi : null);
   function setOshi(id) { S.oshi = id && member(id) ? id : null; save(); changed(); }
 
-  // ---------- PACK RULES ----------
   const now = () => Date.now();
   function cooldownLeft(kind) {
     const t = S.cd[kind] || 0;
-    return Math.max(0, Math.min(t - now(), COOLDOWN_MS));     // a clock set backwards can never lock a pack longer than 24h
+    return Math.max(0, Math.min(t - now(), COOLDOWN_MS));
   }
   function packStatus(kind) {
     const P = Packs.PACKS[kind];
-    const left = kind === 'daily' ? cooldownLeft(kind) : 0;       // only the Daily Pack has a 24h lock
+    const left = kind === 'daily' ? cooldownLeft(kind) : 0;
     const first = !S.firstDone[kind];
-    const free = P.price === 0 || (first && kind === 'daily');   // new players: only the daily pack is free
+    const free = P.price === 0 || (first && kind === 'daily');
     const st = { kind, price: P.price, free, first, left, ok: false, reason: '' };
     if (P.oshi && !getOshi()) { st.needsOshi = true; st.reason = 'Pick an oshi first'; return st; }
     if (left > 0) { st.reason = 'locked'; return st; }
@@ -138,7 +120,6 @@
   function noteResult(hasA) { S.pity = hasA ? 0 : S.pity + 1; save(); }
   const tierBonus = (ti) => TIER_BONUS[ti] || 0;
 
-  // pay, start the 24h lock, then play the opening
   function openPack(kind) {
     const st = packStatus(kind);
     if (!st.ok) return false;
@@ -146,10 +127,10 @@
     if (!st.free && !Points.spend(P.price)) return false;
     const before = { fd: S.firstDone[kind], cd: S.cd[kind], pity: S.pity };
     S.firstDone[kind] = 1;
-    if (kind === 'daily') S.cd[kind] = now() + COOLDOWN_MS;       // other packs: no lock, open as many as you can afford
+    if (kind === 'daily') S.cd[kind] = now() + COOLDOWN_MS;
     save();
     const drops = Packs.open(kind);
-    if (!drops) {                                  // an opening is already on screen: undo everything
+    if (!drops) {
       if (!st.free) Points.add(P.price);
       if (before.fd) S.firstDone[kind] = before.fd; else delete S.firstDone[kind];
       if (before.cd) S.cd[kind] = before.cd; else delete S.cd[kind];
@@ -161,7 +142,6 @@
   }
   const anyReady = () => SHOP_ORDER.some(k => { const s = packStatus(k); return s.ok && s.free; });
 
-  // ---------- BONUS ----------
   function songSet(song) {
     const set = new Set();
     if (song && Array.isArray(song.members)) {
@@ -173,8 +153,6 @@
     }
     return set;
   }
-  // Songs with fewer slots than MAX_LINEUP scale their per-card bonuses by MAX_LINEUP / slots, so a full set of equal-tier cards
-  // gives the same total bonus on a 2-slot song as on a 12-slot song (every song can reach S with the same difficulty).
   function calc(ids, song, centerId) {
     const oshi = getOshi(), set = songSet(song);
     const slots = Math.max(1, slotCount(song)), f = MAX_LINEUP / slots;
@@ -188,20 +166,18 @@
       if (id === oshi) oshiExtra += base * (OSHI_MULT - 1);
       if (set.has(id)) match += SONG_MATCH;
       const mm = member(id);
-      if (!mm.guest) teams[mm.team] = (teams[mm.team] || 0) + 1;       // guests never count toward a team bonus
+      if (!mm.guest) teams[mm.team] = (teams[mm.team] || 0) + 1;
     });
     let teamId = null, teamN = 0;
     Object.keys(teams).forEach(k => { if (teams[k] > teamN) { teamN = teams[k]; teamId = k; } });
-    const teamEq = (slots < MAX_LINEUP && teamN >= 2) ? teamN * f : (slots < MAX_LINEUP ? 0 : teamN);   // team size measured against a 12-card lineup (needs 2+ real cards)
+    const teamEq = (slots < MAX_LINEUP && teamN >= 2) ? teamN * f : (slots < MAX_LINEUP ? 0 : teamN);
     const teamPct = teamEq >= 5 ? TEAM_BONUS[5] : (TEAM_BONUS[Math.floor(teamEq)] || 0);
     const r = (v) => Math.round(v * 10) / 10;
-    const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (GUESTS[centerId] ? guestBonus(centerId) : (CENTER_BONUS[bestT(centerId)] || 0)) : 0;   // CENTER: stacks with the oshi bonus
+    const ctr = (centerId && ids.indexOf(centerId) >= 0 && bestT(centerId) >= 0) ? (GUESTS[centerId] ? guestBonus(centerId) : (CENTER_BONUS[bestT(centerId)] || 0)) : 0;
     cards *= f; oshiExtra *= f; match *= f;
     const total = cards + oshiExtra + match + teamPct + ctr;
     return { cards: r(cards), oshiExtra: r(oshiExtra), match: r(match), team: { id: teamId, n: teamN, pct: teamPct }, center: r(ctr), total: r(total) };
   }
-  // the squad: the 12 highest-tier owned cards, one per member (oshi wins ties, then a random pick among the equal cards)
-  // the random order is re-rolled every time the song select menu is opened (and stays the same while it is open and for the run)
   let rollKeys = new Map();
   const rollKey = (id) => { let k = rollKeys.get(id); if (k === undefined) { k = Math.random(); rollKeys.set(id, k); } return k; };
   function rerollSquad() { rollKeys = new Map(); }
@@ -215,9 +191,8 @@
     return guests.concat(owned);
   }
 
-  // what the game uses for one run
-  let centerPick = null;                         // { song, id }: the CENTER the player picked for the song about to be played
-  let cpick = null;                              // the CENTER pop out while it is open: { song, go, sel }
+  let centerPick = null;
+  let cpick = null;
   const songKey = (s) => (s && (s.id || s.title)) || '';
   const centerOf = (song, ids) => (centerPick && centerPick.song === songKey(song) && ids.indexOf(centerPick.id) >= 0 ? centerPick.id : null);
   let run = { mult: 1, bonus: 0, cards: [] };
@@ -232,12 +207,10 @@
   }
   const getRun = () => run;
 
-  // ---------- change events ----------
   const listeners = [];
-  function changed() { listeners.forEach(f => { try { f(); } catch (e) { /* ignore */ } }); refreshBadges(); try { sqCache.clear(); sqSig = ''; renderSquad(); warmSquad(); } catch (e) { /* bar not ready */ } }
+  function changed() { listeners.forEach(f => { try { f(); } catch (e) {  } }); refreshBadges(); try { sqCache.clear(); sqSig = ''; renderSquad(); warmSquad(); } catch (e) {  } }
   window.addEventListener('cards:change', changed);
 
-  // ---------- shared UI ----------
   const root = h('div', 'shop-root');
   document.body.appendChild(root);
   let openName = null;
@@ -245,7 +218,6 @@
   function mkScreen(name, title) {
     const el = h('div', 'sh-screen sh-' + name);
     el.id = name + '-screen';
-    // the CARD SHOP screen shows images/shop.gif as its title (falls back to the text if the image is missing)
     const titleHTML = name === 'shop'
       ? '<div class="sh-title has-img"><img class="sh-title-img" src="images/shop.gif" alt="' + title + '" onerror="this.replaceWith(document.createTextNode(this.alt))"></div>'
       : '<div class="sh-title">' + title + '</div>';
@@ -287,9 +259,6 @@
     clearInterval(tick); tick = 0;
   }
 
-  // ============================================================
-  //  SHOP
-  // ============================================================
   const shop = mkScreen('shop', 'CARD SHOP');
   shop.body.innerHTML = '<div class="sh-row"></div><div class="sh-foot"><button class="sh-odds" type="button">ODDS &amp; RULES</button></div>';
   const row = shop.body.querySelector('.sh-row');
@@ -361,7 +330,6 @@
     modal(b);
   });
 
-  // full-screen oshi picker: a big photo carousel, the centered member is the pick
   function pickOshi(done) {
     if (document.querySelector('.oshi-pick')) return;
     const ov = h('div', 'oshi-pick');
@@ -374,14 +342,12 @@
     const car = ov.querySelector('.op-car'), fil = ov.querySelector('.op-filters'), nameEl = ov.querySelector('.op-name'),
       teamEl = ov.querySelector('.op-team'), countEl = ov.querySelector('.op-count'), ok = ov.querySelector('.op-ok'), fx = ov.querySelector('.op-fx');
     let list = [], idx = 0, filter = 'all', done_ = false, dragMoved = false;
-    const els = new Map();                          // member id -> card element. Built ONCE; changing the team filter only re-fans them (no rebuilding, no image reloading)
+    const els = new Map();
 
-    for (let i = 0; i < 7; i++) fx.appendChild(h('i', '', '♥'));       // a few drifting hearts (CSS only)
+    for (let i = 0; i < 7; i++) fx.appendChild(h('i', '', '♥'));
     fx.querySelectorAll('i').forEach((el, i) => { el.style.left = (8 + i * 14) + '%'; el.style.animationDelay = (-i * 1.7) + 's'; el.style.fontSize = (12 + (i % 3) * 7) + 'px'; });
 
-    // cards are fanned out like a hand of playing cards. Selection is instant (no scrolling): the highlighted card sits in front,
-    // and each card further out is tucked UNDER the one nearer the middle (so the neighbours overlap the cards outside them).
-    const FAN = 4;                                  // cards shown on each side of the highlighted one
+    const FAN = 4;
     const layout = () => {
       const on = new Set();
       list.forEach((m, i) => {
@@ -392,13 +358,13 @@
         const x = a === 0 ? 0 : sgn * (.40 + (k - 1) * .18);
         const sc = a === 0 ? 1 : .88 - Math.min(k, 4) * .015;
         el.style.transform = 'translateX(calc(var(--pw) * ' + x + ')) rotate(' + (sgn * k * 6) + 'deg) scale(' + sc + ')';
-        el.style.zIndex = 1000 - a;                 // closer to the highlighted card = on top
+        el.style.zIndex = 1000 - a;
         el.classList.toggle('sel', a === 0);
         el.classList.toggle('far', a > FAN);
       });
-      els.forEach((el, id) => { if (!on.has(id)) { el.classList.add('far'); el.classList.remove('sel'); } });   // other teams: hidden, but kept loaded
+      els.forEach((el, id) => { if (!on.has(id)) { el.classList.add('far'); el.classList.remove('sel'); } });
     };
-    const fitName = () => {                          // a name never wraps: it shrinks until it fits the box on one line
+    const fitName = () => {
       nameEl.style.fontSize = '';
       const box = nameEl.parentNode, cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
       let fs = parseFloat(getComputedStyle(nameEl).fontSize), guard = 0;
@@ -421,7 +387,6 @@
       if (i === idx && !silent) return;
       idx = i; paint(!silent);
     };
-    // drag / swipe: every ~quarter card of movement steps one card, live while the finger is down
     let down = false, dragging = false, dragX = 0, dragIdx = 0, wheelAt = 0;
     car.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -433,7 +398,7 @@
       if (!dragging) {
         if (Math.abs(dx) < 8) return;
         dragging = true; dragMoved = true;
-        try { car.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+        try { car.setPointerCapture(e.pointerId); } catch (er) {  }
       }
       const first = car.firstElementChild, step = Math.max(30, (first ? first.offsetWidth : 200) * .28);
       goTo(dragIdx - Math.round(dx / step));
@@ -451,7 +416,7 @@
     ov.querySelector('.op-arrow.r').addEventListener('click', () => goTo(idx + 1));
     const onKey = (e) => {
       if (!ov.isConnected) return;
-      if (confirmEl) {                               // the confirmation pop up is open: Enter = YES, Escape = NO, arrows are ignored
+      if (confirmEl) {
         e.preventDefault(); e.stopPropagation();
         if (e.code === 'Enter') confirmEl.querySelector('.oc-yes').click();
         else if (e.code === 'Escape') confirmEl.querySelector('.oc-no').click();
@@ -463,7 +428,7 @@
     };
     window.addEventListener('keydown', onKey, true);
 
-    const makeItem = (m) => {                        // front image only: the back of a card is never shown here
+    const makeItem = (m) => {
       const c = h('div', 'op-item far'); c.style.setProperty('--tc', m.color);
       const pic = h('div', 'op-pic');
       const im = new Image(); im.alt = m.name; im.draggable = false; im.decoding = 'async';
@@ -477,8 +442,8 @@
     const build = (keepId) => {
       const cur = keepId || (list[idx] && list[idx].id) || getOshi();
       list = C().MEMBERS.filter(m => filter === 'all' || m.team === filter);
-      list.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));   // A to Z by nickname (ALL = every team mixed)
-      if (!els.size) {                               // first time only: create + start loading every card image, so every filter is instant afterwards
+      list.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+      if (!els.size) {
         const frag = document.createDocumentFragment();
         C().MEMBERS.forEach(m => { const c = makeItem(m); els.set(m.id, c); frag.appendChild(c); });
         car.appendChild(frag);
@@ -490,13 +455,12 @@
         fil.appendChild(b);
       });
       const at = Math.max(0, list.findIndex(m => m.id === cur));
-      car.classList.add('snap');                     // no slide animation when the filter changes: the new fan appears at once
+      car.classList.add('snap');
       goTo(at, true);
       void car.offsetWidth;
       car.classList.remove('snap');
     };
 
-    // "THIS IS MY OSHI" first asks PICK (MEMBER) AS YOUR OSHI? -> YES confirms, NO goes back to browsing
     let confirmEl = null;
     const closeConfirm = () => { if (confirmEl) { confirmEl.remove(); confirmEl = null; } };
     ok.addEventListener('click', () => {
@@ -510,7 +474,7 @@
       confirmEl.querySelector('.oc-no').addEventListener('click', closeConfirm);
       confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) closeConfirm(); });
       document.body.appendChild(confirmEl);
-      const tt = confirmEl.querySelector('.oc-title'), bx = confirmEl.querySelector('.oc-box');   // keep the question on one line: shrink the font until it fits the box
+      const tt = confirmEl.querySelector('.oc-title'), bx = confirmEl.querySelector('.oc-box');
       const avail = bx.clientWidth - parseFloat(getComputedStyle(bx).paddingLeft) - parseFloat(getComputedStyle(bx).paddingRight);
       let fs = parseFloat(getComputedStyle(tt).fontSize), guard = 0;
       while (avail > 0 && tt.scrollWidth > avail && fs > 10 && guard++ < 60) { fs -= 1; tt.style.fontSize = fs + 'px'; }
@@ -521,7 +485,7 @@
       if (done_) return;
       done_ = true;
       setOshi(m.id); snd('fanfare');
-      try { if (navigator.vibrate) navigator.vibrate([20, 30, 60]); } catch (e) { /* no haptics */ }
+      try { if (navigator.vibrate) navigator.vibrate([20, 30, 60]); } catch (e) {  }
       const sel = els.get(m.id);
       if (sel) {
         const r = sel.getBoundingClientRect();
@@ -544,11 +508,6 @@
     build();
   }
 
-  // ============================================================
-  //  SQUAD BAR  (the bottom of the song-select page)
-  //  The 12 highest-tier owned cards (one per member) are equipped
-  //  automatically on every song. Missing slots show a locked blank.
-  // ============================================================
   let curSong = null;
   const sqBar = h('div', 'sq-bar');
   sqBar.id = 'squad-bar';
@@ -556,8 +515,6 @@
   document.body.appendChild(sqBar);
   const sqBest = sqBar.querySelector('.sq-best'), sqGrid = sqBar.querySelector('.sq-grid'), sqTag = sqBar.querySelector('.sq-tag'), sqCap = sqBar.querySelector('.sq-cap');
 
-  // Card elements are built once per member+tier and then reused, so scrolling to another song never has to
-  // rebuild or re-decode the card art. (This was the cause of the carousel lag.)
   let sqCache = new Map(), sqSig = '', sqCapHTML = '', sqTagHTML = '', sqTimer = 0;
   function sqCardEl(id) {
     const ti = bestT(id), key = id + ':' + ti;
@@ -567,20 +524,19 @@
       el.style.setProperty('--cw', 'var(--sq-cw)');
       el.style.pointerEvents = 'none';
       el.classList.add('flat');
-      const bk = el.querySelector('.tc-back'); if (bk) bk.remove();      // never flipped: no back face to decode or composite
+      const bk = el.querySelector('.tc-back'); if (bk) bk.remove();
       sqCache.set(key, el);
     }
     return el;
   }
   const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 900 }) : setTimeout(f, 150));
-  // pre-build and pre-decode every owned card in the background so the first scroll to a new loadout is also smooth
   function warmSquad() {
     if (!window.Cards || !C().ownedIds) return;
     const q = C().ownedIds().slice();
     const step = (dl) => {
       let n = 0;
       while (q.length && n < 3 && (!dl || !dl.timeRemaining || dl.timeRemaining() > 4)) {
-        try { sqCardEl(q.shift()).querySelectorAll('img').forEach(im => { if (im.decode) im.decode().catch(() => {}); }); } catch (e) { /* ignore */ }
+        try { sqCardEl(q.shift()).querySelectorAll('img').forEach(im => { if (im.decode) im.decode().catch(() => {}); }); } catch (e) {  }
         n++;
       }
       if (q.length) idle(step);
@@ -590,7 +546,6 @@
   function renderSquad() {
     if (!window.Cards || !C().MEMBERS) return;
     const ids = autoLineup(curSong), slots = slotCount(curSong), oshi = getOshi(), set = songSet(curSong), tm = songTeam(curSong), on = songOnly(curSong), gn = songGuests(curSong).map(g => (GUESTS[g].caption || GUESTS[g].name).toUpperCase()), bo = calc(ids, curSong);
-    // identical loadout + markers to what is already on screen? then do not touch the cards at all
     const sig = [ids.map(id => id + ':' + bestT(id)).join(','), oshi || '', ids.filter(id => set.has(id)).join(','), tm || '', on ? 'only' : '', slots].join('|');
     if (sig !== sqSig || !sqGrid.firstChild) {
       sqSig = sig;
@@ -604,15 +559,15 @@
             cell.appendChild(sqCardEl(id));
             if (set.has(id) || id === oshi) cell.insertAdjacentHTML('beforeend', '<span class="sq-fl">' + (set.has(id) ? '<u>♪</u>' : '') + (id === oshi ? '<u class="h">♥</u>' : '') + '</span>');
             ok = true;
-          } catch (e) { /* fall back to a blank slot */ }
+          } catch (e) {  }
         }
-        if (ok) cell.dataset.m = id;                 // which member this cell is (the CENTER pick reads it)
+        if (ok) cell.dataset.m = id;
         if (!ok) { cell.classList.add('empty'); cell.innerHTML = '<div class="sq-blank"><span>🔒</span></div>'; }
         frag.appendChild(cell);
       }
-      sqGrid.replaceChildren(frag);                  // one DOM swap, one layout
+      sqGrid.replaceChildren(frag);
     }
-    sqBar.style.setProperty('--sq-n', slots);       // how many cells the bar holds, so the CSS can centre them on the whole screen
+    sqBar.style.setProperty('--sq-n', slots);
     const tmName = tm ? tm.toUpperCase() : '';
     const duet = !!(curSong && curSong.duet) && gn.length > 0;
     const capHTML = 'HIGHEST CARDS EQUIPPED' + (duet ? ' <em>· DUET WITH ' + esc(gn.join(' & ')) + '</em>' : on ? ' <em>· CHOSEN MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>' : tm ? ' <em>· TEAM ' + esc(tmName) + ' ONLY</em>' : ' <em>· ALL MEMBERS' + (gn.length ? ' WITH ' + esc(gn.join(' & ')) : '') + '</em>');
@@ -623,7 +578,6 @@
     renderBest();
     measureSquad();
   }
-  // the selected song's saved best score, in the left part of the bar (loadBest() lives in game.js)
   let sqBestHTML = '';
   function renderBest() {
     let b = null;
@@ -639,11 +593,9 @@
     document.documentElement.style.setProperty('--sq-h', hgt + 'px');
   }
 
-  // show the bar only while the song-select page is on screen
   let sqOn = false, menuWasShown = false;
   function syncSquad() {
     const menu = $('menu-screen');
-    // the song select menu just opened (title, back from a song, ...): shuffle which equal-tier cards make the squad
     const shown = !!menu && menu.style.display !== 'none';
     if (shown && !menuWasShown) { rerollSquad(); sqCache.clear(); sqSig = ''; }
     menuWasShown = shown;
@@ -661,8 +613,6 @@
   (() => {
     const menu = $('menu-screen');
     if (menu && window.MutationObserver) new MutationObserver(syncSquad).observe(menu, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
-    // safety net only: the observer above already reacts when the menu appears / disappears. While a song is on screen this check
-    // (getComputedStyle + getClientRects) would force a layout recalculation in the middle of gameplay, so it is skipped there.
     setInterval(() => {
       const g = $('game');
       if (g && g.style.display !== 'none') return;
@@ -672,23 +622,13 @@
     window.addEventListener('orientationchange', () => setTimeout(measureSquad, 250));
     syncSquad();
   })();
-  // optional: call Shop.setSong(song) when the selected song changes so the ♪ marks and bonus follow it
-  // song changed: let the carousel finish moving first, then update the bar (rapid swipes only render the last one)
   function setSong(song) {
-    if (cpick) return;                           // a CENTER pick is open: the bar stays on the song being picked for
+    if (cpick) return;
     curSong = song || null;
     if (!sqOn) return;
     clearTimeout(sqTimer);
-    // wait for the carousel to settle, then do the update in idle time (and only if the loadout really changed)
     sqTimer = setTimeout(() => idle(() => { if (sqOn && !document.body.classList.contains('carousel-scrolling')) renderSquad(); else if (sqOn) setSong(curSong); }), 220);
   }
-  // ============================================================
-  //  CENTER PICK
-  //  PLAY -> YES calls openLineup(song, go). A pop out asks for the CENTER, the equipped cards in the bottom bar become
-  //  clickable, tapping one asks "PICK <name> AS CENTER?" (YES starts the song by calling go(), NO goes back to picking).
-  //  The CENTER card gives CENTER_BONUS[its tier] % on top of its own bonus (see calc / beginRun).
-  //  false = "nothing to pick, start the song"
-  // ============================================================
   let pickEl = null;
   const centerBonusFor = (ti) => CENTER_BONUS[ti] || 0;
   function pickBuild() {
@@ -730,7 +670,7 @@
     cpick.sel = cell.dataset.m;
     pickMark(cpick.sel);
     pickRender();
-    try { if (typeof UI_SND !== 'undefined' && UI_SND.chip) UI_SND.chip(Math.max(0, Array.prototype.indexOf.call(sqGrid.children, cell))); } catch (e) { /* ignore */ }
+    try { if (typeof UI_SND !== 'undefined' && UI_SND.chip) UI_SND.chip(Math.max(0, Array.prototype.indexOf.call(sqGrid.children, cell))); } catch (e) {  }
     const y = pickEl.querySelector('.cp-yes');
     if (y) y.focus({ preventScroll: true });
   }
@@ -745,15 +685,15 @@
     if (!q || !q.sel) return;
     centerPick = { song: songKey(q.song), id: q.sel };
     pickClose();
-    q.go();                                      // the song starts
+    q.go();
   }
   function pickNo() {
     if (!cpick) return;
     cpick.sel = null;
     pickMark(null);
-    pickRender();                                // back to "PICK THE CENTER FOR THIS SONG"
+    pickRender();
   }
-  function pickCancel() {                        // BACK: leave the pick, nothing starts
+  function pickCancel() {
     if (!cpick) return;
     centerPick = null;
     pickClose();
@@ -761,7 +701,7 @@
   sqGrid.addEventListener('click', (e) => {
     if (cpick) pickSelect(e.target.closest ? e.target.closest('.sq-cell') : null);
   });
-  window.addEventListener('keydown', (e) => {    // while the pop out is open the song list behind it must not move
+  window.addEventListener('keydown', (e) => {
     if (!cpick) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (cpick.sel) pickNo(); else pickCancel(); }
     else if (e.key && e.key.indexOf('Arrow') === 0) { e.preventDefault(); e.stopPropagation(); }
@@ -772,9 +712,9 @@
     if (!song || typeof go !== 'function') return false;
     centerPick = null;
     curSong = song;
-    if (!sqBar.classList.contains('show')) return false;      // the bottom bar is not on screen: nothing to tap, just start
+    if (!sqBar.classList.contains('show')) return false;
     renderSquad();
-    if (!autoLineup(song).length) return false;               // no cards equipped: no center to pick
+    if (!autoLineup(song).length) return false;
     pickBuild();
     cpick = { song, go, sel: null };
     document.body.classList.add('center-picking');
@@ -785,16 +725,12 @@
     return true;
   }
 
-  // ============================================================
-  //  IN-GAME CARD STRIP
-  // ============================================================
   function slotCard(id, size) {
     const el = mkCard(id, bestT(id));
     el.style.setProperty('--cw', size + 'px');
     el.style.pointerEvents = 'none';
     return el;
   }
-  // ---- cheering cards: 3 on stage (centre + 2 behind), rotating one by one; purely visual ----
   let hud = null, cheer = null, cheerPaused = false, lastPulse = 0;
   function cheerCard(id) {
     let w = cheer.els.get(id);
@@ -805,8 +741,8 @@
     bob.innerHTML = '<i class="cc-aura"></i>';
     const pl = h('div', 'cc-pulse');
     const cardEl = mkCard(id, t);
-    cardEl.classList.add('flat');                                   // same flat, no-animation card the squad bar uses (see shop.css)
-    const bk = cardEl.querySelector('.tc-back'); if (bk) bk.remove();   // never flipped in game: no back face to composite
+    cardEl.classList.add('flat');
+    const bk = cardEl.querySelector('.tc-back'); if (bk) bk.remove();
     pl.appendChild(cardEl);
     bob.appendChild(pl);
     if (cheer.center === id) bob.appendChild(h('b', 'cc-center', '★ CENTER'));
@@ -828,14 +764,14 @@
       w._want = pos;
       if (!w.parentNode) {
         setPos(w, 'fr'); hud.appendChild(w);
-        if (initial) void w.offsetWidth;                 // before the song starts a forced layout is harmless
-        else {                                           // during the song: NO forced layout. Let the browser draw the start position
-          const tok = w._tok = (w._tok || 0) + 1;        // once (two frames), then slide the card to its real place
+        if (initial) void w.offsetWidth;
+        else {
+          const tok = w._tok = (w._tok || 0) + 1;
           requestAnimationFrame(() => requestAnimationFrame(() => { if (w._tok === tok && w.parentNode) setPos(w, w._want); }));
           return;
         }
       }
-      w._tok = (w._tok || 0) + 1;                        // cancels a slide that was still waiting for its frames
+      w._tok = (w._tok || 0) + 1;
       setPos(w, pos);
     });
     Array.from(hud.querySelectorAll('.cc-card')).forEach(w => {
@@ -856,16 +792,14 @@
     }
     cheer.timer = setTimeout(cheerLoop, 3800 - tier * 450);
   }
-  // Build every cheer card (and decode its picture) during the intro, one per tick, so the first rotation in the song
-  // does not have to create a card, decode an image or promote a layer. The cards on stage get their first animate() too.
   function cheerWarm(c) {
     let k = 0;
     const next = () => {
       if (cheer !== c || k >= c.ids.length) return;
       const w = cheerCard(c.ids[k++]);
-      try { w.querySelectorAll('img').forEach(im => { if (im.decode) im.decode().catch(() => {}); }); } catch (e) { /* ignore */ }
+      try { w.querySelectorAll('img').forEach(im => { if (im.decode) im.decode().catch(() => {}); }); } catch (e) {  }
       const p = w.parentNode && w.querySelector('.cc-pulse');
-      if (p && p.animate) { try { p.animate([{ transform: 'scale(1)' }, { transform: 'scale(1)' }], { duration: 30 }); } catch (e) { /* ignore */ } }
+      if (p && p.animate) { try { p.animate([{ transform: 'scale(1)' }, { transform: 'scale(1)' }], { duration: 30 }); } catch (e) {  } }
       setTimeout(next, 50);
     };
     next();
@@ -891,7 +825,6 @@
     hud = null; cheer = null;
   }
   function setCheerPaused(p) { cheerPaused = !!p; if (hud) hud.classList.toggle('paused', cheerPaused); }
-  // equipped-cards row for the pause / game over / results cards (every .eq-strip on the page)
   function fillStrips() {
     document.querySelectorAll('.eq-strip').forEach(el => {
       el.textContent = '';
@@ -900,14 +833,13 @@
       run.cards.forEach(c => {
         const card = mkCard(c.id, bestT(c.id));
         card.style.pointerEvents = 'none';
-        if (c.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));      // pause / game over / results
+        if (c.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));
         row.appendChild(card);
       });
       el.appendChild(h('div', 'eq-label', 'EQUIPPED CARDS <b>+' + run.bonus + '%</b>'));
       el.appendChild(row);
     });
   }
-  // same card strip, but from a saved run (used by the "view high score" card)
   function fillStripFrom(el, cards, bonus) {
     if (!el) return;
     el.textContent = '';
@@ -917,14 +849,13 @@
       try {
         const card = mkCard(cd.id, cd.tier >= 0 ? cd.tier : bestT(cd.id));
         card.style.pointerEvents = 'none';
-        if (cd.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));     // saved high-score run
+        if (cd.center) card.appendChild(h('b', 'eq-center', '★ CENTER'));
         row.appendChild(card);
-      } catch (e) { /* unknown card id: skip */ }
+      } catch (e) {  }
     });
     el.appendChild(h('div', 'eq-label', 'EQUIPPED CARDS <b>+' + (bonus || 0) + '%</b>'));
     el.appendChild(row);
   }
-  // the run's CENTER card, big, for the result card (saved = { cards } of a stored high-score run); empty when no center was picked
   function fillCenter(el, saved) {
     if (!el) return;
     el.textContent = '';
@@ -939,18 +870,16 @@
       card.style.pointerEvents = 'none';
       el.appendChild(card);
       el.appendChild(h('b', 'eq-center rl-center-tag', '\u2605 CENTER'));
-    } catch (e) { /* unknown card id: leave the slot empty */ }
+    } catch (e) {  }
   }
-  // called on every PERFECT: the centre card bounces (the side cards just a little)
   function pulse() {
     if (!hud || !cheer) return;
     const now = performance.now();
     if (now - lastPulse < 130) return;
     lastPulse = now;
-    pulseEl(hud.querySelector('.pos-c'), 1.2);       // only the centre card bounces now (the two side cards used to as well)
+    pulseEl(hud.querySelector('.pos-c'), 1.2);
   }
 
-  // ---------- red dots ----------
   function refreshBadges() {
     const b = $('shop-btn');
     if (b) b.classList.toggle('has-new', anyReady());
@@ -959,7 +888,6 @@
   }
   setInterval(refreshBadges, 5000);
 
-  // ---------- wiring ----------
   function openShop() {
     show('shop');
     renderShop();
@@ -975,9 +903,8 @@
     onChange(fn) { listeners.push(fn); },
     TIER_BONUS, CENTER_BONUS, OSHI_MULT, SONG_MATCH, TEAM_BONUS,
     isOpen: () => !!openName,
-    // console: Shop.reset() clears shop timers so you can test the free first-time packs again
     reset() { S = load(); S.firstDone = {}; S.cd = {}; S.pity = 0; save(); if (openName === 'shop') renderShop(); refreshBadges(); },
   };
   refreshBadges();
-  setTimeout(() => { try { renderSquad(); } catch (e) { /* ignore */ } }, 600);
+  setTimeout(() => { try { renderSquad(); } catch (e) {  } }, 600);
 })();

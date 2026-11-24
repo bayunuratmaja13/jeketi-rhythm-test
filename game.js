@@ -1,12 +1,6 @@
-// ============================================================
-//  JEKETI RHYTHM — game.js
-//  v2: smoother clock, cheaper rendering, juicier feedback
-// ============================================================
 
-// ---------- VIEWPORT ----------
 if (window.__applyViewport) window.__applyViewport();
 
-// ---------- SMALL HELPERS ----------
 const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const HAS_TRANSLATE = !!(window.CSS && CSS.supports && CSS.supports('translate', '0 0'));
 
@@ -17,7 +11,6 @@ function mk(tag, id, parent) {
   return el;
 }
 
-// ---------- ELEMENTS ----------
 const game = document.getElementById('game');
 const mainMenuScreen = document.getElementById('main-menu-screen');
 const menuScreen = document.getElementById('menu-screen');
@@ -31,14 +24,12 @@ const scoreEl = document.getElementById('score');
 const comboEl = document.getElementById('combo');
 const judgementEl = document.getElementById('judgement');
 
-// Playfield is ONE canvas now (was 4 tilted DOM lanes with glowing notes = very heavy on phones)
 const playfieldEl = document.getElementById('playfield');
-const fieldBgCv = document.getElementById('field-bg');   // static: lanes, rails (drawn only on resize)
-const fieldCv = document.getElementById('field');        // dynamic: notes, receptors, effects (every frame)
+const fieldBgCv = document.getElementById('field-bg');
+const fieldCv = document.getElementById('field');
 const bgCtx = fieldBgCv.getContext('2d');
 const ctx = fieldCv.getContext('2d');
 const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-// a real phone / tablet: touch is the main pointer AND no mouse / trackpad is attached. Laptops (even touchscreen ones) and browser device-emulation with a mouse keep the full effects.
 const PHONE_FX = COARSE && !(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
 
 const screenFlash = mk('div', 'screen-flash');
@@ -46,29 +37,23 @@ const missFlash = mk('div', 'miss-flash');
 const tierGlow = mk('div', 'tier-glow');
 const beatPulse = mk('div', 'beat-pulse');
 
-// Combo: number + label
 comboEl.innerHTML = '<span class="combo-num"></span><span class="combo-label">COMBO</span>';
 comboEl.className = 'off';
 const comboNumEl = comboEl.querySelector('.combo-num');
 
-// Early / late indicator
 const timingEl = mk('div', 'timing');
 
-// Tier-up banner
 const tierBanner = mk('div', 'tier-banner');
 tierBanner.innerHTML = '<div class="tb-title"></div><div class="tb-sub"></div>';
 const tbTitle = tierBanner.querySelector('.tb-title');
 const tbSub = tierBanner.querySelector('.tb-sub');
 
-// Resume countdown
 const countdownEl = mk('div', 'countdown');
 
-// Life gauge (how close you are to game over)
 const lifeEl = mk('div', 'life');
 lifeEl.innerHTML = '<div id="life-fill"></div>';
 const lifeFill = lifeEl.querySelector('#life-fill');
 
-// ---------- STATUS ----------
 const status = document.createElement('div');
 status.style.cssText =
   'position:fixed;bottom:8px;right:8px;color:#0f0;font-family:monospace;' +
@@ -77,14 +62,12 @@ status.style.cssText =
 document.body.appendChild(status);
 function setStatus(t) { status.textContent = t; }
 
-// ---------- PAUSE BUTTON ----------
 const pauseBtn = document.createElement('button');
 pauseBtn.id = 'pause-btn';
 pauseBtn.textContent = '❚❚';
 pauseBtn.setAttribute('aria-label', 'Pause');
 document.body.appendChild(pauseBtn);
 
-// ---------- PAUSE OVERLAY ----------
 const pauseOverlay = document.createElement('div');
 pauseOverlay.id = 'pause-overlay';
 pauseOverlay.innerHTML = `
@@ -105,7 +88,6 @@ const btnResume = document.getElementById('btn-resume');
 const btnQuit = document.getElementById('btn-quit');
 const btnRestart = document.getElementById('btn-restart');
 
-// ---------- GAME OVER ----------
 const gameOver = document.createElement('div');
 gameOver.id = 'game-over';
 gameOver.innerHTML = `
@@ -138,16 +120,11 @@ const goCoverEl = document.getElementById('go-cover');
 const btnGoPlayAgain = document.getElementById('btn-go-play-again');
 const btnGoBack = document.getElementById('btn-go-back');
 
-// ---------- CONSTANTS ----------
-// NOTE SPEED: how long a note takes to travel from the top of the track to the hit line.
-// Player-facing speed 0 .. 10 in 0.5 steps (Option card). 0 = the slowest a note can fall (5000 ms, the old "2"),
-// 5 = the old maximum (1000 ms), 10 = even faster (about 556 ms). Each step is +1.6 on the old scale: old = 2 + 1.6 * speed.
-// Hit windows and score do NOT depend on it: it only changes how early you can see a note.
-const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 3;      // 4 = default for everyone (old scale 8.4, about 1190 ms)
-const SPEED_RESET_VER = 1;                                                      // bump this number to force every player back to SPEED_DEFAULT once
-const GFX_RESET_VER = 1;                                                        // bump this number to force every player's Graphics option back to ON (GFX_DEFAULT) once
-const GFX_DEFAULT = true;                                                       // Graphics is ON by default for everyone
-const SPEED_SCALE = 2;                                                          // saved-options version of the scale (older saves used 2..10)
+const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 3;
+const SPEED_RESET_VER = 1;
+const GFX_RESET_VER = 1;
+const GFX_DEFAULT = true;
+const SPEED_SCALE = 2;
 const approachFor = (speed) => Math.round(10000 / (2 + 1.6 * speed));
 let APPROACH_TIME = approachFor(SPEED_DEFAULT);
 const HIT_WINDOWS = { PERFECT: 40, GREAT: 80, GOOD: 130, BAD: 200 };
@@ -156,10 +133,10 @@ const KEY_TO_LANE = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
 const HOLD_GRACE = 100;
 const HOLD_TICK_INTERVAL = 100;
 const HOLD_TICK_POINTS = 15;
-const SPAWN_LEAD = 150;               // ms before the approach starts that a note's element is created
+const SPAWN_LEAD = 150;
 
-const TIER_STEPS = [50, 100, 200, 480]; // combo needed for tier 1..4 (also the milestone moments)
-const COMBO_SHOW_FROM = 10;           // combo counter appears from here
+const TIER_STEPS = [50, 100, 200, 480];
+const COMBO_SHOW_FROM = 10;
 
 const JUDGE = {
   PERFECT: { name: 'PERFECT', points: 100, color: '#ffcc00', beam: '#ffcc33', kick: 0.45 },
@@ -167,57 +144,47 @@ const JUDGE = {
   GOOD:    { name: 'GOOD',    points: 40,  color: '#3cb54a', beam: '#66d9a8', kick: 0.15 },
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
 };
-// accuracy = sum of hit weights / notes judged. A GREAT loses 4%, a GOOD 20%, a BAD 75%, a MISS 100% of a note's worth.
 const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.96, GOOD: 0.8, BAD: 0.25, MISS: 0 };
 const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
-// ---------- SCORE SCALE & GRADES ----------
-// Every song is scaled so a PERFECT run with no cards = BASE_MAX_SCORE, so long and short songs are equally fair.
-// Cards then multiply it (see TIER_BONUS in shop.js), so reaching S (1,000,000) takes roughly 10 S cards plus a clean full combo.
-// NOTE: the best possible run (12 SS cards, oshi, every member in the song, perfect) is about 1,475,000; SS needs 1,400,000.
 const BASE_MAX_SCORE = 500000;
-// a grade needs BOTH its minimum score and its minimum accuracy (checked from the top down); SS additionally needs zero misses
 const GRADE_RULES = [
-  { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },   // SS also needs ZERO misses
+  { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },
   { g: 'S',  score: 1000000, acc: 0.96 },
-  { g: 'A',  score: 750000,  acc: 0.93 },
+  { g: 'A',  score: 800000,  acc: 0.93 },
   { g: 'B',  score: 600000,  acc: 0.90 },
 ];
 
-const SHAKE_SCALE = reduceMotion ? 0 : 0.5;  // overall shake strength (subtle)
-const SHAKE_MAX = 1.6;                        // px cap
-const COUNTDOWN_STEP = 800;                   // ms per number on resume
+const SHAKE_SCALE = reduceMotion ? 0 : 0.5;
+const SHAKE_MAX = 1.6;
+const COUNTDOWN_STEP = 800;
 const STORE_PREFIX = 'jeketi.best.';
 
-// ---------- STATE ----------
-let mode = 'idle'; // idle | starting | playing | paused | countdown | resuming | gameover
-// A song is being started but `mode` is still 'idle' (the chart is loading). Together with mode this is the one answer to
-// "is the player in a song right now?": downloader.js uses it to pause background downloads, Store.keepAudio to not start new ones.
+let mode = 'idle';
 let songStarting = false, songStartingAt = 0;
-function playBusy() { return (songStarting && performance.now() - songStartingAt < 60000) || mode !== 'idle'; }   // the 60 s limit: a stuck flag can never block downloads for good
+function playBusy() { return (songStarting && performance.now() - songStartingAt < 60000) || mode !== 'idle'; }
 let currentSong = null;
 let selectedSong = null;
 let currentChart = [];
 
-let queue = [];                       // all notes of the song, sorted by time
-let spawnIdx = 0;                     // next note to create an element for
-let active = [];                      // notes that currently have an element on screen
-let laneQueues = [[], [], [], []];    // per-lane notes, sorted by time
+let queue = [];
+let spawnIdx = 0;
+let active = [];
+let laneQueues = [[], [], [], []];
 let laneHead = [0, 0, 0, 0];
 
 let score = 0, combo = 0, maxCombo = 0, displayScore = 0;
 let stats = { PERFECT: 0, GREAT: 0, GOOD: 0, BAD: 0, MISS: 0 };
 let judgedCount = 0;
-let perfectStreak = 0;                // PERFECTs in a row (every 10th sets off a burst on all four lanes)
+let perfectStreak = 0;
 let missCount = 0;
 let missLimit = 20;
-const PERFECTS_PER_HEAL = 50;         // every 50 PERFECTs win back 1 miss (only counted while at least 1 miss is on the bar)
+const PERFECTS_PER_HEAL = 50;
 let healCount = 0;
-let scoreMult = 1;                    // card bonus for this run (1 = none)
-let scoreNorm = 1;                    // per-song scale (BASE_MAX_SCORE / the song's perfect-run total)
-let scoreExact = 0;                   // un-rounded running total, so rounding never drifts
+let scoreMult = 1;
+let scoreNorm = 1;
+let scoreExact = 0;
 function addScore(points) { scoreExact += points * scoreMult * scoreNorm; score = Math.round(scoreExact); }
-// what a flawless run of this chart is worth before scaling: head 100 per note, plus hold ticks and the hold bonus
 function perfectRunTotal() {
   let t = 0;
   for (const n of queue) t += n.dur > 0 ? 100 + Math.floor(n.dur / HOLD_TICK_INTERVAL) * HOLD_TICK_POINTS + 50 : 100;
@@ -227,89 +194,71 @@ function perfectRunTotal() {
 let useAudio = false, wallStart = 0, wallOffset = 0, pauseStartWall = 0;
 let frozenTime = 0;
 let playToken = 0;
-let introShow = false;                // true during the 3-2-1 before a song: draw the notes without moving them
+let introShow = false;
 
-// interpolated audio clock
 let anchorAudio = 0, anchorPerf = 0, lastAudioRaw = -1;
-let smoothT = 0, smoothPerf = 0, errSince = 0;   // errSince: when |err| first went above CLOCK_BIG_MS (0 = it is not above now)
+let smoothT = 0, smoothPerf = 0, errSince = 0;
 
 let countdownEnd = 0, lastCountdownNum = 0;
 let audioCtx = null;
 let loopRunning = false;
 let lastFrameT = 0;
 let lastScorePulse = 0;
-let kick = 0;                         // hit-driven pulse for the background glow
+let kick = 0;
 let lastBeatOpacity = -1;
 
-// adaptive quality
-let songFx = null;                    // per-song gameplay effect (see SONG_FX); replaces the sakura petals while active
+let songFx = null;
 let frameEma = 16.7;
-// QUALITY LADDER (see the block above applyGfx): qRung 0 = full look ... 3 = lite. qLowRes = the playfield bitmap is the small one for THIS song
-// (the resolution only ever changes between songs: reallocating the canvases mid-song is a visible hitch).
 let qRung = 0, qLowRes = false;
-// weak phones (little RAM / few cores): only a first guess for the starting rung of a device that has no saved rung yet
 const WEAK_DEVICE = COARSE && ((navigator.deviceMemory && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
 let shownScoreInt = -1;
 let judgeAnim = null, timingAnim = null, bannerAnim = null;
-let perfectTilt = 1;   // kept so a new one can cancel the old one without getAnimations() (which forces a style recalculation)
+let perfectTilt = 1;
 let lastPopScore = 0, lastPopCombo = 0, lastBuzz = 0;
-let accFx = 0, accBeat = 0;                                  // ambient effects run at ~30 fps, one per frame (staggered)
-const NUM_FMT = new Intl.NumberFormat();                     // same output as toLocaleString(), but built once
-function buzz(ms) {                                          // phone vibration is an IPC call: at most once per 80 ms
+let accFx = 0, accBeat = 0;
+const NUM_FMT = new Intl.NumberFormat();
+function buzz(ms) {
   if (!navigator.vibrate || !OPT.vib) return;
   const t = performance.now();
   if (t - lastBuzz < 80) return;
   lastBuzz = t;
   navigator.vibrate(ms);
 }
-// ---------- PLAYER OPTIONS (saved on the device) ----------
 const OPT_KEY = 'jeketi.options';
-const OPT = { music: 1, sfx: 1, vib: true, gfx: GFX_DEFAULT, speed: SPEED_DEFAULT };      // gfx: ON by default
+const OPT = { music: 1, sfx: 1, vib: true, gfx: GFX_DEFAULT, speed: SPEED_DEFAULT };
 try {
   const o = JSON.parse(localStorage.getItem(OPT_KEY) || '{}');
   if (typeof o.music === 'number') OPT.music = Math.max(0, Math.min(1, o.music));
   if (typeof o.sfx === 'number') OPT.sfx = Math.max(0, Math.min(1, o.sfx));
   if (typeof o.vib === 'boolean') OPT.vib = o.vib;
-  // players saved before the reset version start with Graphics ON; after that their own choice is kept
   if (o.gfxReset === GFX_RESET_VER && typeof o.gfx === 'boolean') OPT.gfx = o.gfx;
-  // players saved before the reset version start at the new default (4); after that their own choice is kept
   if (o.speedReset === SPEED_RESET_VER && typeof o.speed === 'number' && isFinite(o.speed)) {
-    const sp = o.speedScale === SPEED_SCALE ? o.speed : (o.speed - 2) / 1.6;     // an older save used the 2..10 scale: convert it so the speed feels the same
+    const sp = o.speedScale === SPEED_SCALE ? o.speed : (o.speed - 2) / 1.6;
     OPT.speed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(sp / SPEED_STEP) * SPEED_STEP));
   }
-} catch (e) { /* storage blocked or damaged: defaults */ }
-APPROACH_TIME = approachFor(OPT.speed);                      // apply the saved Note Speed
-function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER, gfxReset: GFX_RESET_VER }, OPT))); } catch (e) { /* storage blocked */ } }
+} catch (e) {  }
+APPROACH_TIME = approachFor(OPT.speed);
+function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER, gfxReset: GFX_RESET_VER }, OPT))); } catch (e) {  } }
 
-// THREE looks:
-//   GRAPHICS OFF           = the light look: no beat glow / beams / shake, few particles, 1x playfield.
-//   GRAPHICS ON (default)  = the full look the game had before the light pass (beat glow, beams, shake, full particles, sharper playfield).
-//   LITE (rung R3)        = even lighter, adaptive, ALWAYS available whatever the graphics option says. It is the LAST rung of the quality
-//                            ladder (R0 full, R1 nearly invisible trims, R2 lighter hit effects, R3 lite): no particles / rings / hit-flash /
-//                            tier glow, no petals, flat hold bodies, slower ambience. A song that STARTS on R3 also uses a smaller playfield bitmap.
-const LITE_DPR = 0.75;                 // playfield resolution for a song that starts on the lite rung (R3)
-// The quality ladder (rung = qRung):  R0 full  ->  R1 nearly invisible trims  ->  R2 lighter hit effects  ->  R3 lite.
-function fxLite() { return qRung >= 3; }                  // R3: no particles / rings / hit flash / tier glow, no petals ...
-function fxLight() { return !OPT.gfx || qRung >= 2; }     // "light look": graphics off, or rung 2 and up
-function fxMid() { return !OPT.gfx || qRung >= 2; }       // R2 and up: no beat glow, no shake
+const LITE_DPR = 0.75;
+function fxLite() { return qRung >= 3; }
+function fxLight() { return !OPT.gfx || qRung >= 2; }
+function fxMid() { return !OPT.gfx || qRung >= 2; }
 
-// start-up smoothness
-const CLOCK_SNAP_MS = 400;             // song clock only JUMPS to the audio when they differ by more than this (was 120: a weak phone's audio start-up often wobbles more than that)
-const CLOCK_MAX_SLEW = 0.12;           // FAST catch-up (only for a big gap that lasts): notes never run more than 12% faster / slower than real time
-// two-speed correction: the audio's time reports are noisy, so small gaps are mostly ignored (notes keep a steady speed)
-const CLOCK_DEAD_MS = 12;              // gaps smaller than this are not corrected at all
-const CLOCK_SLOW_GAIN = 0.01;          // gentle correction per 16.7 ms frame (time constant about 1.5 s)
-const CLOCK_SLOW_SLEW = 0.02;          // gentle correction never changes the note speed by more than 2%
-const CLOCK_FAST_GAIN = 0.1;           // fast correction per 16.7 ms frame (the old behaviour)
-const CLOCK_BIG_MS = 60;               // a gap this big ...
-const CLOCK_BIG_HOLD_MS = 250;         // ... that lasts this long switches to the fast correction
-const WARMUP_MS = 2000;                // first seconds of a song: audio start-up jank alone must not flip the quality mode mid-song
-const CLOCK_EARLY_MS = 1500;           // the first 1.5 s of a song: the audio clock is at its noisiest, so the notes follow it very gently (no jump, no fast catch-up)
-const CLOCK_EARLY_SNAP_MS = 1000;      // ... and only a really huge gap may still make the clock jump in that window
-const AMBIENT_DELAY_MS = 1200;         // petals / song effects / beat glow wait this long after the song starts, so the first notes get every frame
+const CLOCK_SNAP_MS = 400;
+const CLOCK_MAX_SLEW = 0.12;
+const CLOCK_DEAD_MS = 12;
+const CLOCK_SLOW_GAIN = 0.01;
+const CLOCK_SLOW_SLEW = 0.02;
+const CLOCK_FAST_GAIN = 0.1;
+const CLOCK_BIG_MS = 60;
+const CLOCK_BIG_HOLD_MS = 250;
+const WARMUP_MS = 2000;
+const CLOCK_EARLY_MS = 1500;
+const CLOCK_EARLY_SNAP_MS = 1000;
+const AMBIENT_DELAY_MS = 1200;
 let playBeganAt = 0, introFrames = 0;
 
-// add ?debug to the game's address to see a small clock / frame readout in the bottom-left corner (for finding stutter)
 const DBG = /[?&]debug\b/.test(location.search);
 const dbg = { snaps: 0, maxErr: 0, fast: 0, long: 0, worst: 0, last: 0 };
 const dbgEl = document.createElement('div');
@@ -329,7 +278,6 @@ const laneFlashTimers = [null, null, null, null];
 const pressedLanes = new Set();
 const activeTouches = new Map();
 
-// ---------- CLOCK ----------
 function resetClock() {
   const raw = music.currentTime * 1000;
   lastAudioRaw = raw;
@@ -340,8 +288,6 @@ function resetClock() {
   errSince = 0;
 }
 
-// Audio currentTime updates in coarse steps on many browsers, which makes notes judder.
-// We keep a smooth clock that advances with performance.now() and gently follows the audio.
 function getSongTime() {
   if (mode === 'paused' || mode === 'countdown' || mode === 'resuming') return frozenTime;
   if (!useAudio) return performance.now() - wallStart - wallOffset;
@@ -363,16 +309,13 @@ function getSongTime() {
     const early = playBeganAt > 0 && p - playBeganAt < CLOCK_EARLY_MS;
     if (aerr > (early ? CLOCK_EARLY_SNAP_MS : CLOCK_SNAP_MS)) { t = est; errSince = 0; if (DBG) dbg.snaps++; }
     else {
-      // how long has the gap been bigger than CLOCK_BIG_MS?
       if (aerr >= CLOCK_BIG_MS) { if (!errSince) errSince = p; } else errSince = 0;
       const k = Math.min(1, dt / 16.7);
       let corr, lim;
       if (errSince && !early && p - errSince >= CLOCK_BIG_HOLD_MS) {
-        // a real, lasting offset: chase it quickly (same as before)
         corr = err * CLOCK_FAST_GAIN * k; lim = dt * CLOCK_MAX_SLEW;
         if (DBG && p - playBeganAt < 10000) dbg.fast++;
       } else {
-        // small gap, or a big one that may just be noise: barely move (dead zone, then a gentle pull)
         const e = aerr <= CLOCK_DEAD_MS ? 0 : (err > 0 ? err - CLOCK_DEAD_MS : err + CLOCK_DEAD_MS);
         corr = e * CLOCK_SLOW_GAIN * k; lim = dt * CLOCK_SLOW_SLEW;
       }
@@ -394,47 +337,40 @@ function measureLane() { layoutField(); if (songFx && songFx.resize) songFx.resi
 if ('ResizeObserver' in window) new ResizeObserver(measureLane).observe(playfieldEl);
 window.addEventListener('resize', measureLane);
 
-// ---------- SAVED BESTS ----------
 function loadBest(id) {
   try {
     const raw = localStorage.getItem(STORE_PREFIX + id);
     const o = raw ? JSON.parse(raw) : null;
-    if (o && o.run) { o.score = o.run.score; o.combo = o.run.combo; o.acc = o.run.acc; o.grade = o.run.grade; o.fc = !!o.run.fc; }   // older saves mixed bests from different runs
+    if (o && o.run) { o.score = o.run.score; o.combo = o.run.combo; o.acc = o.run.acc; o.grade = o.run.grade; o.fc = !!o.run.fc; }
     return o;
   } catch (e) { return null; }
 }
 function saveBest(id, obj) {
-  try { localStorage.setItem(STORE_PREFIX + id, JSON.stringify(obj)); } catch (e) { /* storage blocked */ }
+  try { localStorage.setItem(STORE_PREFIX + id, JSON.stringify(obj)); } catch (e) {  }
 }
 
-// ---------- SONG PREVIEW (song select) ----------
 let previewAudio = null, previewTimer = null, previewToken = 0;
 
 function stopPreview() {
   previewToken++;
   clearInterval(previewTimer);
   previewTimer = null;
-  if (previewAudio) { try { previewAudio.pause(); } catch (e) { /* ignore */ } }
+  if (previewAudio) { try { previewAudio.pause(); } catch (e) {  } }
 }
 
-// When a song starts the preview element is not only paused but emptied (no src), so its buffered audio / decoder is freed for the song.
-// The element itself stays (iPhones remember it was unlocked); the next preview simply sets its src again.
 function releasePreview() {
   clearTimeout(previewDelay);
   stopPreview();
   if (!previewAudio) return;
-  try { previewAudio.removeAttribute('src'); previewAudio.load(); } catch (e) { /* ignore */ }
+  try { previewAudio.removeAttribute('src'); previewAudio.load(); } catch (e) {  }
 }
 
-// while the new-player intro (oshi picker + starter pack) is on screen, no preview music
 let holdPreview = false;
 function setPreviewHold(v) {
   holdPreview = !!v;
   if (!v && mode === 'idle' && selectedSong && menuScreen.style.display !== 'none' && !document.getElementById('pack-overlay')) startPreview(selectedSong);
 }
 
-// A song can have a short dedicated preview clip:   previewAudio: 'music/previews/ayo_senyumlah.mp3'
-// (about 15 s, mono, 64-96 kbps = roughly 100-200 KB). Without it the preview uses the full song as before.
 const previewUrlOf = (song) => song.previewAudio || song.audio;
 const absUrl = (u) => new URL(u, document.baseURI).href;
 
@@ -443,13 +379,10 @@ function ensurePreviewAudio() {
   return previewAudio;
 }
 
-// Start downloading a song's preview BEFORE the player gets to the carousel (title screen, oshi picker, starter pack).
-// - the preview element is pointed at the file, so Android / desktop browsers already have the start of it buffered
-// - a short clip is also fetched completely into the browser cache (iPhones ignore preload, this is what helps them)
 const warmedPreviews = new Set();
 function warmPreview(song) {
   if (!song || !song.audio || song.preview === false) return;
-  if (playBusy()) return;                              // a song is starting / playing: never (re)attach the preview file now
+  if (playBusy()) return;
   const url = previewUrlOf(song);
   if (warmedPreviews.has(url)) return;
   warmedPreviews.add(url);
@@ -457,11 +390,9 @@ function warmPreview(song) {
     const a = ensurePreviewAudio();
     if (!a.src) a.src = url;
     if (song.previewAudio) fetch(absUrl(url)).then(r => r.arrayBuffer()).catch(() => {});
-  } catch (e) { /* ignore */ }
+  } catch (e) {  }
 }
 
-// iPhone / Safari only lets an audio element play by itself after it has been played once from a tap.
-// Called from the PLAY tap: plays the preview element silently for a moment so later previews are allowed.
 let previewUnlocked = false;
 function unlockPreview() {
   if (previewUnlocked) return;
@@ -474,12 +405,11 @@ function unlockPreview() {
     const url = previewUrlOf(song);
     if (a.src !== absUrl(url)) a.src = url;
     a.muted = true;
-    // if a real preview started meanwhile (token changed) leave it playing, only un-mute
-    const done = () => { a.muted = false; if (tok === previewToken) { try { a.pause(); } catch (e) { /* ignore */ } } };
+    const done = () => { a.muted = false; if (tok === previewToken) { try { a.pause(); } catch (e) {  } } };
     const p = a.play();
     if (p && p.then) p.then(done, () => { a.muted = false; previewUnlocked = false; });
     else done();
-  } catch (e) { /* ignore */ }
+  } catch (e) {  }
 }
 
 function startPreview(song) {
@@ -492,8 +422,8 @@ function startPreview(song) {
   const isClip = !!song.previewAudio;
   const url = previewUrlOf(song);
   const start = typeof song.previewStart === 'number' ? song.previewStart : (isClip ? 0 : 15);
-  const SONG_VOL = song.volume > 0 ? Number(song.volume) : 1;   // per-song loudness (preview base is 0.8, capped at 1, so no gain node needed)
-  const targetVol = () => Math.min(1, 0.8 * SONG_VOL) * OPT.music, FADE_MS = 700;   // read live, so the Option slider is heard while the preview plays
+  const SONG_VOL = song.volume > 0 ? Number(song.volume) : 1;
+  const targetVol = () => Math.min(1, 0.8 * SONG_VOL) * OPT.music, FADE_MS = 700;
   let LEN_MS = 14000;
 
   a.muted = false;
@@ -504,10 +434,10 @@ function startPreview(song) {
     if (token !== previewToken) return;
     const d = a.duration;
     try {
-      if (isClip) a.currentTime = start;          // a clip plays from its own start: no big jump into the file
+      if (isClip) a.currentTime = start;
       else a.currentTime = (isFinite(d) && start > d - 20) ? Math.max(0, d * 0.3) : start;
-    } catch (e) { /* ignore */ }
-    if (isClip && isFinite(d)) LEN_MS = Math.min(LEN_MS, Math.max(2000, (d - start) * 1000 - 200));   // fade out before the clip ends
+    } catch (e) {  }
+    if (isClip && isFinite(d)) LEN_MS = Math.min(LEN_MS, Math.max(2000, (d - start) * 1000 - 200));
     const t0 = performance.now();
     clearInterval(previewTimer);
     previewTimer = setInterval(() => {
@@ -525,17 +455,13 @@ function startPreview(song) {
 
   const p = a.play();
   if (p && p.catch) p.catch(() => {
-    // blocked by the browser's autoplay rule: try again on the player's next tap instead of staying silent
     const retry = () => { if (token === previewToken) { const q = a.play(); if (q && q.catch) q.catch(() => {}); } };
     window.addEventListener('pointerdown', retry, { once: true, capture: true });
   });
 }
 
-// start downloading the first song's preview shortly after the page has loaded (new players spend a while on the
-// title screen and the oshi picker, which is free download time)
 window.addEventListener('load', () => setTimeout(() => warmPreview(window.SONGS && window.SONGS[0]), 800));
 
-// ---------- SCREENS ----------
 function setHudVisible(visible) {
   if (!visible && window.Shop) Shop.hideHud();
   scoreEl.style.display = visible ? '' : 'none';
@@ -599,8 +525,6 @@ function showGameScreen() {
   measureLane();
 }
 
-// ---------- MENU ----------
-// long titles get a smaller font (tl-1..3, see style.css) so they always fit the card's two title lines
 function titleSizeClass(t) {
   const n = String(t).length;
   return n > 38 ? ' tl-3' : n > 32 ? ' tl-2' : n > 24 ? ' tl-1' : '';
@@ -644,7 +568,7 @@ function buildMenu() {
     `;
 
     card._song = song;
-    card._idx = i;                                          // original position, used by SORT BY DEFAULT
+    card._idx = i;
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-play-btn')) return;
@@ -675,13 +599,11 @@ function buildMenu() {
   updateCardBests();
 }
 
-// best scores are shown in the equipped-cards bar now (shop.js); the song cards only carry the grade stamp of the saved best run
 function updateCardBests() {
   if (window.Shop && Shop.renderBest) Shop.renderBest();
   updateCardStamps();
 }
 
-// grade stamp (bottom-left of the cover) for every song this player has played: the grade of their saved best run, nothing if never played
 function updateCardStamps() {
   songGrid.querySelectorAll('.song-card').forEach(card => {
     const song = card._song;
@@ -701,16 +623,14 @@ function updateCardStamps() {
 }
 
 function selectCard(card, song, fast) {
-  if (selectedCardEl && selectedCardEl !== card) selectedCardEl.classList.remove('selected');   // only the previous card can carry the class: no document-wide query
-  card.classList.add('selected');                       // no forced reflow: the class swap is the only synchronous work
+  if (selectedCardEl && selectedCardEl !== card) selectedCardEl.classList.remove('selected');
+  card.classList.add('selected');
   selectedSong = song;
   selectedCardEl = card;
-  // everything heavier is staggered AFTER the frame that shows the new selection, so it never collides with the scroll:
-  //   +1 frame  select sound (synth nodes)     +~220 ms  squad bar update (idle time)     +~260 ms  preview audio
   cancelAnimationFrame(selectRaf);
   selectRaf = requestAnimationFrame(() => {
     const t = performance.now();
-    if (t - selectSoundAt > 70) { selectSoundAt = t; try { playSongSelectSound(); } catch (e) { /* audio unavailable */ } }
+    if (t - selectSoundAt > 70) { selectSoundAt = t; try { playSongSelectSound(); } catch (e) {  } }
   });
   if (window.Shop && Shop.setSong) Shop.setSong(song);
   stopPreview();
@@ -718,21 +638,18 @@ function selectCard(card, song, fast) {
   previewDelay = setTimeout(() => {
     if (selectedSong !== song) return;
     startPreview(song);
-    // the next / previous songs' short preview clips are fetched in idle time, so scrolling on starts their audio without a download wait
     (window.requestIdleCallback || setTimeout)(() => {
       if (selectedSong !== song) return;
       const cards = carouselCards(), i = cards.indexOf(selectedCardEl);
       [i + 1, i - 1, i + 2, i - 2].forEach(j => { const c = cards[j]; if (i >= 0 && c && c._song && c._song.previewAudio) warmPreview(c._song); });
     });
-  }, fast ? 30 : 260);   // no audio loading mid-scroll
-  // the player is dwelling on this song: read its chart ahead and keep its audio on the device
+  }, fast ? 30 : 260);
   clearTimeout(storeDelay);
   storeDelay = setTimeout(() => { if (selectedSong === song) { Store.prefetchChart(song); Store.keepAudio(song); } }, 1800);
 }
 let selectRaf = 0, selectSoundAt = 0;
 let previewDelay = 0, storeDelay = 0;
 
-// ---------- SONG CAROUSEL (horizontal, snap-to-center) ----------
 let selectedCardEl = null;
 let lastPlayedId = null;
 let carouselRaf = 0, carouselSettle = null, lastWheelStep = 0;
@@ -750,18 +667,14 @@ function centerCard(card, smooth) {
   songGrid.scrollTo({ left, behavior: smooth && !reduceMotion ? 'smooth' : 'auto' });
 }
 
-// Sets --f (0 = far, 1 = dead centre) on every card so CSS can scale/fade them continuously,
-// and returns the card closest to the middle.
-// Card positions are measured once and cached (re-measured only when the grid is resized or rebuilt), so scrolling does
-// pure arithmetic: no layout reads, and only the few cards near the middle are touched. Cost no longer grows with song count.
 let focusGeo = null, focusActive = [];
-let lastTickCard = null, carouselDown = false;                       // lastTickCard: card nearest the middle (for the haptic tick), carouselDown: a finger is on the carousel
+let lastTickCard = null, carouselDown = false;
 const invalidateFocusGeo = () => { focusGeo = null; };
 if ('ResizeObserver' in window) new ResizeObserver(() => { invalidateFocusGeo(); if (songGrid.clientWidth) updateCarouselFocus(); }).observe(songGrid);
 if ('MutationObserver' in window) new MutationObserver(invalidateFocusGeo).observe(songGrid, { childList: true });
 function getFocusGeo() {
   if (focusGeo) return focusGeo;
-  if (!songGrid.clientWidth) return null;                              // screen hidden: nothing to measure yet
+  if (!songGrid.clientWidth) return null;
   const cards = carouselCards();
   focusGeo = { cards, mid: cards.map(c => c.offsetLeft + c.offsetWidth / 2), w: cards.map(c => c.offsetWidth) };
   return focusGeo;
@@ -770,12 +683,12 @@ function updateCarouselFocus() {
   const g = getFocusGeo();
   if (!g || !g.cards.length) return null;
   const n = g.mid.length, mid = songGrid.scrollLeft + songGrid.clientWidth / 2;
-  let lo = 0, hi = n - 1;                                              // nearest card centre (binary search)
+  let lo = 0, hi = n - 1;
   while (lo < hi) { const m = (lo + hi) >> 1; if (g.mid[m] < mid) lo = m + 1; else hi = m; }
   if (lo > 0 && mid - g.mid[lo - 1] <= g.mid[lo] - mid) lo--;
   const next = [];
   for (let i = Math.max(0, lo - 2); i <= Math.min(n - 1, lo + 2); i++) {
-    const c = g.cards[i], f = Math.max(0, 1 - Math.abs(g.mid[i] - mid) / (g.w[i] * 1.15)).toFixed(2);   // 2 decimals is invisible but means far fewer style writes while scrolling
+    const c = g.cards[i], f = Math.max(0, 1 - Math.abs(g.mid[i] - mid) / (g.w[i] * 1.15)).toFixed(2);
     if (c._f !== f) { c._f = f; c.style.setProperty('--f', f); }
     next.push(c);
   }
@@ -783,10 +696,8 @@ function updateCarouselFocus() {
   focusActive = next;
   return g.cards[lo];
 }
-// while the carousel is moving, body gets .carousel-scrolling so the endless glow / shimmer animations pause (CSS) and
-// background polling waits; everything resumes a moment after it stops
 let scrollIdle = 0, lastScrollAt = 0;
-function scrollIdleCheck() {                                  // one timer re-arms itself until the carousel has been still for 240 ms
+function scrollIdleCheck() {
   const rest = 240 - (performance.now() - lastScrollAt);
   if (rest > 8) { scrollIdle = setTimeout(scrollIdleCheck, rest); return; }
   scrollIdle = 0;
@@ -794,14 +705,14 @@ function scrollIdleCheck() {                                  // one timer re-ar
 }
 function markScrolling() {
   lastScrollAt = performance.now();
-  if (scrollIdle) return;                                     // already marked and waiting: nothing to clear or re-create
+  if (scrollIdle) return;
   document.body.classList.add('carousel-scrolling');
   scrollIdle = setTimeout(scrollIdleCheck, 240);
 }
 
 function settleCarousel() {
-  if (wheelBrowsing) return;                              // PC wheel: the song is picked when the wheel stops (finishWheelBrowse)
-  if (carouselDown) return;                               // finger still on the screen: wait until it lifts (touchend re-arms this)
+  if (wheelBrowsing) return;
+  if (carouselDown) return;
   const near = updateCarouselFocus();
   if (near && near !== selectedCardEl && near._song) selectCard(near, near._song);
 }
@@ -821,7 +732,6 @@ function initCarousel() {
   const cards = carouselCards();
   if (!cards.length) return;
   lastTickCard = null;
-  // wait for layout (the screen was just un-hidden)
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (menuScreen.style.display === 'none') return;
     const target = cards.find(c => c.dataset.songId === lastPlayedId) || cards[0];
@@ -831,8 +741,6 @@ function initCarousel() {
   }));
 }
 
-// ---------- SORT BUTTON (next to OPTION) ----------
-// SORT BY TITLE <-> SORT BY DEFAULT. Only re-orders the existing cards (listeners, selection and preview stay as they are).
 let sortByTitle = false;
 (function addSortButton() {
   const optBtn = document.getElementById('option-btn');
@@ -843,7 +751,7 @@ let sortByTitle = false;
   btn.className = 'gif-btn';
   btn.innerHTML = '<span class="back-pill sort-pill"><span>SORT BY</span><span class="sort-word">TITLE</span></span>';
   optBtn.insertAdjacentElement('afterend', btn);
-  const label = btn.querySelector('.sort-word');            // second line: TITLE <-> DEFAULT
+  const label = btn.querySelector('.sort-word');
   const titleOf = (c) => String((c._song && (c._song.title || c._song.id)) || '');
 
   btn.addEventListener('click', () => {
@@ -858,19 +766,17 @@ let sortByTitle = false;
     songGrid.appendChild(frag);
     invalidateFocusGeo();
     lastTickCard = null;
-    const keep = selectedCardEl || cards[0];                // keep the current song in the middle
+    const keep = selectedCardEl || cards[0];
     if (keep) centerCard(keep, false);
     updateCarouselFocus();
   });
 })();
 
 songGrid.addEventListener('pointerdown', markScrolling, { passive: true });
-// The scroll event fires right before the frame is drawn, and updateCarouselFocus is pure arithmetic on ~5 cards, so it runs
-// straight in the handler. (It used to wait for a requestAnimationFrame, which made the cards' size / fade trail the scroll by a frame.)
 songGrid.addEventListener('scroll', () => {
   markScrolling();
   const near = updateCarouselFocus();
-  if (near && near !== lastTickCard) {                    // a card passed the middle: tiny haptic tick, like a detent (throttled inside buzz, respects the Vibration option)
+  if (near && near !== lastTickCard) {
     if (lastTickCard) buzz(6);
     lastTickCard = near;
   }
@@ -878,19 +784,14 @@ songGrid.addEventListener('scroll', () => {
   carouselSettle = setTimeout(settleCarousel, 110);
 }, { passive: true });
 
-// don't pick a song (sound, preview, squad bar) while a finger is still dragging; do it once the finger lifts and the carousel has stopped
 songGrid.addEventListener('touchstart', () => { carouselDown = true; }, { passive: true });
 const carouselLift = () => { carouselDown = false; clearTimeout(carouselSettle); carouselSettle = setTimeout(settleCarousel, 110); };
 songGrid.addEventListener('touchend', carouselLift, { passive: true });
 songGrid.addEventListener('touchcancel', carouselLift, { passive: true });
 
-// mouse wheel / touchpad.
-//  - PC browsers: the carousel glides smoothly under the wheel and songs only "hover" (focus effect) while it moves;
-//    the song under the middle is selected (highlight, sound, preview, squad bar) once the wheel has stopped.
-//  - touch devices keep the old behaviour: one song per wheel step.
 const isPCBrowser = () => !(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-const WHEEL_SPEED = 1.4;          // carousel pixels per wheel pixel (one mouse-wheel notch is about one song)
-const WHEEL_IDLE_MS = 150;        // how long the wheel must be still before the song is selected
+const WHEEL_SPEED = 1.4;
+const WHEEL_IDLE_MS = 150;
 let wheelBrowsing = false, wheelTarget = 0, wheelRaf = 0, wheelTimer = 0;
 
 function wheelGlide() {
@@ -906,7 +807,7 @@ function wheelGlide() {
 function beginWheelBrowse() {
   wheelBrowsing = true;
   wheelTarget = songGrid.scrollLeft;
-  songGrid.style.scrollSnapType = 'none';                  // snapping would fight the glide
+  songGrid.style.scrollSnapType = 'none';
   document.querySelectorAll('.song-card.selected').forEach(c => c.classList.remove('selected'));
   clearTimeout(previewDelay);
   stopPreview();
@@ -914,7 +815,7 @@ function beginWheelBrowse() {
 
 function finishWheelBrowse() {
   wheelTimer = 0;
-  if (wheelRaf) { wheelTimer = setTimeout(finishWheelBrowse, 60); return; }   // still gliding: wait for it
+  if (wheelRaf) { wheelTimer = setTimeout(finishWheelBrowse, 60); return; }
   wheelBrowsing = false;
   songGrid.style.scrollSnapType = '';
   const near = updateCarouselFocus();
@@ -944,16 +845,13 @@ songGrid.addEventListener('wheel', (e) => {
   stepCarousel(d > 0 ? 1 : -1);
 }, { passive: false });
 
-// PC browsers: grab the carousel with the mouse and drag it (touch screens already scroll natively).
-// A drag follows the cursor 1:1, keeps a little momentum after release (the wheel's glide), and picks the song under the middle once
-// it stops, exactly like the wheel. A plain click (no real movement) still selects / plays a card as before.
-const DRAG_START_PX = 6;          // movement before a press counts as a drag (below that it is just a click)
-const DRAG_MOMENTUM_MS = 260;     // how far a flick keeps going: release speed (px/ms) x this
-let mouseDrag = null;             // { id, x0, left0, on, samples: [[time, x], ...] }
-songGrid.addEventListener('dragstart', (e) => e.preventDefault());           // no ghost image of a cover / card being dragged
+const DRAG_START_PX = 6;
+const DRAG_MOMENTUM_MS = 260;
+let mouseDrag = null;
+songGrid.addEventListener('dragstart', (e) => e.preventDefault());
 songGrid.addEventListener('pointerdown', (e) => {
   if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('.card-play-btn')) return;
-  if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0; }            // grabbing a gliding carousel stops it under the cursor
+  if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0; }
   mouseDrag = { id: e.pointerId, x0: e.clientX, left0: songGrid.scrollLeft, on: false, samples: [[e.timeStamp, e.clientX]], max: 0, cx: e.clientX, raf: 0 };
 });
 songGrid.addEventListener('pointermove', (e) => {
@@ -962,18 +860,18 @@ songGrid.addEventListener('pointermove', (e) => {
   if (!d.on) {
     if (Math.abs(e.clientX - d.x0) < DRAG_START_PX) return;
     d.on = true;
-    d.left0 = songGrid.scrollLeft; d.x0 = e.clientX;                         // start from where the drag really began: no jump
-    d.max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);        // measured once, not on every mouse move
+    d.left0 = songGrid.scrollLeft; d.x0 = e.clientX;
+    d.max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);
     clearTimeout(wheelTimer);
-    if (!wheelBrowsing) beginWheelBrowse();                                  // un-highlight, stop the preview, no snapping while dragging
-    try { songGrid.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    if (!wheelBrowsing) beginWheelBrowse();
+    try { songGrid.setPointerCapture(e.pointerId); } catch (err) {  }
     songGrid.classList.add('dragging');
     markScrolling();
   }
   d.cx = e.clientX;
-  if (!d.raf) d.raf = requestAnimationFrame(() => { d.raf = 0; applyDrag(d); });   // a fast mouse sends far more moves than frames: write the scroll position once per frame
+  if (!d.raf) d.raf = requestAnimationFrame(() => { d.raf = 0; applyDrag(d); });
   d.samples.push([e.timeStamp, e.clientX]);
-  while (d.samples.length > 2 && e.timeStamp - d.samples[0][0] > 100) d.samples.shift();   // only the last ~100 ms count for the release speed
+  while (d.samples.length > 2 && e.timeStamp - d.samples[0][0] > 100) d.samples.shift();
 });
 function applyDrag(d) {
   songGrid.scrollLeft = Math.max(0, Math.min(d.max, d.left0 - (d.cx - d.x0)));
@@ -983,18 +881,18 @@ function endMouseDrag(e) {
   const d = mouseDrag;
   if (!d || e.pointerId !== d.id) return;
   mouseDrag = null;
-  if (!d.on) return;                                                         // never became a drag: the click goes through
+  if (!d.on) return;
   if (d.raf) { cancelAnimationFrame(d.raf); d.raf = 0; }
-  applyDrag(d);                                                              // land exactly where the cursor was released  songGrid.classList.remove('dragging');
-  try { songGrid.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-  const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };    // the click that ends a drag must not select / play a card
+  applyDrag(d);
+  try { songGrid.releasePointerCapture(e.pointerId); } catch (err) {  }
+  const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
   songGrid.addEventListener('click', swallow, { capture: true, once: true });
   setTimeout(() => songGrid.removeEventListener('click', swallow, true), 0);
   const a = d.samples[0], b = d.samples[d.samples.length - 1];
-  const v = b[0] > a[0] && e.type === 'pointerup' ? (b[1] - a[1]) / (b[0] - a[0]) : 0;   // px per ms, + = dragged right
+  const v = b[0] > a[0] && e.type === 'pointerup' ? (b[1] - a[1]) / (b[0] - a[0]) : 0;
   const max = Math.max(0, songGrid.scrollWidth - songGrid.clientWidth);
   wheelTarget = Math.max(0, Math.min(max, songGrid.scrollLeft - v * DRAG_MOMENTUM_MS));
-  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelGlide);               // glide out, then finishWheelBrowse picks the song in the middle
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelGlide);
   clearTimeout(wheelTimer);
   wheelTimer = setTimeout(finishWheelBrowse, 60);
 }
@@ -1014,10 +912,7 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// ---------- CHART LOADING ----------
-// Charts are loaded once per visit and kept in memory (and on disk through sw.js), so replaying a song or
-// coming back to it never downloads it again. A chart edited on the server shows up the next time the game is opened.
-const chartCache = new Map();      // url -> Promise<chart array>
+const chartCache = new Map();
 function loadChartFile(url) {
   if (chartCache.has(url)) return chartCache.get(url);
   const p = new Promise((resolve, reject) => {
@@ -1025,12 +920,11 @@ function loadChartFile(url) {
     window.CHART_DATA = undefined;
 
     const s = document.createElement('script');
-    // chart address gets ?v=<GAME_VERSION> (version.js), so bumping version.js makes the browser fetch charts again
     s.src = url + (window.GAME_VERSION ? (url.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(window.GAME_VERSION) : '');
     s.onload = () => {
       const data = window.CHART_DATA;
       window.CHART_DATA = prevData;
-      s.remove();                                   // the data is kept in the cache, the tag is not needed any more
+      s.remove();
       if (!Array.isArray(data)) {
         reject(new Error('Chart did not set window.CHART_DATA. Open ' + url + ' and confirm line 1 is exactly:  window.CHART_DATA = ['));
         return;
@@ -1045,7 +939,7 @@ function loadChartFile(url) {
     document.head.appendChild(s);
   });
   chartCache.set(url, p);
-  p.catch(() => chartCache.delete(url));            // a failed load can be retried
+  p.catch(() => chartCache.delete(url));
   return p;
 }
 
@@ -1054,9 +948,6 @@ async function loadChartFor(song) {
   return loadChartFile(song.chart);
 }
 
-// ---------- DEVICE STORAGE (works together with sw.js) ----------
-// Charts are read ahead and song audio is saved on the device once the player lingers on a song.
-// Charts are loaded one at a time (they share window.CHART_DATA), and only while nothing else is going on.
 const Store = (() => {
   let chartQueue = Promise.resolve();
   const warmedAudio = new Set();
@@ -1066,14 +957,13 @@ const Store = (() => {
   }
   function keepAudio(song) {
     if (!song || !song.audio || warmedAudio.has(song.audio)) return;
-    if (playBusy()) return;                          // never start a download while a song is starting or playing
+    if (playBusy()) return;
     warmedAudio.add(song.audio);
     try {
       const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
       if (sw) sw.postMessage({ type: 'keep-audio', url: new URL(song.audio, document.baseURI).href });
-    } catch (e) { /* no service worker: the browser cache still helps */ }
+    } catch (e) {  }
   }
-  // covers: keep decoded images around so the carousel never has to fetch / decode while scrolling
   const coverKeep = [];
   function warmCovers() {
     const songs = Array.isArray(window.SONGS) ? window.SONGS : [];
@@ -1095,30 +985,24 @@ const Store = (() => {
   return { prefetchChart, keepAudio, warmCovers };
 })();
 
-// ---------- SONG START ----------
-// the play button first opens the card lineup (if the player owns cards), then the song starts
-function beginSong(song) { askPlay(song); }          // always ask "PLAY THIS SONG?" first
+function beginSong(song) { askPlay(song); }
 function proceedSong(song) {
   const go = () => {
     if (matchMedia('(pointer: coarse)').matches) { tryFullscreen(); tryLandscapeLock(); }
     startSong(song);
   };
-  // PLAY -> YES opens the CENTER pick (shop.js); it calls go() once the player has said YES to their center
   if (window.Shop && Shop.openLineup(song, go)) return;
   go();
 }
-// ---------- SONG AUDIO IN MEMORY ----------
-// The whole song file is read into memory (a Blob) BEFORE the song starts and the <audio> element plays that, so nothing can stall
-// mid-song on a slow network and seeking is instant. If the download fails or is slow (AUDIO_LOAD_MAX_MS) the game falls back to normal streaming.
 const AUDIO_LOAD_MAX_MS = 8000;
 let songBlobUrl = null, songBlobFor = '';
 function freeSongBlob() {
-  if (songBlobUrl) { try { URL.revokeObjectURL(songBlobUrl); } catch (e) { /* ignore */ } }
+  if (songBlobUrl) { try { URL.revokeObjectURL(songBlobUrl); } catch (e) {  } }
   songBlobUrl = null; songBlobFor = '';
 }
 async function loadSongAudio(song) {
   if (!song || !song.audio || !window.fetch || !window.URL || !URL.createObjectURL) return null;
-  if (songBlobUrl && songBlobFor === song.audio) return songBlobUrl;       // same song again: already in memory
+  if (songBlobUrl && songBlobFor === song.audio) return songBlobUrl;
   freeSongBlob();
   const ctrl = window.AbortController ? new AbortController() : null;
   const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, AUDIO_LOAD_MAX_MS);
@@ -1134,20 +1018,20 @@ async function loadSongAudio(song) {
 }
 
 async function startSong(song) {
-  songStarting = true; songStartingAt = performance.now();   // from now on (chart loading included) nothing may download in the background
-  window.dispatchEvent(new Event('jeketi:busy'));    // downloader.js stops an in-flight song download right away
-  releasePreview();                                  // the preview element lets go of its audio before the song loads
+  songStarting = true; songStartingAt = performance.now();
+  window.dispatchEvent(new Event('jeketi:busy'));
+  releasePreview();
   currentSong = song;
   lastPlayedId = song.id;
   showGameScreen();
   setStatus(`Loading ${song.title}…`);
-  introLoadingEl.style.display = 'block';            // hidden again by startPlayback / hideTransientHud
+  introLoadingEl.style.display = 'block';
 
   try {
     const [chart, audioUrl] = await Promise.all([loadChartFor(song), loadSongAudio(song)]);
     currentChart = chart;
-    music.src = audioUrl || song.audio;              // in memory when possible, streaming as a fallback
-    startPlayback();                                 // sets mode = 'starting' synchronously: mode now covers the busy state
+    music.src = audioUrl || song.audio;
+    startPlayback();
     songStarting = false;
   } catch (err) {
     songStarting = false;
@@ -1159,7 +1043,6 @@ async function startSong(song) {
   }
 }
 
-// ---------- COUNT-UP ----------
 function animateNumber(el, target, duration = 1000, fmt) {
   const token = el._numTok = (el._numTok || 0) + 1;
   const start = performance.now();
@@ -1175,7 +1058,6 @@ function animateNumber(el, target, duration = 1000, fmt) {
   tick();
 }
 
-// ---------- RESULTS ----------
 const results = document.createElement('div');
 results.id = 'results';
 results.innerHTML = `
@@ -1238,13 +1120,12 @@ const finalGradeEl = document.getElementById('final-grade');
 const finalBannerEl = document.getElementById('final-banner');
 const finalRecordEl = document.getElementById('final-record');
 const finalCenterEl = document.getElementById('final-center');
-// the CENTER card of the run goes where the grade stamp used to be (saved = center from a stored high-score run)
 function fillResultCenter(saved) {
   if (!finalCenterEl) return;
   finalCenterEl.textContent = '';
   try {
     if (window.Shop && Shop.fillCenter) Shop.fillCenter(finalCenterEl, saved);
-  } catch (e) { /* never block the results screen */ }
+  } catch (e) {  }
 }
 const finalPointsEl = document.getElementById('final-points');
 const judgeNumEls = {
@@ -1302,8 +1183,6 @@ function gradeFor(acc, sc) {
   return 'C';
 }
 
-// Points logo shown next to the grade on the result card. Change the path if your P logo lives somewhere else;
-// if the image is missing it falls back to a gold "P" coin.
 const POINT_LOGO_SRC = 'images/point.png';
 const POINT_LOGO_HTML = '<img class="rl-pt-logo" src="' + POINT_LOGO_SRC + '" alt="" ' +
   'onerror="this.outerHTML=\'<span class=&quot;rl-pt-logo rl-pt-coin&quot;>P</span>\'">';
@@ -1324,17 +1203,14 @@ function showResults() {
 
   const acc = calcAccuracy();
   const grade = gradeFor(acc, score);
-  const fullCombo = stats.MISS === 0 && judgedCount > 0;      // no MISS = full combo (a BAD does not break it)
+  const fullCombo = stats.MISS === 0 && judgedCount > 0;
   const allPerfect = fullCombo && stats.BAD === 0 && stats.GREAT === 0 && stats.GOOD === 0;
-  if (window.Leaderboard) { try { Leaderboard.onResults(currentSong, score, acc); } catch (e) { /* never block the results screen */ } }
+  if (window.Leaderboard) { try { Leaderboard.onResults(currentSong, score, acc); } catch (e) {  } }
 
-  // personal best
   let isRecord = false;
   if (currentSong) {
     const prev = loadBest(currentSong.id);
     isRecord = !prev || score > (prev.score || 0);
-    // only the total score counts: a run that does not beat the high score is not stored at all (the old record stays untouched),
-    // and a new record replaces the whole saved entry with that one run (no mixing of best combo / accuracy from other runs)
     if (isRecord) {
       const sr = (window.Shop && Shop.getRun) ? Shop.getRun() : null;
       saveBest(currentSong.id, {
@@ -1350,7 +1226,7 @@ function showResults() {
   }
 
   clearResultTimers();
-  if (finalSongEl) finalSongEl.textContent = currentSong ? currentSong.title : '';   // title only, no artist
+  if (finalSongEl) finalSongEl.textContent = currentSong ? currentSong.title : '';
   setCoverImage(finalCoverEl, currentSong);
 
   finalScoreEl.textContent = '0';
@@ -1385,7 +1261,6 @@ function showResults() {
     for (const k in judgeNumEls) animateNumber(judgeNumEls[k], stats[k], 700);
   });
 
-  // grade stamp
   afterMs(1450, () => {
     finalGradeEl.style.opacity = 1;
     finalGradeEl.animate([
@@ -1399,7 +1274,6 @@ function showResults() {
     shakeScreen(2);
   });
 
-  // FULL COMBO / ALL PERFECT banner
   if (allPerfect || fullCombo) {
     afterMs(1950, () => {
       finalBannerEl.textContent = allPerfect ? '★ ALL PERFECT ★' : 'FULL COMBO';
@@ -1421,19 +1295,17 @@ function showResults() {
     });
   }
 
-  // JEKETI POINT reward: depends on the grade, with a Full Combo / All Perfect bonus
   let dailyBonus = false;
-  if (window.Daily) {                                    // daily missions + featured song
+  if (window.Daily) {
     try {
       dailyBonus = !!(currentSong && Daily.isFeatured(currentSong.id));
       Daily.onRun({ songId: currentSong && currentSong.id, grade, fullCombo, allPerfect, maxCombo, perfects: stats.PERFECT, score });
-    } catch (e) { /* never block the results screen */ }
+    } catch (e) {  }
   }
   if (window.Points) {
     let earned = Points.earnFor(grade, fullCombo, allPerfect);
-    if (dailyBonus) earned = Math.round(earned * Daily.FEATURED_MULT);          // featured song: +50% Points
+    if (dailyBonus) earned = Math.round(earned * Daily.FEATURED_MULT);
     Points.add(earned);
-    // no count-up, no pop-in: "(P logo) +xxxx" next to the grade, daily bonus under it
     finalPointsEl.innerHTML =
       '<div class="rl-pt-line">' + POINT_LOGO_HTML + '<span class="rl-pt-amt">+' + earned.toLocaleString('en-US') + '</span></div>' +
       (dailyBonus ? '<div class="rl-pt-daily">\u2605 DAILY +50%</div>' : '');
@@ -1441,7 +1313,6 @@ function showResults() {
   }
 }
 
-// ---------- GAME OVER ----------
 function showGameOverScreen() {
   pauseBtn.classList.remove('show');
   setHudVisible(false);
@@ -1483,11 +1354,10 @@ function triggerGameOver() {
   showGameOverScreen();
 }
 
-// ---------- PAUSE / RESUME ----------
 function pauseGame() {
   if (mode !== 'playing' && mode !== 'countdown') return;
   if (mode === 'playing') {
-    flushHitFx();                                      // show the hits that are still queued before the screen freezes
+    flushHitFx();
     frozenTime = getSongTime();
     pauseStartWall = performance.now();
   }
@@ -1499,7 +1369,6 @@ function pauseGame() {
   pauseBtn.classList.remove('show');
 }
 
-// Resume goes through a short 3-2-1 so the player is never dropped back in mid-note
 function resumeGame() {
   if (mode !== 'paused') return;
   mode = 'countdown';
@@ -1537,7 +1406,6 @@ function endCountdown() {
     mode = 'playing';
     lastFrameT = 0;
     resetClock();
-    // a hold whose key was let go during the pause breaks now
     for (let i = 0; i < active.length; i++) {
       const n = active[i];
       if (n.holding && !n.judged && !pressedLanes.has(n.lane)) breakHold(n);
@@ -1548,16 +1416,14 @@ function endCountdown() {
   else go();
 }
 
-// ---------- INPUT RESET ----------
 function releaseAllInputs() {
   pressedLanes.clear();
   activeTouches.clear();
   for (let i = 0; i < 4; i++) setLanePressed(i, false);
 }
 
-// ---------- BACK TO SONG SELECT ----------
 function backToSongSelect() {
-  playToken++;                       // cancel a pending start
+  playToken++;
   introShow = false;
   countdownEl.classList.remove('show');
   hideResults();
@@ -1566,9 +1432,9 @@ function backToSongSelect() {
   document.querySelectorAll('.song-card.selected').forEach(c => c.classList.remove('selected'));
   selectedSong = null;
   music.pause();
-  music.removeAttribute('src');     // let go of the finished song's audio; the next song sets its own src
-  try { music.load(); } catch (e) { /* ignore */ }
-  freeSongBlob();                    // give the in-memory copy of the song back
+  music.removeAttribute('src');
+  try { music.load(); } catch (e) {  }
+  freeSongBlob();
   mode = 'idle';
   clearNotes();
   queue = [];
@@ -1586,33 +1452,28 @@ function backToSongSelect() {
   showSongSelect();
 }
 
-// ---------- ORIENTATION / FULLSCREEN ----------
 function tryLandscapeLock() {
   try {
     if (screen.orientation && typeof screen.orientation.lock === 'function') {
       screen.orientation.lock('landscape').catch(() => {});
     }
-  } catch (e) { /* silent — iOS Safari doesn't support this */ }
+  } catch (e) {  }
 }
 
 async function tryFullscreen() {
-  // inside the scaled launcher frame, fullscreen must be done by the parent page
   if (window.parent !== window) { try { window.parent.postMessage({ jeketi: 'fullscreen' }, '*'); } catch (e) {} return; }
   const el = document.documentElement;
   try {
     if (el.requestFullscreen) await el.requestFullscreen();
     else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
     else if (el.msRequestFullscreen) await el.msRequestFullscreen();
-  } catch (e) { /* silent */ }
+  } catch (e) {  }
 }
 
-// ---------- SOUND ----------
-// SFX VOLUME: 1 = as before, 2 = twice as loud, 3 = three times... (songs are not affected, they play through <audio>)
 const SFX_VOLUME = 1.5;
 function ensureAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // every sound effect connects to audioCtx.destination: point that at one volume knob + a limiter (stops loud peaks from crackling)
     try {
       const realOut = audioCtx.destination;
       const bus = audioCtx.createGain();
@@ -1624,12 +1485,11 @@ function ensureAudio() {
       audioCtx.rawDestination = realOut;
       bus.connect(limiter).connect(realOut);
       Object.defineProperty(audioCtx, 'destination', { value: bus, configurable: true });
-    } catch (e) { /* keep the normal output */ }
+    } catch (e) {  }
   }
   if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
 }
 
-// White-noise buffers are expensive to fill; build each kind once and reuse it
 const noiseCache = new Map();
 function getNoiseBuffer(seconds, decay) {
   const key = seconds + '|' + decay;
@@ -1646,10 +1506,9 @@ function getNoiseBuffer(seconds, decay) {
   return buf;
 }
 
-// NOTE-TAP VOLUME: 1 = as before, 0.5 = half as loud (only the sound of hitting a note; other sfx are not affected)
 const HIT_VOLUME = 0;
 function playHitSound(judgement, comboValue) {
-  if (HIT_VOLUME <= 0) return;      // silent anyway: do not build oscillators / noise nodes on every single hit
+  if (HIT_VOLUME <= 0) return;
   ensureAudio();
   const now = audioCtx.currentTime;
   const tier = getTier(comboValue);
@@ -1867,7 +1726,6 @@ function playComboSound(comboValue) {
   }
 }
 
-// grade stamp: thud + a little fanfare that gets bigger with the grade
 function playStampSound(grade) {
   ensureAudio();
   const now = audioCtx.currentTime;
@@ -1947,7 +1805,6 @@ function playCountdownBeep(n) {
   osc.stop(now + 0.2);
 }
 
-// ---------- UI CLICK SOUND ----------
 function playUiClick() {
   ensureAudio();
   const now = audioCtx.currentTime;
@@ -2033,10 +1890,7 @@ function playSongSelectSound() {
   });
 }
 
-// ---------- CANVAS PLAYFIELD ----------
-// Pseudo-3D done by hand: a note's screen position and size come from one cheap formula,
-// so there is no CSS 3D transform, no per-note DOM element and no box-shadow repaint.
-const S_FAR = 0.34;                        // size of the lanes at the very top, relative to the hit line
+const S_FAR = 0.34;
 const Z_FAR = 1 / S_FAR;
 const FIELD = { W: 0, H: 0, dpr: 1, cx: 0, left: 0, top: 0, topY: 0, hitY: 0, yH: 0, lw: 0, recH: 0, noteW: 0, noteH: 0 };
 const lanePressedState = [false, false, false, false];
@@ -2045,14 +1899,14 @@ const laneHitUntil = [0, 0, 0, 0];
 const laneHitColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
 const beamA = [0, 0, 0, 0];
 const beamColor = ['#ff6ba6', '#ff6ba6', '#ff6ba6', '#ff6ba6'];
-const beamG = [null, null, null, null], beamGC = ['', '', '', ''], beamGV = [-1, -1, -1, -1];   // cached beam gradients
-let layoutVer = 0;                                                                                // bumps whenever the field is re-laid-out
+const beamG = [null, null, null, null], beamGC = ['', '', '', ''], beamGV = [-1, -1, -1, -1];
+let layoutVer = 0;
 const fxRings = [];
 const fxParts = [];
-const ringFree = [], partFree = [];       // pools: finished rings / particles are reused, so a hit allocates nothing
-const fxFlares = [];                       // PERFECT / GREAT hit flares (a glow on the receptor, PERFECT also shoots a light column up the lane)
+const ringFree = [], partFree = [];
+const fxFlares = [];
 const FLARE_SPR = { perfect: null, great: null, col: null, core: null };
-const fxPops = [];                         // quick "pop" of a note that was just hit
+const fxPops = [];
 const FX_COL = { perfect: '#ffcc33', great: '#4da8ff', good: '#66d9a8' };
 const NOTE_COLS = [
   { top: '#ffd2e6', bot: '#ff6ba6', glow: 'rgba(255,107,166,0.9)', hi: 'rgba(255,255,255,0.85)', lo: 'rgba(140,20,70,0.5)', hex: '#ff6ba6' },
@@ -2061,7 +1915,6 @@ const NOTE_COLS = [
   { top: '#B84A9E', bot: '#4A0A3E', glow: 'rgba(190,60,170,0.95)', hi: 'rgba(255,180,240,0.6)',  lo: 'rgba(40,0,30,0.65)',  hex: '#c040a8' },
 ];
 const NOTE_SPR = [];
-// SONG THEME (songs.js:  theme: 'crimson' | 'white'). Recolours petals, lights, hit effects and track. Everything is painted once into sprites / static canvases, nothing extra runs per frame.
 const crimsonNote = (top, bot, glow) => ({ top, bot, glow, hi: 'rgba(255,225,230,0.85)', lo: 'rgba(80,0,15,0.55)', hex: bot });
 const whiteNote = (top, bot, glow) => ({ top, bot, glow, hi: 'rgba(255,255,255,0.8)', lo: 'rgba(120,135,180,0.4)', hex: bot });
 const THEMES = {
@@ -2069,77 +1922,67 @@ const THEMES = {
     hex: '#dc143c', lane: '#dc143c',
     atmo: 'radial-gradient(ellipse at 50% 38%,rgba(190,12,48,0.34) 0%,rgba(120,6,32,0.46) 45%,rgba(40,0,10,0.72) 100%)',
     pulse: 'radial-gradient(ellipse at 50% 60%,rgba(255,30,70,0.55),rgba(160,0,30,0) 70%)', flash: 'rgba(255,40,80,0.38)',
-    notes: [null,                                                          // 0 = combo under 100: the normal pink note
-      crimsonNote('#ff8da1', '#dc143c', 'rgba(220,20,60,0.9)'),            // 100 combo
-      crimsonNote('#ff6f88', '#d10a30', 'rgba(230,15,55,0.95)'),           // 200 combo
-      crimsonNote('#ff5a78', '#b80026', 'rgba(240,10,50,0.95)')],          // 480 combo
+    notes: [null,
+      crimsonNote('#ff8da1', '#dc143c', 'rgba(220,20,60,0.9)'),
+      crimsonNote('#ff6f88', '#d10a30', 'rgba(230,15,55,0.95)'),
+      crimsonNote('#ff5a78', '#b80026', 'rgba(240,10,50,0.95)')],
     fx: { perfect: '#ff5a78', great: '#dc143c', good: '#b0122f' },
     petals: ['#ff4d6d', '#dc143c', '#e8284a', '#c1122f', '#ff2a52'],
     track: ['rgba(60,0,14,0)', 'rgba(90,6,26,0.55)', 'rgba(130,10,36,0.78)'],
     edge: 'rgba(255,90,120,0.2)', rail: 'rgba(255,170,185,0.9)', railGlow: 'rgba(220,20,60,0.95)',
     padLine: 'rgba(255,190,200,0.85)', recStroke: 'rgba(220,20,60,0.75)',
-    atmoOpacity: [0.55, 0.65, 0.78, 0.9, 1],                               // grows with the combo tier
+    atmoOpacity: [0.55, 0.65, 0.78, 0.9, 1],
   },
-  // WHITE / heavenly: soft white notes (from 100 combo), white feathers, pale light from above. The lanes keep their normal look.
-  // Kept gentle on purpose: the glow only rises slowly with the combo and never gets a hard, bright white.
   white: {
     hex: '#e9efff', lane: '#ff6ba6',
     atmo: 'radial-gradient(ellipse at 50% -8%,rgba(236,242,255,0.30) 0%,rgba(205,218,255,0.12) 42%,rgba(190,205,255,0) 75%),radial-gradient(ellipse at 50% 108%,rgba(225,234,255,0.16) 0%,rgba(225,234,255,0) 55%)',
     pulse: 'radial-gradient(ellipse at 50% 100%,rgba(232,240,255,0.26) 0%,transparent 62%)', flash: 'rgba(232,240,255,0.18)',
     notes: [null,
-      whiteNote('#ffffff', '#dfe7fb', 'rgba(225,235,255,0.55)'),           // 100 combo
-      whiteNote('#ffffff', '#e6edff', 'rgba(230,238,255,0.72)'),           // 200 combo
-      whiteNote('#ffffff', '#eef3ff', 'rgba(238,244,255,0.88)')],          // 480 combo: the brightest, still soft
+      whiteNote('#ffffff', '#dfe7fb', 'rgba(225,235,255,0.55)'),
+      whiteNote('#ffffff', '#e6edff', 'rgba(230,238,255,0.72)'),
+      whiteNote('#ffffff', '#eef3ff', 'rgba(238,244,255,0.88)')],
     fx: { perfect: '#f4f7ff', great: '#dfe7fb', good: '#c9d6f5' },
-    petals: ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff'], petalShape: 'feather',   // white feathers at every combo
-    // lanes stay exactly like the default look
+    petals: ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff'], petalShape: 'feather',
     track: ['rgba(20,8,40,0)', 'rgba(34,12,60,0.55)', 'rgba(70,18,80,0.78)'],
     edge: 'rgba(255,170,215,0.16)', rail: 'rgba(255,196,228,0.9)', railGlow: 'rgba(255,107,166,0.9)',
     padLine: 'rgba(255,205,230,0.85)', recStroke: 'rgba(255,107,166,0.65)',
     atmoOpacity: [0.5, 0.62, 0.76, 0.9, 1],
   },
 };
-// POPFIGHT (the GO AND FIGHT! cover): turquoise sky with pink sunburst rays, a hot-pink runway with a teal rim, round candy beads for petals.
-// Palette from the cover: turquoise #35c9cf, hot pink #ff4fa3, soft pink #ff9fc7, cream #ffe9a8. Same cost as the other themes (one static layer, sprites painted once).
 const popNote = (top, bot, glow, lo) => ({ top, bot, glow, hi: 'rgba(255,255,255,0.4)', lo, hex: bot });
 THEMES.popfight = {
-  // PASTEL VERSION: a lighter, softer take on the calm version. Pastel turquoise sky fading to lavender, faint pink rays, a lighter rose runway,
-  // pastel notes (turquoise -> butter yellow -> peach -> lilac) and soft candy petals. Still one static layer, sprites painted once, and it does not grow with the combo.
   hex: '#f59cc6', lane: '#f7c6dd',
   atmo: 'repeating-conic-gradient(from 0deg at 50% 36%,rgba(255,175,218,0.16) 0deg 8deg,rgba(255,215,238,0.07) 8deg 16deg,rgba(255,255,255,0) 16deg 24deg),' +
         'radial-gradient(ellipse at 50% 30%,rgba(130,222,222,0.62) 0%,rgba(104,196,212,0.66) 50%,rgba(122,152,208,0.74) 100%)',
   pulse: 'radial-gradient(ellipse at 50% 62%,rgba(255,175,218,0.3),rgba(255,150,205,0) 70%)', flash: 'rgba(255,195,228,0.16)',
   notes: [
-    popNote('#c9f4f1', '#4fcfd0', 'rgba(80,205,208,0.65)', 'rgba(20,100,130,0.45)'),     // pastel turquoise
-    popNote('#fff4c8', '#f6d56e', 'rgba(246,213,110,0.6)', 'rgba(150,100,0,0.45)'),      // 100 combo: butter yellow
-    popNote('#ffe3d1', '#ffab8a', 'rgba(255,171,138,0.6)', 'rgba(150,70,30,0.45)'),      // 200 combo: peach
-    popNote('#f2ecff', '#cbbff6', 'rgba(203,191,246,0.6)', 'rgba(70,60,130,0.45)')],     // 480 combo: lilac (soft, not white)
+    popNote('#c9f4f1', '#4fcfd0', 'rgba(80,205,208,0.65)', 'rgba(20,100,130,0.45)'),
+    popNote('#fff4c8', '#f6d56e', 'rgba(246,213,110,0.6)', 'rgba(150,100,0,0.45)'),
+    popNote('#ffe3d1', '#ffab8a', 'rgba(255,171,138,0.6)', 'rgba(150,70,30,0.45)'),
+    popNote('#f2ecff', '#cbbff6', 'rgba(203,191,246,0.6)', 'rgba(70,60,130,0.45)')],
   fx: { perfect: '#ffe58f', great: '#6fd9dd', good: '#d9f3ee' },
   petals: ['#ffb3d4', '#7fe0e0', '#ffe6a3', '#ff9cc8', '#a8e6e8'], petalShape: 'bead',
-  track: ['rgba(210,90,160,0.28)', 'rgba(215,95,165,0.55)', 'rgba(205,85,155,0.7)'],     // lighter rose runway
+  track: ['rgba(210,90,160,0.28)', 'rgba(215,95,165,0.55)', 'rgba(205,85,155,0.7)'],
   edge: 'rgba(170,240,240,0.3)', rail: 'rgba(190,240,240,0.75)', railGlow: 'rgba(110,220,225,0.55)',
   padLine: 'rgba(255,235,245,0.65)', recStroke: 'rgba(255,240,248,0.6)',
-  atmoOpacity: [0.9, 0.9, 0.9, 0.9, 0.9],                                                  // flat: the sky never gets stronger
+  atmoOpacity: [0.9, 0.9, 0.9, 0.9, 0.9],
 };
-// BLACK & WHITE (songs.js:  theme: 'blackwhite'): the two LEFT lanes send soft white notes, the two RIGHT lanes soft black ones, and the petals are a mix of white and black.
-// Nothing here changes with the combo (the combo-based tier glow is replaced by one flat, very faint wash). byLane: notes[] is indexed by lane (0-3) instead of by combo tier.
-// Black notes get a pale rim + halo so they stay readable on the dark track. Everything is painted once into sprites, nothing extra runs per frame.
 const bwWhite = { top: '#ffffff', bot: '#e4e8f4', glow: 'rgba(235,240,255,0.5)', hi: 'rgba(255,255,255,0.85)', lo: 'rgba(120,130,170,0.35)', hex: '#e6e9f4' };
 const bwBlack = { top: '#4a4a56', bot: '#1d1d25', glow: 'rgba(225,225,240,0.5)', hi: 'rgba(255,255,255,0.3)', lo: 'rgba(0,0,0,0.55)', hex: '#5e5e6c', rim: 'rgba(235,235,248,0.65)' };
 THEMES.blackwhite = {
   hex: '#ececf6', lane: '#ececf6', byLane: true, mixPetals: true,
   atmo: 'linear-gradient(90deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0) 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,0.2) 100%)',
   pulse: 'radial-gradient(ellipse at 50% 100%,rgba(235,235,245,0.2) 0%,transparent 62%)', flash: 'rgba(235,235,245,0.12)',
-  notes: [bwWhite, bwWhite, bwBlack, bwBlack],                              // lane 1, lane 2 = white; lane 3, lane 4 = black
+  notes: [bwWhite, bwWhite, bwBlack, bwBlack],
   fx: { perfect: '#ffffff', great: '#dcdce8', good: '#b0b0c2' },
-  petals: ['#ffffff', '#2a2a33', '#f0f0f5', '#1f1f27'],                    // white and black petals, picked at random, same at every combo
-  track: ['rgba(20,8,40,0)', 'rgba(34,12,60,0.55)', 'rgba(70,18,80,0.78)'],   // lanes keep their normal look
+  petals: ['#ffffff', '#2a2a33', '#f0f0f5', '#1f1f27'],
+  track: ['rgba(20,8,40,0)', 'rgba(34,12,60,0.55)', 'rgba(70,18,80,0.78)'],
   edge: 'rgba(255,170,215,0.16)', rail: 'rgba(255,196,228,0.9)', railGlow: 'rgba(255,107,166,0.9)',
   padLine: 'rgba(255,205,230,0.85)', recStroke: 'rgba(255,107,166,0.65)',
-  atmoOpacity: [1, 1, 1, 1, 1],                                             // flat: never grows with the combo
+  atmoOpacity: [1, 1, 1, 1, 1],
 };
-let TH = null;                                                              // active theme (null = default look)
-let COLS_NOW = NOTE_COLS;                                                   // cached, so the draw loop never builds arrays
+let TH = null;
+let COLS_NOW = NOTE_COLS;
 const noteCols = () => COLS_NOW;
 const ACCENT = () => (TH ? TH.hex : '#ff6ba6');
 const _rgbCache = {};
@@ -2166,17 +2009,16 @@ function rr(c, x, y, w, h, r) {
   c.closePath();
 }
 
-const sAt = (y) => (y - FIELD.yH) / (FIELD.hitY - FIELD.yH);          // lane scale at a screen y
-const yAt = (s) => FIELD.yH + (FIELD.hitY - FIELD.yH) * s;            // screen y for a lane scale
-const laneX = (lane, s) => FIELD.cx + (lane - 1.5) * FIELD.lw * s;     // centre of a lane at a scale
-const edgeX = (k, s) => FIELD.cx + (k - 2) * FIELD.lw * s;             // lane border k (0..4) at a scale
-function timeToScale(t) {                                               // t: 0 = just appeared, 1 = on the hit line
+const sAt = (y) => (y - FIELD.yH) / (FIELD.hitY - FIELD.yH);
+const yAt = (s) => FIELD.yH + (FIELD.hitY - FIELD.yH) * s;
+const laneX = (lane, s) => FIELD.cx + (lane - 1.5) * FIELD.lw * s;
+const edgeX = (k, s) => FIELD.cx + (k - 2) * FIELD.lw * s;
+function timeToScale(t) {
   if (t > 1.3) t = 1.3;
   return 1 / (Z_FAR - (Z_FAR - 1) * t);
 }
 function tierVariant() { const t = getTier(combo); return t >= 4 ? 3 : t >= 3 ? 2 : t >= 2 ? 1 : 0; }
 
-// Bottom edge of the equipped-card strip (0 when no cards are shown). The track starts under it, like SuperStar.
 function cardStripBottom() {
   const c = document.querySelector('.card-cheer .pos-c') || document.querySelector('.card-cheer .cc-card');
   if (!c) return 0;
@@ -2188,23 +2030,21 @@ function layoutField() {
   const W = playfieldEl.clientWidth, H = playfieldEl.clientHeight;
   if (!W || !H) return;
   const F = FIELD;
-  // phones render the playfield at a lower resolution (the glow-style notes hardly show it); light mode goes down to 1x
   const dprCap = qLowRes ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
   const pxCap = qLowRes ? 0.55e6 : OPT.gfx ? (COARSE ? 1.0e6 : 1.2e6) : 1.0e6, dprMin = qLowRes ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-  while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);   // never paint a huge bitmap
+  while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);
   layoutVer++;
   const r = playfieldEl.getBoundingClientRect();
   const strip = cardStripBottom();
   const topY = strip > 0 ? Math.min(Math.round(strip + 6), Math.round(H * 0.34)) : 0;
-  if (F.lw && W === F.W && H === F.H && dpr === F.dpr && Math.abs(topY - F.topY) < 2) return;   // nothing changed
+  if (F.lw && W === F.W && H === F.H && dpr === F.dpr && Math.abs(topY - F.topY) < 2) return;
   F.left = r.left; F.top = r.top; F.topY = topY;
   F.W = W; F.H = H; F.dpr = dpr; F.cx = W / 2;
-  // narrow, centred track: ~55% of a phone screen, never wider than 820px
   const fieldW = Math.min(W * 0.58, H * 1.15, 820);
   F.lw = fieldW / 4;
   F.hitY = Math.round(H * 0.78);
-  F.yH = (F.topY - F.hitY * S_FAR) / (1 - S_FAR);   // vanishing point, so the lanes are S_FAR wide exactly at topY
+  F.yH = (F.topY - F.hitY * S_FAR) / (1 - S_FAR);
   F.recH = F.lw * 0.42;
   F.noteW = F.lw * 0.88;
   F.noteH = F.lw * 0.34;
@@ -2222,7 +2062,7 @@ function buildSprites() {
   const COLS = noteCols();
   const pad = Math.ceil(F.lw * 0.14), w = F.noteW, h = F.noteH, k = F.dpr * 1.15;
   COLS.forEach((c, i) => {
-    c.h0 = rgbaOf(c.hex, 0.25); c.h1 = rgbaOf(c.hex, 0.7); c.h2 = rgbaOf(c.hex, 0.9); c.hk = rgbaOf(c.hex, 0.95); c._ug = null;   // hold-body colours, built once (not per frame)
+    c.h0 = rgbaOf(c.hex, 0.25); c.h1 = rgbaOf(c.hex, 0.7); c.h2 = rgbaOf(c.hex, 0.9); c.hk = rgbaOf(c.hex, 0.95); c._ug = null;
     const cv = (NOTE_SPR[i] && NOTE_SPR[i].cv) || document.createElement('canvas');
     cv.width = Math.ceil((w + 2 * pad) * k);
     cv.height = Math.ceil((h + 2 * pad) * k);
@@ -2230,7 +2070,7 @@ function buildSprites() {
     g.setTransform(k, 0, 0, k, 0, 0);
     g.clearRect(0, 0, w + 2 * pad, h + 2 * pad);
     const rad = h * 0.42;
-    g.shadowColor = c.glow; g.shadowBlur = pad * 0.9;       // the glow is painted ONCE here, never per frame
+    g.shadowColor = c.glow; g.shadowBlur = pad * 0.9;
     g.fillStyle = c.bot; rr(g, pad, pad, w, h, rad); g.fill();
     g.shadowBlur = 0;
     const gr = g.createLinearGradient(0, pad, 0, pad + h);
@@ -2242,13 +2082,12 @@ function buildSprites() {
     g.fillStyle = c.hi; g.globalAlpha = 0.9;
     rr(g, pad + h * 0.3, pad + h * 0.1, w - h * 0.6, h * 0.15, h * 0.075); g.fill();
     g.globalAlpha = 1;
-    if (c.rim) { g.strokeStyle = c.rim; g.lineWidth = 1.6; rr(g, pad, pad, w, h, rad); g.stroke(); }   // optional pale outline (black notes)
+    if (c.rim) { g.strokeStyle = c.rim; g.lineWidth = 1.6; rr(g, pad, pad, w, h, rad); g.stroke(); }
     NOTE_SPR[i] = { cv, w: w + 2 * pad, h: h + 2 * pad };
   });
   buildFlares();
 }
 
-// Flare sprites are painted once (and again when a song theme changes the colours). Drawing one is a single drawImage.
 function buildFlares() {
   const glow = (hex) => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 96;
@@ -2262,8 +2101,8 @@ function buildFlares() {
   };
   FLARE_SPR.perfect = glow(fxColor('perfect'));
   FLARE_SPR.great = glow(fxColor('great'));
-  FLARE_SPR.core = glow('#ffffff');                       // PERFECT: a white-hot centre on top of the coloured glow
-  const col = document.createElement('canvas'); col.width = 48; col.height = 192;      // light column: bright at the bottom, gone at the top, soft at the sides
+  FLARE_SPR.core = glow('#ffffff');
+  const col = document.createElement('canvas'); col.width = 48; col.height = 192;
   const g = col.getContext('2d');
   const v = g.createLinearGradient(0, 192, 0, 0);
   v.addColorStop(0, rgbaOf(fxColor('perfect'), 0.5)); v.addColorStop(0.4, rgbaOf(fxColor('perfect'), 0.2)); v.addColorStop(1, rgbaOf(fxColor('perfect'), 0));
@@ -2305,7 +2144,6 @@ function drawStatic() {
   for (const k of [0, 4]) { c.beginPath(); c.moveTo(edgeX(k, s0), y0); c.lineTo(edgeX(k, s1), F.H); c.stroke(); }
   c.shadowBlur = 0;
 
-  // resting tap pads: tint, top line and the receptor outline the notes land on (idle look; pressed lanes are highlighted per frame in drawField)
   const padTop = F.hitY - F.recH / 2, sA = sAt(padTop), sB = sAt(F.H);
   for (let i = 0; i < 4; i++) {
     c.globalAlpha = 0.10; c.fillStyle = TH ? TH.lane : '#ff6ba6';
@@ -2324,9 +2162,6 @@ function drawStatic() {
   }
 }
 
-// hold-note body: ONE unit gradient (0 = tail, 1 = head) per colour set / holding state, cached on the colour object.
-// A hold is drawn by scaling the canvas so its tail..head span becomes 0..1, so no gradient is built per hold per frame
-// and the look is exactly the old one (clear at the tail, solid at the head). buildSprites() clears the cache when colours change.
 function holdUnitGradient(c, colr, holding) {
   const g = colr._ug || (colr._ug = [null, null]), k = holding ? 1 : 0;
   if (!g[k]) {
@@ -2354,7 +2189,6 @@ function drawField(now, dt) {
   const padTop = F.hitY - F.recH / 2;
   const sA = sAt(padTop), sB = sAt(F.H);
 
-  // light beams + tap pads (the big zone each thumb rests on)
   for (let i = 0; i < 4; i++) {
     const down = lanePressedState[i];
     const target = down ? 0.32 : 0;
@@ -2362,7 +2196,7 @@ function drawField(now, dt) {
     else if (beamA[i] < target) beamA[i] = target;
     if (beamA[i] > 0.02) {
       const yTop = yAt(0.5);
-      let gr = beamG[i];                                     // the gradient only changes with colour / layout: build it once, not every frame
+      let gr = beamG[i];
       if (!gr || beamGC[i] !== beamColor[i] || beamGV[i] !== layoutVer) {
         gr = c.createLinearGradient(0, F.hitY, 0, yTop);
         gr.addColorStop(0, rgbaOf(beamColor[i], 0.85));
@@ -2376,14 +2210,12 @@ function drawField(now, dt) {
       c.lineTo(edgeX(i + 1, 0.5), yTop); c.lineTo(edgeX(i, 0.5), yTop);
       c.closePath(); c.fill();
     }
-    // The resting pad (10% tint, top line, receptor outline) is painted once on the static canvas (drawStatic).
-    // Here only the lanes that are pressed / flashing add a highlight on top, so an idle lane costs nothing per frame.
     let col = TH ? TH.lane : '#ff6ba6', a = 0;
     if (wall < laneHitUntil[i]) { col = laneHitColor[i]; a = 0.5; }
     else if (down) a = 0.38;
     else if (wall < laneFlashUntil[i]) a = 0.22;
     if (a > 0) {
-      c.globalAlpha = (a - 0.10) / 0.90; c.fillStyle = col;   // stacks on the 10% base, so the total stays exactly `a`
+      c.globalAlpha = (a - 0.10) / 0.90; c.fillStyle = col;
       c.beginPath();
       c.moveTo(edgeX(i, sA) + 1, padTop); c.lineTo(edgeX(i + 1, sA) - 1, padTop);
       c.lineTo(edgeX(i + 1, sB) - 1, F.H); c.lineTo(edgeX(i, sB) + 1, F.H);
@@ -2401,8 +2233,7 @@ function drawField(now, dt) {
   }
   c.globalAlpha = 1;
 
-  // notes
-  const LM = !!(TH && TH.byLane);                                         // black & white theme: the colour comes from the lane, not from the combo
+  const LM = !!(TH && TH.byLane);
   const v = LM ? 0 : tierVariant();
   const spr0 = NOTE_SPR[v];
   if (spr0) {
@@ -2413,8 +2244,8 @@ function drawField(now, dt) {
       const spr = LM ? NOTE_SPR[n.lane] : spr0, colr = LM ? cols[n.lane] : colr0;
       const tHead = (now - (n.time - APPROACH_TIME)) / APPROACH_TIME;
       if (tHead < 0) continue;
-      const na = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;           // fade in just under the card strip (and during the get-ready intro)
-      if (na !== c.globalAlpha) c.globalAlpha = na;                        // only touch the canvas state when it actually changes
+      const na = (tHead < 0.12 ? tHead / 0.12 : 1) * introNoteK;
+      if (na !== c.globalAlpha) c.globalAlpha = na;
       if (n.dur > 0) {
         const tTail = Math.max(0, (now - (n.time + n.dur - APPROACH_TIME)) / APPROACH_TIME);
         const th = n.holding ? Math.min(tHead, 1) : tHead;
@@ -2423,14 +2254,14 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          if (fxLight()) {                                                 // R2 and up (or Graphics off): flat body
+          if (fxLight()) {
             c.fillStyle = n.holding ? colr.h2 : colr.h1;
             holdPath(c, cxT, bwT, yT, cxH, bwH, yH); c.fill();
           } else {
-            c.translate(0, yT); c.scale(1, yH - yT);                       // tail..head = 0..1 for the cached gradient
+            c.translate(0, yT); c.scale(1, yH - yT);
             c.fillStyle = holdUnitGradient(c, colr, n.holding);
             holdPath(c, cxT, bwT, 0, cxH, bwH, 1); c.fill();
-            c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);                      // back to normal for the outline
+            c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
             holdPath(c, cxT, bwT, yT, cxH, bwH, yH);
           }
           c.strokeStyle = colr.hk; c.lineWidth = 2;
@@ -2448,7 +2279,6 @@ function drawField(now, dt) {
     c.globalAlpha = 1;
   }
 
-  // hit pops
   for (let i = fxPops.length - 1; i >= 0; i--) {
     const p = fxPops[i], age = (wall - p.t0) / 280;
     if (age >= 1) { fxPops[i] = fxPops[fxPops.length - 1]; fxPops.pop(); continue; }
@@ -2460,14 +2290,13 @@ function drawField(now, dt) {
   }
   c.globalAlpha = 1;
 
-  // PERFECT / GREAT flares (additive glow on the receptor; PERFECT also sends a light column up the lane)
   if (fxFlares.length && FLARE_SPR.perfect) {
     c.globalCompositeOperation = 'lighter';
     for (let i = fxFlares.length - 1; i >= 0; i--) {
       const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 470 : 260);
       if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
       const x = laneX(f.lane, 1), inv = 1 - age;
-      if (f.big && qRung < 2 && !PHONE_FX) {                    // R2 and up, and all phones: no light column
+      if (f.big && qRung < 2 && !PHONE_FX) {
         const ch = F.hitY * 0.46 * (0.5 + 0.5 * age), cw = F.noteW * 0.68 * (1 - 0.3 * age);
         c.globalAlpha = inv * inv * 0.55;
         c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
@@ -2475,7 +2304,7 @@ function drawField(now, dt) {
       const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
       c.globalAlpha = (f.big ? 0.7 : 0.32) * inv * inv;
       c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
-      if (f.big && FLARE_SPR.core && qRung < 2 && !PHONE_FX) {          // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
+      if (f.big && FLARE_SPR.core && qRung < 2 && !PHONE_FX) {
         const cz = F.noteW * (0.7 + 0.5 * age), ci = 1 - age;
         c.globalAlpha = 0.6 * ci * ci * ci;
         c.drawImage(FLARE_SPR.core, x - cz / 2, F.hitY - cz * 0.35, cz, cz * 0.7);
@@ -2485,7 +2314,6 @@ function drawField(now, dt) {
     c.globalCompositeOperation = 'source-over';
   }
 
-  // rings
   for (let i = fxRings.length - 1; i >= 0; i--) {
     const r = fxRings[i], age = (wall - r.t0) / 500;
     if (age >= 1) { ringFree.push(r); fxRings[i] = fxRings[fxRings.length - 1]; fxRings.pop(); continue; }
@@ -2497,14 +2325,13 @@ function drawField(now, dt) {
     rr(c, laneX(r.lane, 1) - w / 2, F.hitY - h / 2, w, h, h * 0.4);
     c.stroke();
   }
-  // particles
   for (let i = fxParts.length - 1; i >= 0; i--) {
     const p = fxParts[i], age = (wall - p.t0) / 550;
     if (age >= 1) { partFree.push(p); fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
     const e = 1 - (1 - age) * (1 - age);
     c.globalAlpha = 1 - age;
     const px = p.x + Math.cos(p.a) * p.d * e, py = p.y + Math.sin(p.a) * p.d * e;
-    const spr = particleSprite(p.col, !!p.star);                         // pre-painted once per colour, then just stamped
+    const spr = particleSprite(p.col, !!p.star);
     const sz = p.star ? p.r * 1.9 * (1 - 0.65 * age) * 2 : p.r * (1 - 0.7 * age) * 2 * (16 / 14);
     c.drawImage(spr, px - sz / 2, py - sz / 2, sz, sz);
   }
@@ -2534,11 +2361,11 @@ function particleSprite(col, star) {
 function fxColor(j) { const k = String(j).toLowerCase(); return (TH && TH.fx[k]) || FX_COL[k] || ACCENT(); }
 
 function addRing(lane, col, t0, m, lw) {
-  const r = fxRings.length >= 12 ? fxRings.shift() : (ringFree.pop() || {});     // at the cap the oldest ring is reused
+  const r = fxRings.length >= 12 ? fxRings.shift() : (ringFree.pop() || {});
   r.lane = lane; r.col = col; r.t0 = t0; r.m = m; r.lw = lw;
   fxRings.push(r);
 }
-function releaseFx() {                     // drop every live effect (the objects go back to the pools)
+function releaseFx() {
   while (fxRings.length) ringFree.push(fxRings.pop());
   while (fxParts.length) partFree.push(fxParts.pop());
   fxPops.length = 0; fxFlares.length = 0;
@@ -2546,18 +2373,18 @@ function releaseFx() {                     // drop every live effect (the object
 
 function spawnShockwave(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  let n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
-  if (PHONE_FX && n > 1) n = 1;                                               // phones: one ring (+ the white PERFECT ring below)
+  let n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);
+  if (PHONE_FX && n > 1) n = 1;
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) addRing(laneIndex, col, t + i * 70, 0, 0);
-  if (isP && n > 0) addRing(laneIndex, '#ffffff', t, 1.7, 3.5);              // PERFECT only: one more big, thick, white ring that spreads wider than the rest
+  if (isP && n > 0) addRing(laneIndex, '#ffffff', t, 1.7, 3.5);
 }
 
 function spawnParticles(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : qRung >= 1 ? 0.75 : 1;   // R1: 3/4, R2: half the particles
+  const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : qRung >= 1 ? 0.75 : 1;
   let n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
-  if (PHONE_FX && n > 4) n = 4;                                               // phones: at most 4 particles per hit
+  if (PHONE_FX && n > 4) n = 4;
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 64; i++) {
@@ -2576,7 +2403,7 @@ function flashLane(i) { laneFlashUntil[i] = performance.now() + 160; }
 
 function flashJudgementLine(laneIndex, judgement) {
   const j = String(judgement).toLowerCase();
-  if (j === 'miss') return;     // no red bar on the judgement line for misses (it cost frames)
+  if (j === 'miss') return;
   laneHitColor[laneIndex] = fxColor(j);
   laneHitUntil[laneIndex] = performance.now() + 180;
 }
@@ -2598,17 +2425,16 @@ function triggerScreenFlash() {
 function triggerMissFlash(kind) {
   missFlash.classList.toggle('bad', kind === 'bad');
   missFlash.classList.add('active');
-  setTimeout(() => missFlash.classList.remove('active'), kind === 'bad' ? 100 : 130);   // shorter than before: lighter flash
+  setTimeout(() => missFlash.classList.remove('active'), kind === 'bad' ? 100 : 130);
 }
 
-// Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
-  if (fxMid() || PHONE_FX) return;               // R2 and up, and all phones: no shaking at all
+  if (fxMid() || PHONE_FX) return;
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
-  const shakeTarget = (mode === 'playing' || mode === 'countdown') ? playfieldEl : game;   // in a song only the playfield layer moves, so the whole screen isn't repainted
+  const shakeTarget = (mode === 'playing' || mode === 'countdown') ? playfieldEl : game;
   shakeAnim = shakeTarget.animate([
     { transform: 'translate3d(0, 0, 0)' },
     { transform: `translate3d(${-s}px, ${0.6 * s}px, 0)`, offset: 0.25 },
@@ -2618,14 +2444,11 @@ function shakeScreen(intensity) {
   ], { duration: 110, easing: 'ease-out' });
 }
 
-// ---------- SAKURA PETALS (one small capped canvas) ----------
-// A song can swap the petals for a word with   petalText: 'oaoeeee'   in songs.js: same count, same drifting, but the words sway gently instead of spinning.
 const petals = (() => {
   const cv = mk('canvas', 'petals');
   const ctx = cv.getContext ? cv.getContext('2d') : null;
   const DEFAULT_COLORS = ['#ffb3d1', '#ffb3d1', '#9fd0ff', '#ffe08a', '#d98cff'];
   let COLORS = DEFAULT_COLORS;
-  // SAKURA MODE (songs.js:  petalSakura: true): bright, real-sakura pink petals. The colour never changes with the combo and nothing glows; more petals simply fall at 50 / 100 / 200 / 480 combo (the normal petal counts).
   const SAKURA_COLORS = ['#ff80b0', '#ff93bd', '#ff6fa6', '#ff9fc6'];
   let sakuraMode = false, themeCols = null, themeShape = null, themeMix = false;
   function applyColors() {
@@ -2633,7 +2456,7 @@ const petals = (() => {
     mixPal = sakuraMode || !!(themeCols && themeMix);
     shape = sakuraMode ? null : ((themeCols && themeShape) || null);
   }
-  let mixPal = false;                                    // true = each petal picks a random colour from the palette (black & white theme) instead of following the combo tier
+  let mixPal = false;
   const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
   const sprites = [];
   const list = [];
@@ -2653,7 +2476,7 @@ const petals = (() => {
     g.bezierCurveTo(10, -14, 14, 3, 0, 13);
     g.fill();
     const n = parseInt(color.slice(1), 16);
-    if (color.length === 7 && ((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11 < 90) {   // dark petal: thin pale rim so it still shows on the dark stage
+    if (color.length === 7 && ((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11 < 90) {
       g.globalAlpha = 0.5; g.strokeStyle = '#e8e8f2'; g.lineWidth = 1.3; g.stroke();
     }
     g.globalAlpha = 0.5;
@@ -2664,7 +2487,7 @@ const petals = (() => {
     return c;
   }
   let textMode = false;
-  function makeTextSprite(color, text) {                 // a small word with a soft dark outline so it reads on any background
+  function makeTextSprite(color, text) {
     const c = document.createElement('canvas');
     const g = c.getContext ? c.getContext('2d') : null;
     const font = '900 30px system-ui, "Segoe UI", Arial, sans-serif';
@@ -2679,7 +2502,7 @@ const petals = (() => {
     g.fillText(text, c.width / 2, c.height / 2 + 1);
     return c;
   }
-  function makeFeather(color) {                          // a soft white feather: painted once, then reused like the petals
+  function makeFeather(color) {
     const c = document.createElement('canvas');
     c.width = c.height = 40;
     const g = c.getContext ? c.getContext('2d') : null;
@@ -2695,20 +2518,18 @@ const petals = (() => {
     g.fill();
     g.shadowBlur = 0; g.globalAlpha = 0.55;
     g.strokeStyle = 'rgba(165,180,215,1)'; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(0, -14); g.lineTo(0, 17); g.stroke();                       // quill
+    g.beginPath(); g.moveTo(0, -14); g.lineTo(0, 17); g.stroke();
     g.globalAlpha = 0.3; g.lineWidth = 0.8;
     g.beginPath();
-    for (let y = -9; y <= 7; y += 4) { g.moveTo(0, y); g.lineTo(-6.5, y + 4.5); g.moveTo(0, y); g.lineTo(6.5, y + 4.5); }      // barbs
+    for (let y = -9; y <= 7; y += 4) { g.moveTo(0, y); g.lineTo(-6.5, y + 4.5); g.moveTo(0, y); g.lineTo(6.5, y + 4.5); }
     g.stroke();
     return c;
   }
-  // FRUIT MODE (songs.js:  petalFruit: true): the petals become small fruits. Painted once into sprites, drawn exactly like petals.
-  //   combo < 50: plain fruits | 50+: they glow a little | 100+: they all turn into avocados | 200+: the avocados glow a little
   let fruitMode = false;
-  const FRUIT_SET = [0, 1, 2, 3, 3];                     // tier -> sprite set (0 fruits, 1 glowing fruits, 2 avocados, 3 glowing avocados)
+  const FRUIT_SET = [0, 1, 2, 3, 3];
   const FRUIT_KINDS = 6;
   const fruitSets = [];
-  function paintFruit(kind) {                            // 48x48 canvas, origin in the middle
+  function paintFruit(kind) {
     const c = document.createElement('canvas');
     c.width = c.height = 48;
     const g = c.getContext ? c.getContext('2d') : null;
@@ -2717,37 +2538,37 @@ const petals = (() => {
     g.lineCap = 'round'; g.lineJoin = 'round';
     const leaf = (x, y, rot) => { g.fillStyle = '#3fae49'; g.beginPath(); g.ellipse(x, y, 5, 2.5, rot, 0, Math.PI * 2); g.fill(); };
     const dot = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
-    if (kind === 0) {                                    // strawberry
+    if (kind === 0) {
       g.fillStyle = '#e8283c';
       g.beginPath(); g.moveTo(0, 13); g.bezierCurveTo(-14, 2, -11, -9, 0, -8); g.bezierCurveTo(11, -9, 14, 2, 0, 13); g.fill();
       [[-4, -2], [4, -2], [0, 3], [-5, 4], [5, 4], [0, -5]].forEach(p => dot(p[0], p[1], 1, '#ffe27a'));
       leaf(-4, -9, 0.5); leaf(4, -9, -0.5); leaf(0, -11, 1.57);
-    } else if (kind === 1) {                             // banana
+    } else if (kind === 1) {
       g.beginPath(); g.arc(0, -6, 15, 0.2 * Math.PI, 0.8 * Math.PI);
       g.strokeStyle = '#b8860b'; g.lineWidth = 10; g.stroke();
       g.strokeStyle = '#ffd43b'; g.lineWidth = 7; g.stroke();
       dot(-11.5, 4.5, 2, '#6b4a1a'); dot(11.5, 4.5, 2, '#6b4a1a');
-    } else if (kind === 2) {                             // apple
+    } else if (kind === 2) {
       g.fillStyle = '#e02f3a';
       g.beginPath(); g.arc(-5, 1, 9, 0, Math.PI * 2); g.arc(5, 1, 9, 0, Math.PI * 2); g.fill();
       g.beginPath(); g.ellipse(0, 7, 10, 7, 0, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#6b4a1a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -6); g.lineTo(1, -13); g.stroke();
       leaf(6, -11, -0.5);
       g.globalAlpha = 0.5; dot(-7, -1, 2.5, '#fff'); g.globalAlpha = 1;
-    } else if (kind === 3) {                             // melon slice
+    } else if (kind === 3) {
       g.fillStyle = '#2e9e4f'; g.beginPath(); g.arc(0, -4, 14, 0, Math.PI); g.closePath(); g.fill();
       g.fillStyle = '#ff5d73'; g.beginPath(); g.arc(0, -4, 10.5, 0, Math.PI); g.closePath(); g.fill();
       [[-5, 1], [0, 4], [5, 1]].forEach(p => dot(p[0], p[1], 1.3, '#3a1b1b'));
-    } else if (kind === 4) {                             // cherries
+    } else if (kind === 4) {
       g.strokeStyle = '#4a8f2f'; g.lineWidth = 1.8;
       g.beginPath(); g.moveTo(-6, 4); g.quadraticCurveTo(-3, -8, 3, -13); g.moveTo(6, 6); g.quadraticCurveTo(5, -6, 3, -13); g.stroke();
       dot(-6, 7, 6, '#d0102f'); dot(6, 9, 6, '#d0102f');
       g.globalAlpha = 0.55; dot(-8, 5, 1.8, '#fff'); dot(4, 7, 1.8, '#fff'); g.globalAlpha = 1;
-    } else if (kind === 5) {                             // orange
+    } else if (kind === 5) {
       dot(0, 1, 12, '#ff9f1c');
       g.globalAlpha = 0.5; dot(-4, -3, 3, '#fff'); g.globalAlpha = 1;
       dot(0, -10, 1.3, '#a85a00'); leaf(4, -11, -0.4);
-    } else {                                             // avocado
+    } else {
       g.beginPath(); g.moveTo(0, -14); g.bezierCurveTo(-5, -14, -6, -6, -10, 1); g.bezierCurveTo(-14, 9, -6, 15, 0, 15); g.bezierCurveTo(6, 15, 14, 9, 10, 1); g.bezierCurveTo(6, -6, 5, -14, 0, -14);
       g.fillStyle = '#2f5d1e'; g.fill();
       g.save(); g.translate(0, 2); g.scale(0.78, 0.78); g.translate(0, -2); g.fillStyle = '#c4e07a'; g.fill(); g.restore();
@@ -2756,7 +2577,7 @@ const petals = (() => {
     }
     return c;
   }
-  function glowFruit(src, color) {                       // the same fruit with a soft halo, painted once
+  function glowFruit(src, color) {
     const c = document.createElement('canvas');
     c.width = c.height = 48;
     const g = c.getContext ? c.getContext('2d') : null;
@@ -2777,8 +2598,6 @@ const petals = (() => {
     const gav = glowFruit(av, 'rgba(170,240,90,0.95)');
     fruitSets.push(fr.map(() => gav));
   }
-  // NOTE MODE (songs.js:  petalNotes: true): the petals become musical notes. They take the same per-tier colours as the petals
-  // (including a song theme's colours), drift and spin the same way. Two shapes (single / beamed pair), painted once.
   let noteMode = false;
   const noteSprites = [];
   function makeNote(color, variant) {
@@ -2801,23 +2620,21 @@ const petals = (() => {
         g.lineWidth = 4.2 + grow; g.beginPath(); g.moveTo(-4, -10); g.lineTo(9, -13); g.stroke();
       }
     };
-    g.globalAlpha = 0.45; shapeIt('rgba(40,10,60,1)', 2.2);       // soft dark outline so it reads on any background
+    g.globalAlpha = 0.45; shapeIt('rgba(40,10,60,1)', 2.2);
     g.globalAlpha = 0.97; shapeIt(color, 0);
     return c;
   }
-  // INDO MODE (songs.js:  petalIndo: true): the petals become the Indonesian flag and a skull emoji. They never change colour;
-  //   combo < 100: plain | 100+: they glow a bit | 200+: they glow more. Painted once; the flag is drawn (flag emoji do not show on Windows).
   let indoMode = false;
-  const INDO_SET = [0, 0, 1, 2, 2];                      // tier -> sprite set (0 plain, 1 glow, 2 stronger glow)
+  const INDO_SET = [0, 0, 1, 2, 2];
   const indoSets = [];
-  function paintIndo(kind) {                             // 56x56 canvas, origin in the middle (room for the glow)
+  function paintIndo(kind) {
     const c = document.createElement('canvas');
     c.width = c.height = 56;
     const g = c.getContext ? c.getContext('2d') : null;
     if (!g) return c;
     g.translate(28, 28);
     if (kind === 0) {
-      const w = 30, hh = 20, wv = 2.2;                   // a flag with a slight wave
+      const w = 30, hh = 20, wv = 2.2;
       const edge = (x, y) => y + Math.sin((x / w + 0.5) * Math.PI * 2) * wv;
       g.beginPath();
       g.moveTo(-w / 2, edge(-w / 2, -hh / 2));
@@ -2829,7 +2646,7 @@ const petals = (() => {
       g.fillStyle = '#ffffff'; g.fillRect(-w / 2 - 2, 0, w + 4, hh / 2 + 4);
       g.restore();
       g.strokeStyle = 'rgba(40,10,60,0.45)'; g.lineWidth = 1.5; g.stroke();
-      g.strokeStyle = '#6b4a1a'; g.lineWidth = 2.4; g.lineCap = 'round';           // a tiny pole
+      g.strokeStyle = '#6b4a1a'; g.lineWidth = 2.4; g.lineCap = 'round';
       g.beginPath(); g.moveTo(-w / 2 - 1.5, -hh / 2 - 3); g.lineTo(-w / 2 - 1.5, hh / 2 + 9); g.stroke();
     } else {
       g.font = '32px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -2856,19 +2673,17 @@ const petals = (() => {
     indoSets.push(base.map(s => glowIcon(s, 7, 1)));
     indoSets.push(base.map(s => glowIcon(s, 14, 2)));
   }
-  // ROACH MODE (songs.js:  petalRoach: true): the petals become cockroaches. They never change colour;
-  //   combo < 100: plain | 100+: they glow (amber) | 200+: they glow more. Drawn in code (the roach emoji is missing on older Windows), painted once, drawn exactly like petals.
   let roachMode = false;
-  const ROACH_SET = [0, 0, 0, 0, 0];                     // tier -> sprite set (no glow at any combo: always the plain set)
+  const ROACH_SET = [0, 0, 0, 0, 0];
   const roachSets = [];
-  function paintRoach(kind) {                            // 56x56 canvas, origin in the middle, head pointing up; kind 0 / 1 only differ in the antennae
+  function paintRoach(kind) {
     const c = document.createElement('canvas');
     c.width = c.height = 56;
     const g = c.getContext ? c.getContext('2d') : null;
     if (!g) return c;
     g.translate(28, 29);
     g.lineCap = 'round'; g.lineJoin = 'round';
-    const legs = (col, lw) => {                          // 3 legs on each side, bent outwards
+    const legs = (col, lw) => {
       g.strokeStyle = col; g.lineWidth = lw;
       [[-5, -9, 4], [-6, 0, 7], [-5, 8, 10]].forEach(l => {
         for (let s = -1; s <= 1; s += 2) {
@@ -2876,7 +2691,7 @@ const petals = (() => {
         }
       });
     };
-    const ants = (col, lw) => {                          // two whip-like antennae
+    const ants = (col, lw) => {
       g.strokeStyle = col; g.lineWidth = lw;
       const sw = kind ? 1 : -1;
       g.beginPath(); g.moveTo(-2, -13); g.quadraticCurveTo(-9, -22, -10 + sw * 3, -26); g.stroke();
@@ -2884,23 +2699,23 @@ const petals = (() => {
     };
     const body = (col) => {
       g.fillStyle = col;
-      g.beginPath(); g.ellipse(0, 3, 8.5, 13, 0, 0, Math.PI * 2); g.fill();      // abdomen + wings
-      g.beginPath(); g.ellipse(0, -9, 6.2, 4.6, 0, 0, Math.PI * 2); g.fill();    // head shield
-      g.beginPath(); g.ellipse(0, -13, 3.2, 3, 0, 0, Math.PI * 2); g.fill();     // head
+      g.beginPath(); g.ellipse(0, 3, 8.5, 13, 0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(0, -9, 6.2, 4.6, 0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(0, -13, 3.2, 3, 0, 0, Math.PI * 2); g.fill();
     };
-    g.globalAlpha = 0.45;                                // soft dark outline so it reads on any background
+    g.globalAlpha = 0.45;
     legs('rgba(40,10,60,1)', 4.2); ants('rgba(40,10,60,1)', 3.4);
     g.save(); g.translate(0, 0); g.scale(1.18, 1.1); body('rgba(40,10,60,1)'); g.restore();
     g.globalAlpha = 1;
     legs('#4a2610', 2); ants('#4a2610', 1.5);
     body('#6b3b1b');
-    g.fillStyle = '#93582b';                             // glossy head shield
+    g.fillStyle = '#93582b';
     g.beginPath(); g.ellipse(0, -9, 5, 3.4, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#3d1f0d'; g.lineWidth = 1.3;        // wing seam + wing edges
+    g.strokeStyle = '#3d1f0d'; g.lineWidth = 1.3;
     g.beginPath(); g.moveTo(0, -4); g.lineTo(0, 15); g.stroke();
     g.beginPath(); g.moveTo(-6.5, 0); g.quadraticCurveTo(-8, 9, -3, 15); g.stroke();
     g.beginPath(); g.moveTo(6.5, 0); g.quadraticCurveTo(8, 9, 3, 15); g.stroke();
-    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';        // shine
+    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';
     g.beginPath(); g.ellipse(-3.2, 3, 1.8, 6, 0.1, 0, Math.PI * 2); g.fill();
     g.globalAlpha = 1;
     return c;
@@ -2908,15 +2723,13 @@ const petals = (() => {
   function buildRoach() {
     roachSets.length = 0;
     const base = [paintRoach(0), paintRoach(1)];
-    roachSets.push(base);                                // plain only: no glow sprites are built
+    roachSets.push(base);
   }
-  // SUNFLOWER MODE (songs.js:  petalSunflower: true): the petals become sunflowers. They never change colour;
-  //   combo < 100: plain | 100+: they glow yellow | 200+: they glow more. Drawn in code, painted once, drawn exactly like petals.
   let sunMode = false;
-  const SUN_SET = [0, 0, 0, 0, 0];                       // no glow at any combo: always the plain set
-  const SUN_N = COARSE ? [3, 3, 4, 5, 5] : [5, 5, 7, 9, 9];   // far fewer than petals (4-16 / 8-44): sunflowers are big, detailed sprites, and the count stays flat so it never gets heavier with combo
+  const SUN_SET = [0, 0, 0, 0, 0];
+  const SUN_N = COARSE ? [3, 3, 4, 5, 5] : [5, 5, 7, 9, 9];
   const sunSets = [];
-  function paintSunflower() {                            // ONE 56x56 drawing, origin in the middle. The petals differ in length, width and angle (seeded, so it looks the same every run)
+  function paintSunflower() {
     const c = document.createElement('canvas');
     c.width = c.height = 56;
     const g = c.getContext ? c.getContext('2d') : null;
@@ -2927,20 +2740,20 @@ const petals = (() => {
     const N = 15, petalsList = [];
     for (let i = 0; i < N; i++) {
       petalsList.push({
-        a: (Math.PI * 2 * i) / N + (rnd() - 0.5) * 0.28,            // uneven spacing
-        d: 12 + rnd() * 3.5,                                        // distance from the centre
-        rx: 5.2 + rnd() * 6.6,                                      // petal length: from short to long
-        ry: 2.4 + rnd() * 2.2,                                      // petal width
-        back: rnd() < 0.4,                                          // some petals sit behind the others (deeper gold)
+        a: (Math.PI * 2 * i) / N + (rnd() - 0.5) * 0.28,
+        d: 12 + rnd() * 3.5,
+        rx: 5.2 + rnd() * 6.6,
+        ry: 2.4 + rnd() * 2.2,
+        back: rnd() < 0.4,
       });
     }
-    g.fillStyle = 'rgba(40,10,60,0.4)';                  // soft dark outline so it reads on any background
+    g.fillStyle = 'rgba(40,10,60,0.4)';
     for (const p of petalsList) {
       g.save(); g.rotate(p.a); g.translate(p.d + 0.6, 0);
       g.beginPath(); g.ellipse(0, 0, p.rx + 0.7, p.ry + 0.7, 0, 0, Math.PI * 2); g.fill();
       g.restore();
     }
-    for (const pass of [true, false]) {                  // back petals first, then the front ones
+    for (const pass of [true, false]) {
       g.fillStyle = pass ? '#f2a900' : '#ffd21f';
       for (const p of petalsList) {
         if (p.back !== pass) continue;
@@ -2949,25 +2762,25 @@ const petals = (() => {
         g.restore();
       }
     }
-    g.fillStyle = '#6b3d12';                             // seed disc
+    g.fillStyle = '#6b3d12';
     g.beginPath(); g.arc(0, 0, 7.2, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#4a2810';
     g.beginPath(); g.arc(0, 0, 4.4, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#8f5a24';                             // seed dots
+    g.fillStyle = '#8f5a24';
     for (let i = 0; i < 9; i++) {
       const a = i * 2.4, r = 1 + (i % 3) * 1.8;
       g.beginPath(); g.arc(Math.cos(a) * r * 1.6, Math.sin(a) * r * 1.6, 0.9, 0, Math.PI * 2); g.fill();
     }
-    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';        // shine
+    g.globalAlpha = 0.3; g.fillStyle = '#ffffff';
     g.beginPath(); g.ellipse(-2.5, -3, 2, 1.2, -0.5, 0, Math.PI * 2); g.fill();
     g.globalAlpha = 1;
     return c;
   }
   function buildSunflower() {
     sunSets.length = 0;
-    sunSets.push([paintSunflower()]);                    // a single sprite, no glow versions
+    sunSets.push([paintSunflower()]);
   }
-  function makeBead(color) {                             // a round candy bead like the ones on the cover: painted once, then reused like the petals
+  function makeBead(color) {
     const c = document.createElement('canvas');
     c.width = c.height = 36;
     const g = c.getContext ? c.getContext('2d') : null;
@@ -2976,35 +2789,33 @@ const petals = (() => {
     g.fillStyle = color; g.globalAlpha = 0.95;
     g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2); g.fill();
     g.globalAlpha = 0.14; g.fillStyle = '#ffffff';
-    g.beginPath(); g.arc(0, 0, 5, 0, Math.PI * 2); g.fill();                    // lighter centre
+    g.beginPath(); g.arc(0, 0, 5, 0, Math.PI * 2); g.fill();
     g.globalAlpha = 0.28;
-    g.beginPath(); g.ellipse(-4, -5, 3.2, 2, -0.6, 0, Math.PI * 2); g.fill();   // shine
+    g.beginPath(); g.ellipse(-4, -5, 3.2, 2, -0.6, 0, Math.PI * 2); g.fill();
     return c;
   }
-  // CHOCO MODE (songs.js:  petalChoco: true): the petals become chocolate bars. They never change colour; at 100 and 200 combo there are simply more of them.
-  //   Two shapes (a bare bar and a half-wrapped bar), painted once and drawn exactly like petals.
   let chocoMode = false;
   const chocoSprites = [];
-  const CHOCO_N = COARSE ? [6, 6, 10, 15, 15] : [12, 12, 22, 36, 36];   // count per combo tier: flat below 100, more at 100 (tier 2), more again at 200 (tier 3)
-  function makeChoco(variant) {                          // 48x48 canvas, origin in the middle
+  const CHOCO_N = COARSE ? [6, 6, 10, 15, 15] : [12, 12, 22, 36, 36];
+  function makeChoco(variant) {
     const c = document.createElement('canvas');
     c.width = c.height = 48;
     const g = c.getContext ? c.getContext('2d') : null;
     if (!g) return c;
     g.translate(24, 24);
     g.lineJoin = 'round';
-    const bw = 24, bh = 34;                              // the bar, 3 columns x 4 rows of squares
+    const bw = 24, bh = 34;
     const rr = (x, y, ww, hh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + ww, y, x + ww, y + hh, r); g.arcTo(x + ww, y + hh, x, y + hh, r); g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + ww, y, r); g.closePath(); };
-    g.fillStyle = 'rgba(40,10,60,0.4)'; rr(-bw / 2 - 1.5, -bh / 2 - 1.5, bw + 3, bh + 3, 4); g.fill();      // soft dark outline so it reads on any background
+    g.fillStyle = 'rgba(40,10,60,0.4)'; rr(-bw / 2 - 1.5, -bh / 2 - 1.5, bw + 3, bh + 3, 4); g.fill();
     g.fillStyle = '#5a3420'; rr(-bw / 2, -bh / 2, bw, bh, 3); g.fill();
     const cw = bw / 3, ch = bh / 4;
     for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) {
       const x = -bw / 2 + k * cw, y = -bh / 2 + r * ch;
       g.fillStyle = '#7b4a2d'; rr(x + 1, y + 1, cw - 2, ch - 2, 1.5); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x + 1.5, y + 1.5, cw - 3, 1.2);                   // top highlight
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + 1.5, y + ch - 2.7, cw - 3, 1.2);                    // bottom shade
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x + 1.5, y + 1.5, cw - 3, 1.2);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + 1.5, y + ch - 2.7, cw - 3, 1.2);
     }
-    if (variant === 1) {                                 // wrapper covering the lower half, with a torn zig-zag edge
+    if (variant === 1) {
       g.save();
       rr(-bw / 2, -bh / 2, bw, bh, 3); g.clip();
       g.fillStyle = '#d9a441';
@@ -3017,7 +2828,6 @@ const petals = (() => {
     }
     return c;
   }
-  // SPELL MODE (songs.js:  petalSpell: true): the petals become orange wand-spell sparkles: small embers and twinkling stars that float in the background (more at 100 and 200 combo). 3 sprites are painted once; each particle is one drawImage with an additive blend, same count budget as the petals (and none in light mode).
   let spellMode = false;
   const spl = [];
   const spSpr = { streak: null, ember: null, star: null };
@@ -3029,7 +2839,7 @@ const petals = (() => {
       const gr = g.createLinearGradient(0, 0, 96, 0);
       gr.addColorStop(0, 'rgba(255,100,15,0)'); gr.addColorStop(0.5, 'rgba(255,135,35,0.4)'); gr.addColorStop(0.88, 'rgba(255,190,90,0.9)'); gr.addColorStop(1, 'rgba(255,244,205,1)');
       g.fillStyle = gr;
-      g.beginPath(); g.moveTo(0, 8); g.lineTo(84, 3); g.quadraticCurveTo(96, 8, 84, 13); g.closePath(); g.fill();      // tapered tail, bright head
+      g.beginPath(); g.moveTo(0, 8); g.lineTo(84, 3); g.quadraticCurveTo(96, 8, 84, 13); g.closePath(); g.fill();
       const hg = g.createRadialGradient(88, 8, 0, 88, 8, 8);
       hg.addColorStop(0, 'rgba(255,240,200,0.95)'); hg.addColorStop(1, 'rgba(255,150,40,0)');
       g.fillStyle = hg; g.fillRect(78, 0, 18, 16);
@@ -3057,8 +2867,8 @@ const petals = (() => {
     }
     spSpr.star = c;
   }
-  const SPELL_N = COARSE ? [8, 10, 18, 30, 36] : [14, 18, 34, 56, 64];   // sparkle count per combo tier: clearly more at 100 combo (tier 2) and again at 200 (tier 3)
-  function spawnSpell(fast) {                             // a twinkling ember or star: hardly moves, floats up very slowly
+  const SPELL_N = COARSE ? [8, 10, 18, 30, 36] : [14, 18, 34, 56, 64];
+  function spawnSpell(fast) {
     const p = { x: Math.random() * w, y: Math.random() * h, a: -1.57 + (Math.random() - 0.5) * 1.6, sp: 6 + Math.random() * 12, age: 0, life: 2 + Math.random() * 2.4, s: 0.5 + Math.random() * 0.8, kind: Math.random() < 0.55 ? 1 : 2, rise: 6 + Math.random() * 14, ph: Math.random() * 6.283 };
     if (fast) p.life *= 0.7;
     spl.push(p);
@@ -3099,31 +2909,26 @@ const petals = (() => {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // PAPER AIRPLANE MODE (songs.js:  petalPlane: true): the petals become small paper airplanes gliding slowly across the screen.
-  //   They never change colour or glow; at 100 and 200 combo there are simply more of them (PLANE_N, same idea as the chocolate bars).
-  //   Real glide: the nose follows the flight path, the plane swoops down (faster) then flares up (slower) in a long lazy wave (a phugoid),
-  //   drifts down overall, wobbles a tiny bit, and slowly rolls (the wings squash a little). Smaller = further away = slower.
-  //   2 sprites painted once, one drawImage per plane, a handful of planes at most, nothing else per frame.
   let planeMode = false;
   const pln = [];
   const planeSprites = [];
-  const PLANE_N = COARSE ? [2, 2, 3, 4, 4] : [2, 2, 4, 5, 5];   // count per combo tier (x quality): flat below 100, more at 100 (tier 2), more again at 200 (tier 3)
-  function paintPlane(kind) {                            // 72x48 canvas, origin in the middle, nose points right (+x)
+  const PLANE_N = COARSE ? [2, 2, 3, 4, 4] : [2, 2, 4, 5, 5];
+  function paintPlane(kind) {
     const c = document.createElement('canvas');
     c.width = 72; c.height = 48;
     const g = c.getContext ? c.getContext('2d') : null;
     if (!g) return c;
     g.translate(36, 24);
     g.lineJoin = 'round';
-    g.strokeStyle = 'rgba(40,10,60,0.4)'; g.lineWidth = 3.5;   // soft dark outline so it reads on any background
+    g.strokeStyle = 'rgba(40,10,60,0.4)'; g.lineWidth = 3.5;
     g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, -17); g.lineTo(-24, 0); g.lineTo(-30, 17); g.closePath(); g.stroke();
-    g.fillStyle = kind ? '#eaf3ff' : '#ffffff';          // upper wing (lit)
+    g.fillStyle = kind ? '#eaf3ff' : '#ffffff';
     g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, -17); g.lineTo(-23, -1.5); g.closePath(); g.fill();
-    g.fillStyle = kind ? '#c9dcf2' : '#dde4ec';          // lower wing (in shade)
+    g.fillStyle = kind ? '#c9dcf2' : '#dde4ec';
     g.beginPath(); g.moveTo(30, 0); g.lineTo(-30, 17); g.lineTo(-23, 1.5); g.closePath(); g.fill();
-    g.fillStyle = kind ? '#9fb6d3' : '#aab6c6';          // centre fold (keel)
+    g.fillStyle = kind ? '#9fb6d3' : '#aab6c6';
     g.beginPath(); g.moveTo(30, 0); g.lineTo(-23, -1.5); g.lineTo(-27, 0); g.lineTo(-23, 1.5); g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(110,125,150,0.45)'; g.lineWidth = 0.9;   // two wing creases
+    g.strokeStyle = 'rgba(110,125,150,0.45)'; g.lineWidth = 0.9;
     g.beginPath(); g.moveTo(30, 0); g.lineTo(-26, -8.5); g.moveTo(30, 0); g.lineTo(-26, 8.5); g.stroke();
     return c;
   }
@@ -3131,18 +2936,18 @@ const petals = (() => {
     planeSprites.length = 0;
     planeSprites.push(paintPlane(0), paintPlane(1));
   }
-  function spawnPlane() {                                // always enters from the left or right edge, never pops in mid-screen
+  function spawnPlane() {
     const dir = Math.random() < 0.5 ? -1 : 1;
     const s = 0.65 + Math.random() * 0.45;
     pln.push({
       x: dir > 0 ? -50 - Math.random() * 60 : w + 50 + Math.random() * 60,
       y: h * (0.06 + Math.random() * 0.55),
       dir, s,
-      v0: 34 + 36 * s + Math.random() * 12,              // px/s: slow, and the smaller (further) ones are slower
-      glide: 0.07 + Math.random() * 0.07,                // average descent angle (rad)
-      amp: 0.22 + Math.random() * 0.18,                  // how far the swoop tips the flight path up / down (rad)
+      v0: 34 + 36 * s + Math.random() * 12,
+      glide: 0.07 + Math.random() * 0.07,
+      amp: 0.22 + Math.random() * 0.18,
       phase: Math.random() * 6.28,
-      freq: 0.8 + Math.random() * 0.5,                   // rad/s -> one swoop every ~5-8 seconds
+      freq: 0.8 + Math.random() * 0.5,
       bank: Math.random() * 6.28,
       flut: Math.random() * 6.28,
       a: 0.85 + Math.random() * 0.12,
@@ -3153,7 +2958,7 @@ const petals = (() => {
     tier = t;
     const sec = Math.min(dt, 50) / 1000;
     const want = target();
-    if (want === 0 && !pln.length) {                     // lite mode: no planes at all, so no per-frame canvas work either
+    if (want === 0 && !pln.length) {
       if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
       return;
     }
@@ -3165,17 +2970,17 @@ const petals = (() => {
       const p = pln[i];
       p.phase += p.freq * sec; p.bank += 0.45 * sec; p.flut += 3.1 * sec;
       const c = Math.cos(p.phase);
-      const al = p.glide + p.amp * c;                    // flight path angle, positive = heading down
-      const sp = p.v0 * (1 + 0.3 * c);                   // diving gains speed, climbing loses it
+      const al = p.glide + p.amp * c;
+      const sp = p.v0 * (1 + 0.3 * c);
       const vx = p.dir * sp * Math.cos(al), vy = sp * Math.sin(al);
       p.x += vx * sec; p.y += vy * sec;
-      if (p.x < -140 || p.x > w + 140 || p.y > h + 50 || p.y < -80) {   // left the screen: a new plane comes in from an edge
+      if (p.x < -140 || p.x > w + 140 || p.y > h + 50 || p.y < -80) {
         pln.splice(i, 1);
         if (pln.length < want) spawnPlane();
         continue;
       }
-      const ang = Math.atan2(vy, vx) + Math.sin(p.flut) * 0.04;   // nose follows the flight path, with a tiny wobble
-      const sy = 0.55 + 0.45 * Math.abs(Math.cos(p.bank));        // slow roll: the wings squash a little
+      const ang = Math.atan2(vy, vx) + Math.sin(p.flut) * 0.04;
+      const sy = 0.55 + 0.45 * Math.abs(Math.cos(p.bank));
       const k = p.s * dpr, cs = Math.cos(ang), sn = Math.sin(ang);
       ctx.globalAlpha = p.a;
       ctx.setTransform(cs * k, sn * k, -sn * k * sy, cs * k * sy, p.x * dpr, p.y * dpr);
@@ -3219,7 +3024,7 @@ const petals = (() => {
       phase: Math.random() * 6.28,
       freq: 0.6 + Math.random() * 0.9,
       rot: Math.random() * 6.28,
-      r0: (Math.random() - 0.5) * 0.7,                   // resting tilt of a word
+      r0: (Math.random() - 0.5) * 0.7,
       vr: (Math.random() - 0.5) * 2.4,
       s: 0.45 + Math.random() * 0.5,
       a: 0.35 + Math.random() * 0.4,
@@ -3240,58 +3045,58 @@ const petals = (() => {
   let curText = null;
   return {
     setTier(t) { tier = t; },
-    setPlane(on) {                                       // true = slow gliding paper airplanes instead of petals (petalPlane in songs.js)
+    setPlane(on) {
       on = !!on;
       if (on === planeMode) return;
       planeMode = on; pln.length = 0; buildSprites(curText);
     },
-    setSpell(on) {                                       // true = orange wand-spell sparkles instead of petals (petalSpell in songs.js)
+    setSpell(on) {
       on = !!on;
       if (on === spellMode) return;
       spellMode = on; spl.length = 0; buildSprites(curText);
     },
-    setRoach(on) {                                       // true = cockroaches instead of petals (petalRoach in songs.js)
+    setRoach(on) {
       on = !!on;
       if (on === roachMode) return;
       roachMode = on; buildSprites(curText);
     },
-    setSunflower(on) {                                   // true = sunflowers instead of petals (petalSunflower in songs.js)
+    setSunflower(on) {
       on = !!on;
       if (on === sunMode) return;
       sunMode = on; buildSprites(curText);
     },
-    setIndo(on) {                                        // true = Indonesian flag + skull (petalIndo in songs.js)
+    setIndo(on) {
       on = !!on;
       if (on === indoMode) return;
       indoMode = on; buildSprites(curText);
     },
-    setNotes(on) {                                       // true = musical notes instead of petals (petalNotes in songs.js)
+    setNotes(on) {
       on = !!on;
       if (on === noteMode) return;
       noteMode = on; buildSprites(curText);
     },
-    setChoco(on) {                                       // true = chocolate bars instead of petals (petalChoco in songs.js)
+    setChoco(on) {
       on = !!on;
       if (on === chocoMode) return;
       chocoMode = on; buildSprites(curText);
     },
-    setFruit(on) {                                       // true = fruits instead of petals (petalFruit in songs.js)
+    setFruit(on) {
       on = !!on;
       if (on === fruitMode) return;
       fruitMode = on; buildSprites(curText);
     },
-    setText(text) {                                      // null = normal sakura petals
+    setText(text) {
       text = text || null;
       if (text === curText) return;
       curText = text; buildSprites(text);
     },
     setQuality(q) { quality = q; },
-    setColors(cols, shp, mix) {                               // null = default sakura; shp 'feather' = feathers. Sprites are rebuilt once, not per frame
+    setColors(cols, shp, mix) {
       themeCols = cols; themeShape = shp; themeMix = mix;
       applyColors();
       buildSprites(curText);
     },
-    setSakura(on) {                                      // true = bright pink sakura petals, no colour change, no glow (petalSakura in songs.js)
+    setSakura(on) {
       on = !!on;
       if (on === sakuraMode) return;
       sakuraMode = on;
@@ -3299,8 +3104,8 @@ const petals = (() => {
       buildSprites(curText);
     },
     burst(count) {
-      if (reduceMotion || fxLight() || songFx) return;   // songs with their own effect (moon...) have no petals
-      if (planeMode) return;                             // planes just arrive in their own time
+      if (reduceMotion || fxLight() || songFx) return;
+      if (planeMode) return;
       if (spellMode) { for (let i = 0; i < Math.min(count, 3) && spl.length < 80; i++) spawnSpell(true); return; }
       for (let i = 0; i < count && list.length < 90; i++) spawn(true, true);
     },
@@ -3311,7 +3116,7 @@ const petals = (() => {
       tier = t;
       const sec = dt / 1000;
       const want = target();
-      if (want === 0 && !list.length) {                  // lite mode: no petals at all, so no per-frame canvas work either
+      if (want === 0 && !list.length) {
         if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
         return;
       }
@@ -3329,11 +3134,11 @@ const petals = (() => {
           if (list.length > want || p.fast) { list.splice(i, 1); continue; }
           p.y = -20; p.x = Math.random() * w; p.spriteIdx = mixPal ? (Math.random() * COLORS.length) | 0 : tier;
         }
-        const ang = textMode ? p.r0 + Math.sin(p.phase * 1.3) * 0.5 : p.rot;      // petals spin, words just sway
+        const ang = textMode ? p.r0 + Math.sin(p.phase * 1.3) * 0.5 : p.rot;
         const cos = Math.cos(ang) * p.s * dpr, sin = Math.sin(ang) * p.s * dpr;
         ctx.globalAlpha = p.a;
         ctx.setTransform(cos, sin, -sin, cos, p.x * dpr, p.y * dpr);
-        const sp = sunMode ? sunSets[SUN_SET[tier]][0] : roachMode ? roachSets[ROACH_SET[tier]][p.kind & 1] : chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];   // fruits follow the live combo tier, so they all change at once
+        const sp = sunMode ? sunSets[SUN_SET[tier]][0] : roachMode ? roachSets[ROACH_SET[tier]][p.kind & 1] : chocoMode ? chocoSprites[p.kind & 1] : fruitMode ? fruitSets[FRUIT_SET[tier]][p.kind] : indoMode ? indoSets[INDO_SET[tier]][p.kind & 1] : noteMode ? noteSprites[p.spriteIdx][p.kind & 1] : sprites[p.spriteIdx];
         ctx.drawImage(sp, -sp.width / 2, -sp.height / 2);
       }
       ctx.globalAlpha = 1;
@@ -3349,35 +3154,28 @@ const petals = (() => {
   };
 })();
 
-// ---------- PER-SONG EFFECTS ----------
-// A song opts in with   fx: 'moon'   in songs.js. The effect replaces the sakura petals for that song only.
-// Every effect is { start(), update(dt), clear(), resize() }. To add another one, write it like moonFx and register it in SONG_FX.
 
-// MOON: a huge moon behind the lanes. Calm until WHITE_AT combo -> glows white; RED_AT combo -> glows crimson;
-// any combo break fades it back to calm. Sprites are painted once, and the canvas is only redrawn while the glow changes.
 const MOON = {
   WHITE_AT: 100, RED_AT: 200,
-  SIZE_W: 0.26, SIZE_H: 0.40,        // radius as a share of screen width / height (the smaller one wins)
-  CENTER_Y: 0.40,                    // vertical centre of the moon, as a share of screen height
-  SOFT: 0.5,                         // surface detail resolution (smaller = blurrier, 1 = sharp)
-  BLUR: 0.03,                        // edge blur as a share of the moon radius
-  UP_MS: 400, DOWN_MS: 600,          // fade time per glow level going up / back down
+  SIZE_W: 0.26, SIZE_H: 0.40,
+  CENTER_Y: 0.40,
+  SOFT: 0.5,
+  BLUR: 0.03,
+  UP_MS: 400, DOWN_MS: 600,
 };
 const moonFx = (() => {
   const cv = document.createElement('canvas');
   cv.id = 'moon-fx';
-  game.insertBefore(cv, game.firstChild);                 // inside #game, under the lanes, and it shakes with the stage
+  game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const HALO = 1.4;                                       // sprite size = moon diameter * this (room for the glow)
-  // Realistic moon: the surface (dark maria, fine texture, craters, bright ray craters, soft lighting) is painted procedurally once per size,
-  // then tinted per glow state. Nothing here runs per frame.
+  const HALO = 1.4;
   const T = [0, 0, 0];
   const STATES = [
-    { rgb: '190,205,235', ha: 0.1, bloom: '215,225,245', ba: 0.1,          // calm: natural grey-cream moon
+    { rgb: '190,205,235', ha: 0.1, bloom: '215,225,245', ba: 0.1,
       tint(g, o) { o[0] = g * 0.95; o[1] = g * 0.93; o[2] = g * 0.88; } },
-    { rgb: '255,250,240', ha: 0.5, bloom: '255,255,255', ba: 0.32,          // 100 combo: brilliant white
+    { rgb: '255,250,240', ha: 0.5, bloom: '255,255,255', ba: 0.32,
       tint(g, o) { const w = Math.min(1, g * 1.18 + 0.04); o[0] = w; o[1] = w; o[2] = Math.min(1, w * 1.03 + 0.02); } },
-    { rgb: '255,34,56', ha: 0.5, bloom: '255,70,50', ba: 0.3,               // 200 combo: crimson blood moon
+    { rgb: '255,34,56', ha: 0.5, bloom: '255,70,50', ba: 0.3,
       tint(g, o) { o[0] = Math.min(1, g * 0.95 + 0.14); o[1] = g * g * 0.3; o[2] = g * g * 0.18; } },
   ];
   let spr = [], on = false, W = 0, H = 0, dpr = 1, R = 0, cx = 0, cy = 0, vis = 0, L = 0, lastKey = '';
@@ -3395,7 +3193,6 @@ const moonFx = (() => {
   }
   function fbm(x, y, oct) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < oct; i++) { s += a * vnoise(x * f, y * f); f *= 2; a *= 0.5; } return s; }
 
-  // grey moon disc of diameter d px: ImageData whose red channel is the brightness and alpha the (antialiased) edge
   function buildSurface(d) {
     const cvs = document.createElement('canvas'); cvs.width = cvs.height = d;
     const x = cvs.getContext('2d', { willReadFrequently: true });
@@ -3405,26 +3202,26 @@ const moonFx = (() => {
       if (rho2 >= 1.02) continue;
       const rho = Math.sqrt(rho2), nz = Math.sqrt(Math.max(0, 1 - rho2));
       const a = Math.max(0, Math.min(1, (1 - rho) * r + 0.5));
-      const mare = fbm(dx * 1.5 + 4.2, dy * 1.5 + 9.1, 4);                 // big dark seas
+      const mare = fbm(dx * 1.5 + 4.2, dy * 1.5 + 9.1, 4);
       const m = Math.max(0, Math.min(1, (mare - 0.40) / 0.36)), ms = m * m * (3 - 2 * m);
-      const fine = fbm(dx * 9 + 1.7, dy * 9 + 5.3, 4) - 0.47;              // fine surface grain
+      const fine = fbm(dx * 9 + 1.7, dy * 9 + 5.3, 4) - 0.47;
       const alb = 0.82 - 0.26 * ms + fine * 0.14 * (1 - 0.5 * ms);
-      const ndl = Math.max(0, dx * -0.32 + dy * -0.32 + nz * 0.89);        // light from the upper left, softly
+      const ndl = Math.max(0, dx * -0.32 + dy * -0.32 + nz * 0.89);
       let gv = Math.min(1, alb * (0.7 + 0.3 * ndl) * (0.8 + 0.2 * Math.sqrt(nz)) * 1.12);
-      gv = 0.64 + (gv - 0.64) * 0.72;                                      // hazy: less contrast, as if seen from far away
+      gv = 0.64 + (gv - 0.64) * 0.72;
       const o = (j * d + i) * 4;
       px[o] = px[o + 1] = px[o + 2] = gv * 255; px[o + 3] = a * 255;
     }
     x.putImageData(img, 0, 0);
-    x.globalCompositeOperation = 'source-atop';                            // craters only land on the moon
+    x.globalCompositeOperation = 'source-atop';
     const rnd = rng(48);
-    const crater = (ux, uy, cr) => {                                       // ux, uy, cr in moon radii
+    const crater = (ux, uy, cr) => {
       const rho = Math.hypot(ux, uy);
       if (rho > 0.97 || cr * r < 1.2) return;
       const nz = Math.sqrt(1 - rho * rho), rr = cr * r;
       x.save();
       x.translate(r + ux * r, r + uy * r);
-      x.rotate(Math.atan2(uy, ux)); x.scale(Math.max(0.25, nz), 1);        // squashed toward the edge, like the real thing
+      x.rotate(Math.atan2(uy, ux)); x.scale(Math.max(0.25, nz), 1);
       const gr = x.createRadialGradient(0, 0, 0, 0, 0, rr);
       gr.addColorStop(0, 'rgba(0,0,0,0.09)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.05)');
       gr.addColorStop(0.86, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -3435,7 +3232,7 @@ const moonFx = (() => {
       const a = rnd() * 6.2832, rad = Math.sqrt(rnd()) * 0.96;
       crater(Math.cos(a) * rad, Math.sin(a) * rad, 0.008 + 0.075 * Math.pow(rnd(), 3.2));
     }
-    const rayCrater = (ux, uy, cr, rays, len) => {                         // bright young craters with ejecta rays
+    const rayCrater = (ux, uy, cr, rays, len) => {
       x.save();
       x.translate(r + ux * r, r + uy * r);
       const hr = len * r * 0.5, hg = x.createRadialGradient(0, 0, 0, 0, 0, hr);
@@ -3458,23 +3255,23 @@ const moonFx = (() => {
   }
 
   function build() {
-    const drawD = 2 * R * HALO;                             // sprite size in CSS px
-    const sc = Math.min(dpr, 900 / drawD);                  // never paint a huge sprite
+    const drawD = 2 * R * HALO;
+    const sc = Math.min(dpr, 900 / drawD);
     const size = Math.max(8, Math.ceil(drawD * sc)), m = size / 2, r = R * sc;
     const dd = Math.max(8, Math.ceil(r * 2));
-    const sd0 = Math.max(8, Math.ceil(dd * MOON.SOFT));              // paint small, stretch up: soft focus
+    const sd0 = Math.max(8, Math.ceil(dd * MOON.SOFT));
     if (!surf || surfKey !== sd0) { surf = buildSurface(sd0); surfKey = sd0; }
     spr = STATES.map(s => {
       const k = document.createElement('canvas');
       k.width = k.height = size;
       const g = k.getContext('2d');
-      let h = g.createRadialGradient(m, m, r * 0.9, m, m, m);                 // wide glow
-      for (const [p, f] of [[0, 1], [0.2, 0.55], [0.45, 0.2], [0.75, 0.05], [1, 0]]) h.addColorStop(p, `rgba(${s.rgb},${s.ha * f})`);   // long, gentle falloff
+      let h = g.createRadialGradient(m, m, r * 0.9, m, m, m);
+      for (const [p, f] of [[0, 1], [0.2, 0.55], [0.45, 0.2], [0.75, 0.05], [1, 0]]) h.addColorStop(p, `rgba(${s.rgb},${s.ha * f})`);
       g.fillStyle = h; g.fillRect(0, 0, size, size);
-      h = g.createRadialGradient(m, m, r * 0.95, m, m, r * 1.18);             // tight bloom hugging the disc
+      h = g.createRadialGradient(m, m, r * 0.95, m, m, r * 1.18);
       for (const [p, f] of [[0, 1], [0.4, 0.35], [1, 0]]) h.addColorStop(p, `rgba(${s.bloom},${s.ba * f})`);
       g.fillStyle = h; g.fillRect(0, 0, size, size);
-      const out = new ImageData(sd0, sd0), sd = surf.data, od = out.data;       // the tinted surface
+      const out = new ImageData(sd0, sd0), sd = surf.data, od = out.data;
       for (let q = 0; q < sd.length; q += 4) {
         if (!sd[q + 3]) continue;
         s.tint(sd[q] / 255, T);
@@ -3483,7 +3280,7 @@ const moonFx = (() => {
       const dc = document.createElement('canvas'); dc.width = dc.height = sd0;
       dc.getContext('2d').putImageData(out, 0, 0);
       g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-      if ('filter' in g) g.filter = `blur(${(r * MOON.BLUR).toFixed(1)}px)`;   // soft edge (browsers without canvas filters just skip it)
+      if ('filter' in g) g.filter = `blur(${(r * MOON.BLUR).toFixed(1)}px)`;
       g.drawImage(dc, m - dd / 2, m - dd / 2, dd, dd);
       if ('filter' in g) g.filter = 'none';
       return k;
@@ -3494,7 +3291,7 @@ const moonFx = (() => {
     if (!on) return;
     const w = game.clientWidth, h = game.clientHeight;
     if (!w || !h) return;
-    let d = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);   // the moon is soft-focus anyway: 1x on phones (about half the memory)
+    let d = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     while (w * h * d * d > 2.5e6 && d > 1) d = Math.max(1, d - 0.25);
     if (!force && w === W && h === H && d === dpr) return;
     W = w; H = h; dpr = d;
@@ -3511,7 +3308,7 @@ const moonFx = (() => {
     if (vis <= 0.01 || !spr.length) return;
     const dsz = 2 * R * HALO * dpr;
     const x = cx * dpr - dsz / 2, y = cy * dpr - dsz / 2;
-    const i = Math.min(1, Math.floor(L)), f = L - i;        // crossfade: lower glow level underneath, next level fading in on top
+    const i = Math.min(1, Math.floor(L)), f = L - i;
     c.globalAlpha = vis;
     c.drawImage(spr[i], x, y, dsz, dsz);
     if (f > 0.005) { c.globalAlpha = vis * f; c.drawImage(spr[i + 1], x, y, dsz, dsz); }
@@ -3543,7 +3340,7 @@ const moonFx = (() => {
       }
       if (vis < 1) vis = Math.min(1, vis + dt / 900);
       const key = vis.toFixed(2) + '|' + L.toFixed(2);
-      if (key === lastKey) return;                          // nothing changed: no repaint
+      if (key === lastKey) return;
       lastKey = key;
       draw();
       cv.classList.toggle('lit', L > 0.5);
@@ -3551,44 +3348,36 @@ const moonFx = (() => {
   };
 })();
 
-// SPARKLER: the stage starts dark. 50 combo lights one sparkler, 100 combo lights more and brightens the stage, 200 combo keeps that
-// and sends up two big fireworks, one after the other, in the middle; 300 combo sends up two more and then one extra finale
-// (each again if the combo is lost and reaches it again).
-// A combo break fades everything back to dark. Look: soft, slightly blurred and subtle: a small warm core, a wide amber glow that
-// blends into the stage, and thin sparks that fly out, arc down and cool from pale yellow to deep orange (no stick, no spiky rays). Soft sprites + one low-resolution canvas + fixed particle pools keep it light; it draws behind the lanes.
 const SPARK = {
   FIRST_AT: 50, MORE_AT: 100, FIREWORK_AT: 200, FIREWORK2_AT: 300,
-  DARK: 0.5,                                             // how dark the stage is before any sparkler is lit (0..1)
-  SPOTS: [[0.14, 0.64], [0.86, 0.58], [0.22, 0.30], [0.78, 0.26]],   // sparkler tips as a share of width / height (first one lights at 50)
-  // fireworks: x, y = burst centre (share of width / height), size = burst radius as a share of height, delay = seconds after 200 combo
+  DARK: 0.5,
+  SPOTS: [[0.14, 0.64], [0.86, 0.58], [0.22, 0.30], [0.78, 0.26]],
   FIREWORKS: [
     { x: 0.5, y: 0.32, size: 0.40, delay: 0,   col: 0 },
     { x: 0.5, y: 0.27, size: 0.48, delay: 1.5, col: 1 },
   ],
-  // at 300 combo: two bursts again, then one more big finale
   FIREWORKS2: [
     { x: 0.36, y: 0.30, size: 0.38, delay: 0,   col: 0 },
     { x: 0.64, y: 0.27, size: 0.42, delay: 1.2, col: 1 },
     { x: 0.5,  y: 0.24, size: 0.55, delay: 2.6, col: 2 },
   ],
-  UP_MS: 700, DOWN_MS: 500,                              // fade time per light level
+  UP_MS: 700, DOWN_MS: 500,
 };
 const FW_COLS = [{ hi: 'rgb(255,242,205)', lo: 'rgb(255,168,72)' }, { hi: 'rgb(255,232,215)', lo: 'rgb(255,140,115)' }, { hi: 'rgb(255,226,185)', lo: 'rgb(255,118,88)' }];
 
-// firework sounds (synthesized, same sound bus as the other effects)
 function fireworkSound(kind) {
   try {
     ensureAudio();
-    if (kind === 'launch') {                              // rising whistle
+    if (kind === 'launch') {
       uTone(520, { dur: 0.58, to: 1900, vol: 0.05, lp: 3200 });
       uNoise({ type: 'bandpass', from: 900, to: 3600, dur: 0.5, vol: 0.05, q: 2 });
-    } else {                                              // boom + crack + crackle
+    } else {
       uTone(95, { dur: 0.4, to: 38, vol: 0.34 });
       uNoise({ type: 'lowpass', from: 2600, to: 300, dur: 0.24, vol: 0.22, q: 0.7 });
       uNoise({ type: 'highpass', from: 5000, dur: 0.06, vol: 0.1 });
       for (let k = 0; k < 6; k++) uNoise({ at: 0.1 + Math.random() * 0.95, type: 'highpass', from: 4500 + Math.random() * 3500, dur: 0.03, vol: 0.04 + Math.random() * 0.05 });
     }
-  } catch (e) { /* audio unavailable */ }
+  } catch (e) {  }
 }
 
 const sparklerFx = (() => {
@@ -3597,7 +3386,7 @@ const sparklerFx = (() => {
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const K = COARSE ? 0.32 : 0.4;                          // low backing resolution: much cheaper, and the stretched-up canvas gives the soft look                         // backing resolution: the glow is soft anyway
+  const K = COARSE ? 0.32 : 0.4;
   const MAXP = COARSE ? 60 : 100, MAXF = COARSE ? 130 : 200;
   const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
@@ -3609,11 +3398,10 @@ const sparklerFx = (() => {
     g.fillStyle = gr; g.fillRect(0, 0, size, size);
     return k;
   }
-  const GLOW = sprite(128, [[0, 'rgba(255,215,150,0.55)'], [0.3, 'rgba(255,170,80,0.2)'], [1, 'rgba(255,120,40,0)']]);   // firework flash
-  const SGLOW = sprite(128, [[0, 'rgba(255,196,120,0.34)'], [0.25, 'rgba(255,150,70,0.17)'], [0.6, 'rgba(230,100,45,0.06)'], [1, 'rgba(200,80,30,0)']]);   // sparkler light: wide, amber, fades out softly
+  const GLOW = sprite(128, [[0, 'rgba(255,215,150,0.55)'], [0.3, 'rgba(255,170,80,0.2)'], [1, 'rgba(255,120,40,0)']]);
+  const SGLOW = sprite(128, [[0, 'rgba(255,196,120,0.34)'], [0.25, 'rgba(255,150,70,0.17)'], [0.6, 'rgba(230,100,45,0.06)'], [1, 'rgba(200,80,30,0)']]);
   const CORE = sprite(64, [[0, 'rgba(255,244,222,0.85)'], [0.2, 'rgba(255,224,170,0.6)'], [0.5, 'rgba(255,175,95,0.2)'], [1, 'rgba(255,140,60,0)']]);
   const DOT = sprite(32, [[0, 'rgba(255,250,235,1)'], [0.25, 'rgba(255,225,160,0.7)'], [0.6, 'rgba(255,170,70,0.18)'], [1, 'rgba(255,140,40,0)']]);
-  // fixed pools: no allocation while playing
   function pool(n) {
     const a = [];
     for (let i = 0; i < n; i++) a.push({ x: 0, y: 0, vx: 0, vy: 0, l: 0, m: 1, w: 1, g: 0, d: 1, o: 1, st: -1, c: 0 });
@@ -3623,7 +3411,7 @@ const sparklerFx = (() => {
       add(x, y, vx, vy, life, w, grav, drag, op, st, col) {
         let p = null;
         for (let t = 0; t < n; t++) { const q = a[i]; i = (i + 1) % n; if (q.l <= 0) { p = q; break; } }
-        if (!p) { p = a[i]; i = (i + 1) % n; }            // pool full: recycle the next one
+        if (!p) { p = a[i]; i = (i + 1) % n; }
         p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.l = p.m = life; p.w = w; p.g = grav; p.d = drag; p.o = op; p.st = st; p.c = col;
       },
       step(sec) {
@@ -3648,7 +3436,7 @@ const sparklerFx = (() => {
   let on = false, W = 0, H = 0, sc = 1, vis = 0, Lv = 0, fired = [false, false], lastKey = '', tms = 0, drawAcc = 0;
   const fwList = [];
   const act = [0, 0, 0, 0], acc = [0, 0, 0, 0], accS = [0, 0, 0, 0], tipX = [0, 0, 0, 0], tipY = [0, 0, 0, 0];
-  const TL = 0.065, TLF = 0.05;                          // streak length per unit of speed
+  const TL = 0.065, TLF = 0.05;
 
   function resize(force) {
     if (!on) return;
@@ -3666,9 +3454,9 @@ const sparklerFx = (() => {
     for (let k = 0; k < n; k++) {
       const a = (6.2832 * k) / n + (Math.random() - 0.5) * 0.12, r = Math.random();
       let v, life, grav, w;
-      if (r < 0.25) { v = R * d * (0.4 + 0.12 * Math.random()); life = 1.0 + 0.5 * Math.random(); grav = 40 * sc; w = 1.5 * sc; }            // soft inner ring
-      else if (r < 0.65) { v = R * d * (0.8 + 0.25 * Math.random()); life = 1.3 + 0.6 * Math.random(); grav = 50 * sc; w = 2.2 * sc; }    // main shell
-      else { v = R * d * (0.7 + 0.2 * Math.random()); life = 1.8 + 0.8 * Math.random(); grav = 150 * sc; w = 1.6 * sc; }                  // drooping glitter
+      if (r < 0.25) { v = R * d * (0.4 + 0.12 * Math.random()); life = 1.0 + 0.5 * Math.random(); grav = 40 * sc; w = 1.5 * sc; }
+      else if (r < 0.65) { v = R * d * (0.8 + 0.25 * Math.random()); life = 1.3 + 0.6 * Math.random(); grav = 50 * sc; w = 2.2 * sc; }
+      else { v = R * d * (0.7 + 0.2 * Math.random()); life = 1.8 + 0.8 * Math.random(); grav = 150 * sc; w = 1.6 * sc; }
       FWP.add(f.x, f.cy, Math.cos(a) * v, Math.sin(a) * v, life, w, grav, d, 0.9, -1, f.spec.col);
     }
     f.burst = true; f.flash = 1;
@@ -3696,7 +3484,6 @@ const sparklerFx = (() => {
       const sec = dt / 1000;
       tms += dt;
 
-      // light level follows the combo (0 dark, 1 first sparkler, 2 more sparklers); it fades both ways
       const target = combo >= SPARK.MORE_AT ? 2 : combo >= SPARK.FIRST_AT ? 1 : 0;
       if (Lv !== target) {
         const st = dt / (target > Lv ? SPARK.UP_MS : SPARK.DOWN_MS);
@@ -3705,14 +3492,13 @@ const sparklerFx = (() => {
       if (vis < 1) vis = Math.min(1, vis + dt / 900);
       let anyAct = false;
       for (let i = 0; i < 4; i++) {
-        const th = i === 0 ? 0 : 1 + (i - 1) * 0.15, span = i === 0 ? 0.6 : 0.45;   // the extra sparklers light up one after another
+        const th = i === 0 ? 0 : 1 + (i - 1) * 0.15, span = i === 0 ? 0.6 : 0.45;
         act[i] = clamp01((Lv - th) / span);
         if (act[i] > 0.001) anyAct = true;
-        tipX[i] = SPARK.SPOTS[i][0] * W + Math.sin(tms / 310 + i * 2.1) * 3 * sc;      // a hand-held sparkler wobbles a little
+        tipX[i] = SPARK.SPOTS[i][0] * W + Math.sin(tms / 310 + i * 2.1) * 3 * sc;
         tipY[i] = SPARK.SPOTS[i][1] * H + Math.cos(tms / 270 + i) * 3 * sc;
       }
 
-      // fireworks: two in a row at 200 combo, two more plus a finale at 300; a combo break cancels the ones that have not launched yet
       for (let ti = 0; ti < 2; ti++) {
         const at = ti ? SPARK.FIREWORK2_AT : SPARK.FIREWORK_AT, list = ti ? SPARK.FIREWORKS2 : SPARK.FIREWORKS;
         if (combo >= at) {
@@ -3727,7 +3513,6 @@ const sparklerFx = (() => {
       }
 
       const light = fxLite();
-      // streaks + star sparks from every lit sparkler tip
       const rateK = light ? 0.25 : fxLight() ? 0.5 : 1;
       const rate = (COARSE ? 18 : 30) * rateK, srate = (COARSE ? 3 : 5) * rateK;
       for (let i = 0; i < 4; i++) {
@@ -3746,7 +3531,6 @@ const sparklerFx = (() => {
         }
       }
 
-      // fireworks: whistle + short rise, then a big burst
       for (let i = fwList.length - 1; i >= 0; i--) {
         const f = fwList[i];
         f.wait -= sec;
@@ -3767,33 +3551,31 @@ const sparklerFx = (() => {
 
       const alive = S.step(sec) + FWP.step(sec);
       const key = vis.toFixed(2) + '|' + Lv.toFixed(2);
-      if (!alive && !anyAct && !fwList.length && key === lastKey) return;      // dark and still: nothing to repaint
+      if (!alive && !anyAct && !fwList.length && key === lastKey) return;
       drawAcc += dt;
-      if (drawAcc < (fxLite() ? 100 : fxLight() ? 66 : 40)) return;                                                // repaint at ~25 fps: less than half the drawing cost, looks the same for soft glows
+      if (drawAcc < (fxLite() ? 100 : fxLight() ? 66 : 40)) return;
       drawAcc = 0;
       lastKey = key;
 
-      // ---- draw ----
       c.setTransform(K, 0, 0, K, 0, 0);
       c.clearRect(0, 0, W, H);
       const D = SPARK.DARK * (1 - 0.36 * Math.min(Lv, 1) - 0.42 * Math.max(0, Lv - 1));
-      c.fillStyle = `rgba(16,5,4,${(D * vis).toFixed(3)})`;      // warm dark, not blue-black
+      c.fillStyle = `rgba(16,5,4,${(D * vis).toFixed(3)})`;
       c.fillRect(0, 0, W, H);
       c.globalCompositeOperation = 'lighter';
       c.lineCap = 'round';
-      const boost = 0.6 + 0.4 * clamp01(Lv - 1);                               // the stage gets brighter at the second level
+      const boost = 0.6 + 0.4 * clamp01(Lv - 1);
       for (let i = 0; i < 4; i++) {
         if (act[i] <= 0.001) continue;
         const tx = tipX[i], ty = tipY[i], a0 = act[i] * vis;
-        const flick = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(tms / 61 + i * 1.7) * Math.sin(tms / 37 + i * 2.9) + 0.5 * Math.sin(tms / 23 + i));   // uneven, like a real flame
+        const flick = 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(tms / 61 + i * 1.7) * Math.sin(tms / 37 + i * 2.9) + 0.5 * Math.sin(tms / 23 + i));
         const r = H * (i === 0 ? 0.42 : 0.37);
-        c.globalAlpha = a0 * flick * boost;                                    // wide warm light that blends into the stage
+        c.globalAlpha = a0 * flick * boost;
         c.drawImage(SGLOW, tx - r, ty - r, 2 * r, 2 * r);
-        const cr = 8 * sc * (0.9 + 0.2 * flick);                                // small warm core, no hard edge
+        const cr = 8 * sc * (0.9 + 0.2 * flick);
         c.globalAlpha = a0 * 0.7;
         c.drawImage(CORE, tx - cr, ty - cr, 2 * cr, 2 * cr);
       }
-      // sparks: pale yellow while young, amber, then deep orange as they cool; each has a short fading tail and a soft glowing head
       for (let pass = 0; pass < 3; pass++) {
         c.strokeStyle = pass === 0 ? 'rgb(255,228,175)' : pass === 1 ? 'rgb(255,172,82)' : 'rgb(232,104,46)';
         for (let k = 0; k < MAXP; k++) {
@@ -3810,18 +3592,17 @@ const sparklerFx = (() => {
         const p = S.a[k];
         if (p.l <= 0) continue;
         const f = p.l / p.m;
-        if (p.st < 0) {                                                         // soft head of a spark
-          if (k % 3) continue;                                                  // heads on every other spark only
+        if (p.st < 0) {
+          if (k % 3) continue;
           const s = 2.6 * sc * (0.6 + 0.4 * f);
           c.globalAlpha = Math.min(1, f * 2) * vis * 0.5;
           c.drawImage(DOT, p.x - s, p.y - s, 2 * s, 2 * s);
-        } else {                                                                // tiny fork: a quick bright twinkle
+        } else {
           const s = p.w * (0.5 + 0.5 * f);
           c.globalAlpha = Math.min(1, f * 2) * (0.4 + 0.6 * Math.abs(Math.sin(tms / 16 + k * 2.3))) * vis * 0.5;
           c.drawImage(DOT, p.x - s, p.y - s, 2 * s, 2 * s);
         }
       }
-      // fireworks
       for (const f of fwList) {
         if (f.wait > 0) continue;
         if (!f.burst) {
@@ -3851,18 +3632,15 @@ const sparklerFx = (() => {
 })();
 
 
-// LIGHTNING (songs.js:  fx: 'lightning'): replaces the petals with lightning bolts and electric arcs around the stage.
-// Nothing happens until START_AT combo; then the more combo, the more (and more often) it strikes, up to FULL_AT. A combo break calms it back down.
-// Cheap by design: one low-res canvas, tiny fixed pools (no allocation), repainted only while something is flashing, and fewer / slower in lite mode.
 const lightningFx = (() => {
   const cv = document.createElement('canvas');
   cv.id = 'lightning-fx';
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const K = COARSE ? 0.35 : 0.5;                          // low backing resolution: cheaper, and the stretch gives bolts a soft glow
+  const K = COARSE ? 0.35 : 0.5;
   const START_AT = 10, FULL_AT = 300;
-  const NB = COARSE ? 2 : 3, NA = COARSE ? 5 : 8;         // most bolts / edge arcs on screen at once
+  const NB = COARSE ? 2 : 3, NA = COARSE ? 5 : 8;
   const mk = () => ({ l: 0, m: 1, n: 0, n2: 0, p: new Float32Array(48) });
   const bolts = Array.from({ length: NB }, mk), arcs = Array.from({ length: NA }, mk);
   const GLOW = (() => {
@@ -3872,7 +3650,7 @@ const lightningFx = (() => {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     return k;
   })();
-  const PASSES = [['rgb(70,120,255)', 7, 0.28], ['rgb(165,205,255)', 3, 0.6], ['rgb(255,255,255)', 1.2, 0.95]];   // wide blue glow, pale blue, white-hot core
+  const PASSES = [['rgb(70,120,255)', 7, 0.28], ['rgb(165,205,255)', 3, 0.6], ['rgb(255,255,255)', 1.2, 0.95]];
 
   let on = false, W = 0, H = 0, sc = 1, Lv = 0, flash = 0, boltAcc = 0, arcAcc = 0, lastCombo = 0, drawAcc = 0, dirty = false, hazeShown = -1;
 
@@ -3884,7 +3662,6 @@ const lightningFx = (() => {
     W = w; H = h; sc = Math.max(0.7, Math.min(w, h) / 360);
     cv.width = Math.round(w * K); cv.height = Math.round(h * K);
   }
-  // jagged line of n points from (x0,y0) to (x1,y1) written into p at point offset o
   function zig(p, o, x0, y0, x1, y1, n, jit) {
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
     for (let i = 0; i < n; i++) {
@@ -3920,12 +3697,12 @@ const lightningFx = (() => {
   function drawList(list, big) {
     for (const b of list) {
       if (b.l <= 0) continue;
-      const f = b.l / b.m, a = Math.min(1, f * 1.8) * (Math.random() < 0.6 ? 1 : 0.3);      // flickers
+      const f = b.l / b.m, a = Math.min(1, f * 1.8) * (Math.random() < 0.6 ? 1 : 0.3);
       for (const ps of PASSES) {
         c.strokeStyle = ps[0]; c.lineWidth = ps[1] * sc * (big ? 1 : 0.6); c.globalAlpha = a * ps[2] * (big ? 1 : 0.8);
         c.beginPath(); path(b, 0, b.n); if (b.n2) path(b, b.n, b.n2); c.stroke();
       }
-      if (big) {                                                    // a soft flash where it strikes
+      if (big) {
         const r = H * 0.12;
         c.globalAlpha = a * 0.6;
         c.drawImage(GLOW, b.p[2 * (b.n - 1)] - r, b.p[2 * b.n - 1] - r, 2 * r, 2 * r);
@@ -3953,13 +3730,12 @@ const lightningFx = (() => {
       const target = combo >= START_AT ? Math.min(1, (combo - START_AT) / (FULL_AT - START_AT)) : 0;
       Lv += (target - Lv) * Math.min(1, dt / (target > Lv ? 500 : 900));
       if (Math.abs(Lv - target) < 0.002) Lv = target;
-      // the stage gets a little darker and bluer so the bolts stand out (a CSS background: costs nothing per frame)
       const hz = Math.round(0.3 * Lv * 50) / 50;
       if (hz !== hazeShown) { hazeShown = hz; cv.style.background = hz > 0 ? 'rgba(6,10,36,' + hz + ')' : ''; }
 
       const light = fxLite(), mid = fxLight(), rk = light ? 0.35 : mid ? 0.6 : 1;
       if (combo >= START_AT) {
-        if (lastCombo < START_AT) boltAcc = 1;                         // the first strike as it begins
+        if (lastCombo < START_AT) boltAcc = 1;
         boltAcc += (0.22 + 1.3 * Lv) * rk * sec;
         arcAcc += (0.5 + 4.5 * Lv) * rk * sec;
         if (boltAcc >= 1) { boltAcc = 0; if (!light || !bolts.some(q => q.l > 0)) spawnBolt(); }
@@ -3971,12 +3747,12 @@ const lightningFx = (() => {
       for (const b of bolts) if (b.l > 0) { b.l -= sec; if (b.l > 0) alive++; }
       for (const b of arcs) if (b.l > 0) { b.l -= sec; if (b.l > 0) alive++; }
       flash = Math.max(0, flash - sec * 3);
-      if (!alive && flash <= 0) {                                      // nothing flashing: clear once, then do no drawing at all
+      if (!alive && flash <= 0) {
         if (dirty) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); dirty = false; }
         return;
       }
       drawAcc += dt;
-      if (drawAcc < (light ? 100 : mid ? 66 : 33)) return;             // repaint at up to ~30 fps, only while something is flashing
+      if (drawAcc < (light ? 100 : mid ? 66 : 33)) return;
       drawAcc = 0; dirty = true;
 
       c.setTransform(K, 0, 0, K, 0, 0);
@@ -3992,9 +3768,6 @@ const lightningFx = (() => {
   };
 })();
 
-// ---------- MAGIC HOUR: cold atmosphere (songs.js:  coldMist: true) ----------
-// 100 combo: the stage turns subtly cold (a blue frost vignette + a little drifting mist); 200 combo: a bit colder. A broken combo fades it out slowly.
-// One static gradient layer + 2 mist layers: only opacity / transform change (compositor), no JS, canvas or filter per frame. It sits under the lanes and never takes a tap.
 const magicFx = (() => {
   let root = null, cold = null, lv = -1, liteShown = null;
   function build() {
@@ -4008,7 +3781,7 @@ const magicFx = (() => {
       '.mg .mg-fog{position:absolute;left:-30%;bottom:-6%;width:160%;height:38%;background:radial-gradient(ellipse closest-side at 50% 60%,rgba(150,190,235,.2),rgba(150,190,235,0));will-change:transform;animation:mgFog 34s ease-in-out infinite alternate}' +
       '.mg .mg-fog.b{height:28%;bottom:10%;opacity:.7;animation-duration:46s;animation-direction:alternate-reverse}' +
       '@keyframes mgFog{from{transform:translate3d(-9%,0,0)}to{transform:translate3d(9%,0,0)}}' +
-      '.mg.mgl .mg-fog{display:none}' +                                  // light mode: no mist
+      '.mg.mgl .mg-fog{display:none}' +
       '@media (prefers-reduced-motion:reduce){.mg .mg-fog{animation:none}}';
     document.head.appendChild(st);
     root = document.createElement('div');
@@ -4033,9 +3806,6 @@ const magicFx = (() => {
   };
 })();
 
-// METEORS (songs.js:  fx: 'meteors'): replaces the petals. At 50, 100, 200, 300, 400 and 480 combo a shower of soft, slightly blurry meteors falls
-// across the BACKGROUND (behind the lanes), bigger at each milestone. Losing the combo re-arms the milestones. One sprite (blurred once when painted),
-// one low-res canvas, a small fixed pool, and nothing is drawn while no meteor is falling.
 const METEOR = { MARKS: [50, 100, 200, 300, 400, 480], COUNTS: [3, 5, 8, 11, 14, 20], SPREAD: 2.4 };
 const meteorFx = (() => {
   const cv = document.createElement('canvas');
@@ -4043,9 +3813,9 @@ const meteorFx = (() => {
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const K = COARSE ? 0.4 : 0.5;                           // low backing resolution: cheaper and softer
+  const K = COARSE ? 0.4 : 0.5;
   const MAXM = COARSE ? 14 : 24;
-  const spr = (() => {                                    // 160x24, head on the right, long tapered tail to the left; blurred once here
+  const spr = (() => {
     const k = document.createElement('canvas'); k.width = 160; k.height = 24;
     const g = k.getContext('2d');
     if ('filter' in g) g.filter = 'blur(1.6px)';
@@ -4061,7 +3831,7 @@ const meteorFx = (() => {
   const pool = [];
   for (let i = 0; i < MAXM; i++) pool.push({ l: 0, m: 1, x: 0, y: 0, vx: 0, vy: 0, s: 1, a: 1 });
   const fired = [false, false, false, false, false, false];
-  let pending = [];                                       // meteors waiting to launch: { t seconds, i milestone }
+  let pending = [];
   let on = false, W = 0, H = 0, sc = 1, anyAlive = false, dirty = false;
 
   function resize(force) {
@@ -4076,7 +3846,7 @@ const meteorFx = (() => {
     let p = null;
     for (const q of pool) if (q.l <= 0) { p = q; break; }
     if (!p) return;
-    const ang = 1.95 + Math.random() * 0.3;               // falls down and to the left
+    const ang = 1.95 + Math.random() * 0.3;
     const sp = H * (0.8 + Math.random() * 0.5);
     p.vx = Math.cos(ang) * sp; p.vy = Math.sin(ang) * sp;
     p.x = W * (0.2 + Math.random() * 0.95); p.y = -30 - Math.random() * H * 0.25;
@@ -4098,12 +3868,12 @@ const meteorFx = (() => {
             fired[i] = true;
             if (!reduceMotion) { const n = Math.ceil(METEOR.COUNTS[i] * (fxLite() ? 0.5 : 1)); for (let k = 0; k < n; k++) pending.push({ t: Math.random() * METEOR.SPREAD, i }); }
           }
-        } else if (fired[i]) { fired[i] = false; pending = pending.filter(q => q.i !== i); }   // combo lost: the unlaunched ones are cancelled
+        } else if (fired[i]) { fired[i] = false; pending = pending.filter(q => q.i !== i); }
       }
       for (let k = pending.length - 1; k >= 0; k--) { pending[k].t -= sec; if (pending[k].t <= 0) { launch(pending[k].i); pending.splice(k, 1); } }
       anyAlive = false;
       for (const p of pool) if (p.l > 0) { p.l -= sec; if (p.l > 0) { anyAlive = true; p.x += p.vx * sec; p.y += p.vy * sec; } }
-      if (!anyAlive) {                                    // nothing falling: clear once, then no drawing at all
+      if (!anyAlive) {
         if (dirty) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); dirty = false; }
         return;
       }
@@ -4117,7 +3887,7 @@ const meteorFx = (() => {
         const ang = Math.atan2(p.vy, p.vx), k = p.s * K * 0.8, cs = Math.cos(ang), sn = Math.sin(ang);
         c.globalAlpha = p.a * fade;
         c.setTransform(cs * k, sn * k, -sn * k, cs * k, p.x * K, p.y * K);
-        c.drawImage(spr, -140, -12);                      // the head (140 px in) sits on the meteor's position
+        c.drawImage(spr, -140, -12);
       }
       c.globalAlpha = 1;
       c.globalCompositeOperation = 'source-over';
@@ -4131,16 +3901,14 @@ function applySongFx(song) {
   clearSongFx();
   if (song && song.coldMist) { try { magicFx.show(); } catch (e) { console.warn('cold mist failed', e); } }
   songFx = (song && song.fx && SONG_FX[song.fx]) || null;
-  if (songFx) { try { songFx.start(); } catch (e) { console.warn('song effect failed to start', e); try { songFx.clear(); } catch (e2) { /* ignore */ } songFx = null; } }
+  if (songFx) { try { songFx.start(); } catch (e) { console.warn('song effect failed to start', e); try { songFx.clear(); } catch (e2) {  } songFx = null; } }
 }
 function clearSongFx() {
-  try { magicFx.hide(); } catch (e) { /* not built yet */ }
-  if (songFx) { try { songFx.clear(); } catch (e) { /* ignore */ } songFx = null; }
+  try { magicFx.hide(); } catch (e) {  }
+  if (songFx) { try { songFx.clear(); } catch (e) {  } songFx = null; }
   clearSongTheme();
 }
 
-// ---------- SONG THEME (crimson) ----------
-// One static gradient layer (opacity only, so it costs nothing to animate) + recoloured sprites. No filters, no blend modes, no per-frame work.
 const atmo = (() => {
   const el = document.createElement('div');
   el.id = 'theme-atmo';
@@ -4163,7 +3931,7 @@ function applySongTheme(song) {
   COLS_NOW = TH ? NOTE_COLS.map((c, i) => TH.notes[i] || c) : NOTE_COLS;
   for (let i = 0; i < 4; i++) { beamColor[i] = laneHitColor[i] = ACCENT(); }
   petals.setColors(TH ? TH.petals : null, TH ? TH.petalShape : null, TH ? TH.mixPetals : false);
-  tierGlow.style.display = TH ? 'none' : '';                 // replaced by the theme atmosphere
+  tierGlow.style.display = TH ? 'none' : '';
   beatPulse.style.background = TH ? TH.pulse : '';
   screenFlash.style.background = TH ? TH.flash : '';
   if (TH) atmo.style.background = TH.atmo;
@@ -4174,27 +3942,13 @@ function applySongTheme(song) {
   if (FIELD.W) { buildSprites(); drawStatic(); }
 }
 function clearSongTheme() { if (TH) applySongTheme(null); }
-// a song effect must never be able to stop the song: if it ever throws, it is switched off for the rest of the run
 function songFxUpdate(dt) {
   try { songFx.update(dt); } catch (e) { console.warn('song effect failed', e); clearSongFx(); }
 }
 
-// ============================================================
-//  QUALITY LADDER  (replaces the old all-or-nothing "lite" switch)
-//   R0 = Graphics ON, full look
-//   R1 = invisible trims only: ambience at ~25 fps and 70% of the petals, 3/4 of the particles, cheer sparks off, cheer aura frozen
-//   R2 = small trims you would only spot if you looked: ambience ~16 fps and 40% of the petals, no beat glow, no screen shake,
-//        1 ring (PERFECT 2), half the particles, flares without light column / core, flat hold bodies, no glow text
-//   R3 = lite (the old lite look). Only R3 is "lite"; it is the LAST rung.
-//  It steps down one rung when the 95th-percentile frame time over the last ~5 s is above Q_DOWN_P95, and up one rung only after
-//  ~20 s at a good p95 (with a longer wait, and finally no more going up, if going up keeps failing).
-//  The canvas resolution never changes in a song: qLowRes is decided in qBegin() when a song starts, from the rung saved on this device.
-// ============================================================
 const Q_MAX = 3, Q_KEY = 'jeketi.q';
 const Q_WINDOW_MS = 5000, Q_EVAL_MS = 500, Q_MIN_SAMPLES = 60;
-const Q_DOWN_P95 = 20, Q_UP_P95 = 18.5;           // ms. between the two: stay where we are
-// A STEADY slow frame rate (e.g. a locked 30 fps: every frame ~33 ms) feels smooth, so it is NOT a reason to lower the quality. Only UNEVEN frames are
-// (p95 well above the typical frame), or a frame rate so low that even a steady one is bad (typical frame above Q_SLOW_MEDIAN).
+const Q_DOWN_P95 = 20, Q_UP_P95 = 18.5;
 const Q_UNEVEN = 1.3, Q_SLOW_MEDIAN = 40;
 const Q_UP_AFTER_MS = 20000, Q_RELAPSE_MS = 30000, Q_SAVE_AFTER_MS = 15000;
 const Q_BUF = 720;
@@ -4207,25 +3961,23 @@ function qLoad() {
 }
 function qSave() {
   qSaved = qRung;
-  try { localStorage.setItem(Q_KEY, String(qRung)); } catch (e) { /* storage blocked */ }
+  try { localStorage.setItem(Q_KEY, String(qRung)); } catch (e) {  }
 }
 
-// CSS classes + petal amount for the current rung. Cheap, and it never touches the canvases.
 function qApply() {
   const b = document.body;
-  b.classList.toggle('low-fx', !OPT.gfx || qRung >= 3);   // CSS: hides the beat glow layer, freezes the cheering-card bounce
-  b.classList.toggle('lite-fx', qRung >= 3);              // CSS (injected below): hides the hit flash and tier glow
-  b.classList.toggle('q1', qRung >= 1);                   // CSS (injected below): no cheer sparks, frozen cheer aura
-  b.classList.toggle('q2', qRung >= 2);                   // CSS (injected below): no beat glow layer
-  const rq = [1, 0.7, 0.4, 0][qRung];                     // petals / ambience amount
+  b.classList.toggle('low-fx', !OPT.gfx || qRung >= 3);
+  b.classList.toggle('lite-fx', qRung >= 3);
+  b.classList.toggle('q1', qRung >= 1);
+  b.classList.toggle('q2', qRung >= 2);
+  const rq = [1, 0.7, 0.4, 0][qRung];
   petals.setQuality(OPT.gfx ? rq : Math.min(0.3, rq));
   if (qRung >= 2) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; }
 }
 
-// A song is about to start: pick the rung to start at (the saved one for this device) and the canvas size that goes with it.
 function qBegin() {
   const saved = qLoad();
-  qRung = OPT.gfx ? 0 : (saved >= 0 ? saved : WEAK_DEVICE ? 2 : 0);   // Graphics ON: always the full look (R0), the saved rung is ignored
+  qRung = OPT.gfx ? 0 : (saved >= 0 ? saved : WEAK_DEVICE ? 2 : 0);
   qSaved = saved;
   qLowRes = qRung >= 3;
   qN = 0; qHead = 0; qLastEval = 0; qP95 = 0;
@@ -4236,15 +3988,15 @@ function qBegin() {
 
 function qSetRung(r, now) {
   r = Math.max(0, Math.min(Q_MAX, r));
-  if (OPT.gfx || r === qRung) return;                     // Graphics ON: the quality ladder never changes the look (no lite mode)
-  if (r > qRung) {                                        // quality goes DOWN
-    if (qLastUpAt && now - qLastUpAt < Q_RELAPSE_MS) {    // we went up a moment ago and it did not hold: wait longer, and after two relapses stop going up
+  if (OPT.gfx || r === qRung) return;
+  if (r > qRung) {
+    if (qLastUpAt && now - qLastUpAt < Q_RELAPSE_MS) {
       qUpWait = Math.min(qUpWait * 2, 120000);
       if (++qRelapse >= 2) qUpBlocked = true;
     }
   } else qLastUpAt = now;
   qRung = r; qRungSince = now; qGoodSince = 0;
-  qN = 0; qHead = 0;                                      // judge the new rung on fresh frames only
+  qN = 0; qHead = 0;
   qApply();
   setStatus(status.textContent.split('\n')[0] + (qRung >= 3 ? '\nlite-fx mode' : ''));
 }
@@ -4254,35 +4006,33 @@ function qEvaluate(now) {
   for (let i = 0; i < qN; i++) {
     if (qT[i] >= now - Q_WINDOW_MS) { qScratch[n++] = qD[i]; if (qT[i] < oldest) oldest = qT[i]; }
   }
-  if (n < Q_MIN_SAMPLES || now - oldest < Q_WINDOW_MS * 0.8) return;     // not enough fresh frames yet
+  if (n < Q_MIN_SAMPLES || now - oldest < Q_WINDOW_MS * 0.8) return;
   const s = qScratch.subarray(0, n); s.sort();
   const p95 = qP95 = s[Math.floor(0.95 * (n - 1))];
   const p50 = s[Math.floor(0.5 * (n - 1))];
-  const steady = p50 <= Q_SLOW_MEDIAN && p95 <= p50 * Q_UNEVEN;     // even frames at an acceptable rate
+  const steady = p50 <= Q_SLOW_MEDIAN && p95 <= p50 * Q_UNEVEN;
   if (p95 > Q_DOWN_P95 && !steady) { qGoodSince = 0; if (qRung < Q_MAX) { qSetRung(qRung + 1, now); return; } }
-  else if (qRung > 0 && !qUpBlocked && (p95 <= Q_UP_P95 || steady)) {   // a steady 30 fps also counts as 'fine': a lowered rung may climb back
+  else if (qRung > 0 && !qUpBlocked && (p95 <= Q_UP_P95 || steady)) {
     if (!qGoodSince) qGoodSince = now;
     else if (now - qGoodSince >= qUpWait) { qSetRung(qRung - 1, now); return; }
   } else qGoodSince = 0;
-  if (qRung !== qSaved && now - qRungSince >= Q_SAVE_AFTER_MS) qSave();   // a rung that held for a while is what the next song starts at
+  if (qRung !== qSaved && now - qRungSince >= Q_SAVE_AFTER_MS) qSave();
 }
 
-// Watches the frame time. Called every frame of a song.
 function trackPerformance(dt) {
   const now = performance.now();
   frameEma += (Math.min(dt, 80) - frameEma) * 0.05;
-  if (now - playBeganAt < WARMUP_MS || document.hidden) return;           // first 2 s: audio start-up jank alone must not move the ladder
+  if (now - playBeganAt < WARMUP_MS || document.hidden) return;
   qT[qHead] = now; qD[qHead] = dt; qHead = (qHead + 1) % Q_BUF; if (qN < Q_BUF) qN++;
   if (now - qLastEval < Q_EVAL_MS) return;
   qLastEval = now;
   qEvaluate(now);
 }
 
-// Applies the Graphics option (called at start and whenever the player flips it). The ladder sits on top of it.
 function applyGfx() {
   qApply();
   if (!OPT.gfx) { beatPulse.style.opacity = 0; lastBeatOpacity = 0; releaseFx(); }
-  measureLane();                                                  // playfield resolution depends on it
+  measureLane();
 }
 applyGfx();
 (function addLiteStyles() {
@@ -4292,7 +4042,6 @@ applyGfx();
   document.head.appendChild(st);
 })();
 
-// ---------- NUMBER POPS ----------
 function popScore() {
   const t = performance.now();
   if (t - lastPopScore < 90) return;
@@ -4329,7 +4078,6 @@ function pulseScore() {
   );
 }
 
-// ---------- COMBO TIERS ----------
 function getTier(c) {
   if (c >= TIER_STEPS[3]) return 4;
   if (c >= TIER_STEPS[2]) return 3;
@@ -4352,7 +4100,6 @@ function updateComboVisuals() {
       shownCombo = combo;
     }
     const cls = tier > 0 ? `tier-${tier}` : '';
-    // keep the class stable so CSS animations are not restarted
     if (comboEl.className !== cls && !(comboEl.classList.contains('milestone') && cls === comboEl.className.replace(' milestone', ''))) {
       const keep = comboEl.classList.contains('milestone') ? ' milestone' : '';
       comboEl.className = cls + keep;
@@ -4360,9 +4107,8 @@ function updateComboVisuals() {
   } else if (!comboEl.classList.contains('broke')) {
     setComboHidden();
   } else if (combo === 0) {
-    // leave the "broken" animation alone
   }
-  const ts = '' + tier;                                       // only touch <body> when the tier really changed (it restyles a lot of CSS)
+  const ts = '' + tier;
   if (document.body.getAttribute('data-tier') !== ts) document.body.setAttribute('data-tier', ts);
   petals.setTier(tier);
   setThemeTier(tier);
@@ -4376,7 +4122,6 @@ function showBrokenCombo(prev) {
   comboEl.className = `tier-${getTier(prev)} broke`;
 }
 
-// ---------- HUD ----------
 function updateScoreboard() {
   updateComboVisuals();
 }
@@ -4388,7 +4133,7 @@ function updateLife() {
 }
 
 function healFromPerfect() {
-  if (missCount <= 0) { healCount = 0; return; }     // full health: nothing is banked
+  if (missCount <= 0) { healCount = 0; return; }
   if (++healCount < PERFECTS_PER_HEAL) return;
   healCount = 0;
   missCount--;
@@ -4401,14 +4146,12 @@ function showJudgement(text, color) {
   judgementEl.style.color = color;
   const miss = text === 'MISS' || text === 'BAD';
   const isP = text === 'PERFECT', isG = text === 'GREAT';
-  // PERFECT glows gold and punches in big; GREAT gets a smaller glow and a smaller punch. (glow is skipped in lite mode)
   judgementEl.style.textShadow = qRung >= 2 ? '' : isP ? '0 0 4px #fff, 0 0 12px ' + color + ', 0 0 26px ' + color + ', 0 0 46px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
   if (judgeAnim) judgeAnim.cancel();
   const s0 = isP ? 2.1 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
-  perfectTilt = -perfectTilt;                                          // each PERFECT tilts the other way, so a streak wiggles instead of repeating the same pop
+  perfectTilt = -perfectTilt;
   const pt = (s, r) => 'translateX(-50%) scale(' + s + ') rotate(' + r + 'deg)';
   judgeAnim = judgementEl.animate(isP ? [
-    // transform + opacity only: an animated filter on glowing text is repainted every frame, transform / opacity stay on the compositor
     { transform: pt(s0, perfectTilt * 3), opacity: 0 },
     { transform: pt(0.94, 0), opacity: 1, offset: 0.12 },
     { transform: pt(1.3, -perfectTilt), opacity: 1, offset: 0.24 },
@@ -4424,7 +4167,6 @@ function showJudgement(text, color) {
   ], { duration: miss ? 480 : isP ? 560 : 400, easing: 'ease-out' });
 }
 
-// Shows EARLY / LATE for anything that is not PERFECT, so players can see how to improve
 function showTiming(name, signedDiff) {
   if (name === 'PERFECT') { timingEl.style.opacity = 0; return; }
   const early = signedDiff < 0;
@@ -4453,7 +4195,7 @@ function showTierBanner(tier, c, isTierUp) {
   ], { duration: 900, easing: 'ease-out' });
 }
 
-function handleComboIncrement(c) {                       // c = the combo this hit reached (the effect runs a frame later)
+function handleComboIncrement(c) {
   const stepIdx = TIER_STEPS.indexOf(c);
   const isTierUp = stepIdx >= 0;
   const isMilestone = isTierUp || (c >= 300 && c % 100 === 0);
@@ -4472,12 +4214,9 @@ function handleComboIncrement(c) {                       // c = the combo this h
   shakeScreen(1.6 + getTier(c) * 0.4);
 }
 
-// ---------- NOTE TOKEN ----------
-// Notes are drawn on the canvas; `n.el` is only a flag meaning "this note is on screen".
 const NOTE_TOKEN = { classList: { add() {}, remove() {} } };
 function acquireNoteEl(n) { n.h = -1; return NOTE_TOKEN; }
 
-// ---------- NOTES ----------
 function clearNotes() {
   for (let i = 0; i < active.length; i++) {
     const n = active[i];
@@ -4524,9 +4263,8 @@ function removeNote(n) {
   n.el = null;
 }
 
-// ---------- LANE DOWN/UP ----------
 function laneDown(lane) {
-  if (mode === 'countdown') {            // allow pre-pressing a held key during the countdown
+  if (mode === 'countdown') {
     pressedLanes.add(lane);
     setLanePressed(lane, true);
     return;
@@ -4549,7 +4287,7 @@ function laneDown(lane) {
     const n = q[i];
     if (n.judged || n.holding) continue;
     const signed = now - n.time;
-    if (signed < -MAX_WINDOW) break;     // sorted: everything after is even later
+    if (signed < -MAX_WINDOW) break;
     const diff = Math.abs(signed);
     if (diff <= MAX_WINDOW && diff < bestDiff) { best = n; bestDiff = diff; bestSigned = signed; }
   }
@@ -4558,7 +4296,7 @@ function laneDown(lane) {
     if (best.dur > 0) startHold(best, bestDiff, bestSigned);
     else judgeTap(best, bestSigned);
   } else {
-    queueHitFx(HFX_EMPTY, lane, '', 0, 0, false);       // flash + tap sound, played next frame
+    queueHitFx(HFX_EMPTY, lane, '', 0, 0, false);
   }
 }
 
@@ -4580,31 +4318,23 @@ function laneUp(lane) {
   }
 }
 
-// ---------- JUDGEMENT ----------
-// Every 10th PERFECT in a row sets off a burst on all four lanes (played by flushHitFx). Any other judgement (or a miss) resets the streak.
-// Returns true when this hit is a 10th.
 function perfectStreakStep(name) {
   if (name !== 'PERFECT') { perfectStreak = 0; return false; }
   return ++perfectStreak % 10 === 0;
 }
 
-// ---------- COSMETIC HIT EFFECTS (batched, one step per frame) ----------
-// The touch / key handler only does the GAME LOGIC of a hit (judgement, combo, score, life, the note's state). Everything the player can only
-// see or feel (judgement text, EARLY / LATE, rings, particles, flares, beams, shake, vibration, HUD pops, combo milestones) is written
-// into this small fixed queue and played once per frame by flushHitFx() from update(), right before drawField. The hit still shows on the very
-// next frame, but the input handler returns almost at once and several hits in one frame share one DOM update.
 const HFX_TAP = 0, HFX_HOLD_START = 1, HFX_HOLD_END = 2, HFX_EMPTY = 3, HFX_MAX = 48;
 const hfxPool = [];
 for (let i = 0; i < HFX_MAX; i++) hfxPool.push({ k: 0, lane: 0, name: '', signed: 0, combo: 0, burst: false });
 let hfxN = 0;
 function queueHitFx(k, lane, name, signed, comboAt, burst) {
-  if (hfxN >= HFX_MAX) return;                      // only cosmetics are dropped, never game logic
+  if (hfxN >= HFX_MAX) return;
   const e = hfxPool[hfxN++];
   e.k = k; e.lane = lane; e.name = name; e.signed = signed; e.combo = comboAt; e.burst = burst;
 }
 function streakBurst() {
   if (fxLite()) return;
-  if (PHONE_FX) return;                        // phones: no 4-lane burst, no screen flash, no vibration
+  if (PHONE_FX) return;
   for (let l = 0; l < 4; l++) { spawnShockwave(l, 'perfect', 1); spawnFlare(l, 'PERFECT'); }
   if (!fxLight()) triggerScreenFlash();
   buzz(30);
@@ -4616,7 +4346,7 @@ function flushHitFx() {
   let kickAdd = 0, judgeEv = null, timingEv = null, timingClear = false, scored = false;
   for (let i = 0; i < n; i++) {
     const e = hfxPool[i], lane = e.lane;
-    if (e.k === HFX_EMPTY) { flashLane(lane); try { playEmptyTap(lane); } catch (err) { /* audio unavailable */ } continue; }
+    if (e.k === HFX_EMPTY) { flashLane(lane); try { playEmptyTap(lane); } catch (err) {  } continue; }
     const name = e.name, bad = name === 'BAD';
     scored = true;
     flashLane(lane);
@@ -4657,7 +4387,7 @@ function flushHitFx() {
   }
   if (!scored) return;
   kick = Math.min(0.7, kick + kickAdd);
-  if (judgeEv) showJudgement(judgeEv.name, JUDGE[judgeEv.name].color);        // only the last one of the frame is visible anyway
+  if (judgeEv) showJudgement(judgeEv.name, JUDGE[judgeEv.name].color);
   if (timingEv) showTiming(timingEv.name, timingEv.signed);
   else if (timingClear) timingEl.style.opacity = 0;
   updateScoreboard();
@@ -4667,7 +4397,7 @@ function flushHitFx() {
     const e = hfxPool[i];
     if (e.k !== HFX_TAP && e.k !== HFX_HOLD_END) continue;
     const c = e.combo;
-    if (TIER_STEPS.indexOf(c) >= 0 || (c >= 300 && c % 100 === 0)) handleComboIncrement(c);   // milestones use the combo the hit really reached
+    if (TIER_STEPS.indexOf(c) >= 0 || (c >= 300 && c % 100 === 0)) handleComboIncrement(c);
     else nonMilestone = true;
   }
   if (nonMilestone) popCombo();
@@ -4689,11 +4419,10 @@ function judgeTap(n, signedDiff) {
   if (name === 'PERFECT') healFromPerfect();
   const burst = perfectStreakStep(name);
 
-  combo++;                                               // a BAD never breaks the combo: it counts like any other hit
+  combo++;
   maxCombo = Math.max(maxCombo, combo);
   addScore(j.points);
 
-  // everything visible / audible / vibrating is played next frame by flushHitFx()
   queueHitFx(HFX_TAP, n.lane, name, signedDiff, combo, burst);
   if (name === 'BAD') removeNote(n); else removeNoteAnimated(n);
 }
@@ -4763,7 +4492,6 @@ function registerMiss(n) {
   if (missCount >= missLimit) triggerGameOver();
 }
 
-// ---------- PLAYING ----------
 function resetRunState() {
   score = 0; scoreExact = 0; combo = 0; maxCombo = 0; displayScore = 0;
   missCount = 0; healCount = 0;
@@ -4783,20 +4511,16 @@ function resetRunState() {
   updateLife();
 }
 
-// ---------- GET-READY INTRO ----------
-// Before the 3-2-1: (1) the lanes slide in and the notes fade in, (2) the card strip, score and life bar fade in.
-// It doubles as loading time: after the 2 seconds the countdown waits (up to INTRO_MAX_WAIT_MS) until the song has
-// buffered, so the first seconds of a run do not stutter while the audio is still arriving.
-const INTRO_LANES_MS = 1000;                // step 1: lanes + notes
-const INTRO_HUD_MS = 1000;                  // step 2: cards, score, life bar
-const INTRO_NOTES_AT = 400;                 // notes start fading in this long after the lanes begin
+const INTRO_LANES_MS = 1000;
+const INTRO_HUD_MS = 1000;
+const INTRO_NOTES_AT = 400;
 const INTRO_NOTES_MS = 600;
-const INTRO_MAX_WAIT_MS = 8000;             // never hold a player longer than this for the audio
-const INTRO_NO_PROGRESS_MS = 1500;          // browser buffers nothing until play() (iPhones): stop waiting after this
+const INTRO_MAX_WAIT_MS = 8000;
+const INTRO_NO_PROGRESS_MS = 1500;
 let introT0 = 0;
-let introNoteK = 1;                         // 0..1 multiplier on note opacity (1 = normal play)
-let startArm = null;                        // song is playing but the audio clock has not moved yet: notes stay frozen until it does
-const START_ARM_MAX_MS = 600;               // never wait longer than this for the audio clock
+let introNoteK = 1;
+let startArm = null;
+const START_ARM_MAX_MS = 600;
 
 (function addIntroStyles() {
   const st = document.createElement('style');
@@ -4817,14 +4541,12 @@ function runIntro(token, done) {
   const alive = () => token === playToken && mode === 'starting';
   introT0 = performance.now();
 
-  // step 1: lanes slide up and fade in (notes follow through introNoteK in the update loop)
   if (playfieldEl.animate) {
     const slide = reduceMotion ? [] : [{ transform: 'translateY(36px)' }, { transform: 'translateY(0)' }];
     playfieldEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: 'ease-out' });
     if (slide.length) for (const cv of [fieldBgCv, fieldCv]) cv.animate(slide, { duration: 800, easing: 'cubic-bezier(.2,.8,.2,1)' });
   }
 
-  // step 2: cards, score and life bar fade in
   setTimeout(() => {
     if (!alive()) return;
     document.body.classList.add('intro-hud-in');
@@ -4832,7 +4554,6 @@ function runIntro(token, done) {
     setTimeout(() => document.body.classList.remove('intro-hud-in'), 800);
   }, INTRO_LANES_MS);
 
-  // then: hold the countdown until the song is buffered
   setTimeout(() => {
     if (!alive()) return;
     const t0 = performance.now();
@@ -4852,34 +4573,26 @@ function runIntro(token, done) {
   }, INTRO_LANES_MS + INTRO_HUD_MS);
 }
 
-// 3-2-1 before a song starts. Stops quietly if the player leaves or restarts meanwhile (the token changes).
-// The first element.animate() on an element builds its compositor layer. Do that during the countdown, not on the first hit.
 function prewarmHud() {
-  const still = (el, tf) => { try { el.animate([{ transform: tf }, { transform: tf }], { duration: 40 }); } catch (e) { /* ignore */ } };
+  const still = (el, tf) => { try { el.animate([{ transform: tf }, { transform: tf }], { duration: 40 }); } catch (e) {  } };
   still(judgementEl, 'translateX(-50%)'); still(timingEl, 'translateX(-50%)'); still(tierBanner, 'translateX(-50%)');
   still(scoreEl, 'scale(1)'); still(comboEl, 'translateX(-50%) scale(1)');
 }
-// ---- WARM-UP: pay every first-use cost during the get-ready intro / 3-2-1, not on the first hit of the song ----
-// Sound: build the same kinds of nodes the game sounds use (oscillator types, compressor, filter, noise buffer) once, at
-// an inaudible level (about -80 dB), so the first real sound is not the first use of any of it.
 function warmAudio() {
   try {
     ensureAudio();
     const A = audioCtx, t = A.currentTime;
-    const comp = A.createDynamicsCompressor();          // playComboSound makes one of these per sound
+    const comp = A.createDynamicsCompressor();
     comp.connect(A.destination);
     const g = A.createGain(); g.gain.value = 0.00005; g.connect(comp);
     ['sine', 'triangle', 'sawtooth', 'square'].forEach((type) => {
       const o = A.createOscillator(); o.type = type; o.frequency.value = 440; o.connect(g); o.start(t); o.stop(t + 0.03);
     });
-    uTone(440, { vol: 0.00011, dur: 0.03, type: 'triangle', lp: 3000 });        // the tone + low-pass path of the UI / tap sounds
-    uNoise({ vol: 0.0002, dur: 0.02, type: 'highpass', from: 4500 });           // fills the shared noise buffer (empty-tap / miss sounds)
-    setTimeout(() => { try { comp.disconnect(); g.disconnect(); } catch (e) { /* ignore */ } }, 400);
-  } catch (e) { /* audio unavailable */ }
+    uTone(440, { vol: 0.00011, dur: 0.03, type: 'triangle', lp: 3000 });
+    uNoise({ vol: 0.0002, dur: 0.02, type: 'highpass', from: 4500 });
+    setTimeout(() => { try { comp.disconnect(); g.disconnect(); } catch (e) {  } }, 400);
+  } catch (e) {  }
 }
-// Hit effects: run the spawn code once (JIT, particle sprites for every colour), then, inside the next frame and AFTER
-// drawField, stamp every effect sprite once at ~0.3% opacity, so the first drawImage / additive blend / ring stroke has
-// already happened when the first PERFECT does. The next frame's drawField clears the canvas, so nothing stays on screen.
 let warmFxPending = false;
 function warmFx() {
   if (mode !== 'starting' || fxLite()) return;
@@ -4887,8 +4600,8 @@ function warmFx() {
     spawnShockwave(1, 'perfect', 2); spawnShockwave(2, 'great', 2);
     spawnParticles(1, 'perfect', 8); spawnParticles(2, 'great', 6); spawnParticles(3, 'good', 4);
     spawnFlare(1, 'PERFECT'); spawnFlare(2, 'GREAT');
-    releaseFx();   // none of these can exist before the song starts
-  } catch (e) { /* ignore */ }
+    releaseFx();
+  } catch (e) {  }
   warmFxPending = true;
 }
 function warmFxDraw() {
@@ -4899,13 +4612,13 @@ function warmFxDraw() {
     c.setTransform(F.dpr, 0, 0, F.dpr, 0, 0);
     c.globalAlpha = 0.003;
     const x = laneX(1, 1), y = F.hitY;
-    c.strokeStyle = '#ffffff'; c.lineWidth = 3.5;                                  // ring (rounded-rect stroke)
+    c.strokeStyle = '#ffffff'; c.lineWidth = 3.5;
     rr(c, x - F.noteW * 0.9, y - F.recH, F.noteW * 1.8, F.recH * 2, F.recH * 0.8); c.stroke();
-    [fxColor('perfect'), fxColor('great'), fxColor('good'), '#ffffff'].forEach((col) => {      // every particle sprite
+    [fxColor('perfect'), fxColor('great'), fxColor('good'), '#ffffff'].forEach((col) => {
       c.drawImage(particleSprite(col, false), x - 8, y - 8, 16, 16);
       c.drawImage(particleSprite(col, true), x - 8, y - 8, 16, 16);
     });
-    if (FLARE_SPR.perfect) {                                                       // flares: additive blend + glow / column / core sprites
+    if (FLARE_SPR.perfect) {
       c.globalCompositeOperation = 'lighter';
       const sz = F.noteW;
       c.drawImage(FLARE_SPR.col, x - sz / 4, y - sz, sz / 2, sz);
@@ -4914,25 +4627,24 @@ function warmFxDraw() {
       if (FLARE_SPR.core) c.drawImage(FLARE_SPR.core, x - sz / 2, y - sz * 0.35, sz, sz * 0.7);
       c.globalCompositeOperation = 'source-over';
     }
-    const sp = NOTE_SPR[(TH && TH.byLane) ? 1 : tierVariant()];                    // hit pop
+    const sp = NOTE_SPR[(TH && TH.byLane) ? 1 : tierVariant()];
     if (sp) c.drawImage(sp.cv, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
     c.restore();
-  } catch (e) { try { c.restore(); } catch (e2) { /* ignore */ } }
+  } catch (e) { try { c.restore(); } catch (e2) {  } }
 }
 
-// If the phone is clearly struggling while the notes only stand still, go down ONE rung of the quality ladder now (before the song).
 function autoPickQuality() {
-  if (introFrames > 30 && frameEma > Q_SLOW_MEDIAN && qRung < Q_MAX) qSetRung(qRung + 1, performance.now());   // one rung only; no canvas resize any more
+  if (introFrames > 30 && frameEma > Q_SLOW_MEDIAN && qRung < Q_MAX) qSetRung(qRung + 1, performance.now());
 }
 
-const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
+const START_COUNTDOWN_STEP = 1000;
 function runStartCountdown(token, done) {
   let n = 3;
   const step = () => {
     if (token !== playToken || mode !== 'starting') return;
     if (n <= 0) { countdownEl.classList.remove('show'); done(); return; }
     if (n === 3) { prewarmHud(); setTimeout(() => { if (token === playToken && mode === 'starting') warmAudio(); }, 350); }
-    if (n === 2) autoPickQuality();                  // may lower the rung: the effect warm-up comes AFTER it
+    if (n === 2) autoPickQuality();
     if (n === 1) warmFx();
     countdownEl.classList.add('show');
     countdownEl.textContent = n;
@@ -4941,16 +4653,15 @@ function runStartCountdown(token, done) {
       { transform: 'scale(1)', opacity: 1, offset: 0.25 },
       { transform: 'scale(0.9)', opacity: 0.85 },
     ], { duration: START_COUNTDOWN_STEP - 40, easing: 'ease-out' });
-    try { playCountdownBeep(n); } catch (e) { /* audio unavailable */ }
+    try { playCountdownBeep(n); } catch (e) {  }
     n--;
     setTimeout(step, START_COUNTDOWN_STEP);
   };
   step();
 }
 
-// per-song music loudness (song.volume): >1 boosts through a gain node that bypasses the SFX bus
 let musicGain = null;
-function canBoostMusic() {                    // a MediaElementSource outputs SILENCE for file:// pages and cross-origin audio without CORS
+function canBoostMusic() {
   try {
     if (location.protocol === 'file:') return false;
     return music.crossOrigin != null || new URL(music.currentSrc || music.src, location.href).origin === location.origin;
@@ -4973,22 +4684,20 @@ function applySongVolume(song) {
   else music.volume = Math.min(1, vol * OPT.music);
 }
 
-// DECODER WARM-UP: the first play() of a song makes the phone start its audio decoder, which can freeze a few frames. Do that now, silently,
-// while the 3-2-1 is still ahead (muted, ~250 ms, then paused and rewound), so the real start does not pay for it with the first notes on screen.
 function warmDecoder(token) {
   try {
     const wasMuted = music.muted;
     const restore = () => { music.muted = wasMuted; };
     const fin = () => {
-      try { music.pause(); music.currentTime = 0; } catch (e) { /* ignore */ }
+      try { music.pause(); music.currentTime = 0; } catch (e) {  }
       restore();
-      frameEma = 16.7;                           // the decoder start-up hiccup must not count as 'this device is slow' in autoPickQuality
+      frameEma = 16.7;
     };
     music.muted = true;
     const p = music.play();
     if (p && p.then) p.then(() => setTimeout(fin, 250), restore);
     else setTimeout(fin, 250);
-  } catch (e) { /* ignore: the normal start still works */ }
+  } catch (e) {  }
 }
 
 function startPlayback() {
@@ -5024,17 +4733,16 @@ function startPlayback() {
   applySongFx(currentSong);
   applySongTheme(currentSong);
   scoreEl.textContent = 'Score: 0';
-  qBegin();                                          // quality ladder: start at the rung saved for this device (a new weak phone starts at R2), and size the canvas for it
+  qBegin();
   measureLane();
 
   introNoteK = reduceMotion ? 1 : 0;
   introFrames = 0; playBeganAt = 0;
-  document.body.classList.add('intro-hud');          // cards, score and life bar stay hidden until the intro reaches them
+  document.body.classList.add('intro-hud');
   pauseBtn.classList.add('show');
   setHudVisible(true);
-  [80, 400, 1000].forEach(ms => setTimeout(measureLane, ms));   // card strip finishes its entrance: place the track under it
+  [80, 400, 1000].forEach(ms => setTimeout(measureLane, ms));
 
-  // Inputs stay off until the audio is really playing, so the clock and the music can never disagree
   mode = 'starting';
   const token = ++playToken;
   music.currentTime = 0;
@@ -5054,10 +4762,6 @@ function startPlayback() {
     startUpdateLoop();
   };
 
-  // play() resolves when the browser STARTS playing, but on many devices (Android, Bluetooth, first play) the audio clock
-  // stays at 0 for another 50-300 ms. If the notes already moved in that gap, the clock later snapped back and notes that
-  // were already on screen (songs with early notes) visibly jumped. So the notes wait, frozen like in the countdown, until
-  // the audio position really starts moving (see the 'starting' branch of update()).
   const arm = (audioOk) => {
     if (token !== playToken || mode !== 'starting') return;
     if (!audioOk) { begin(false); return; }
@@ -5067,7 +4771,6 @@ function startPlayback() {
   startArm = null;
   introShow = true;
   startUpdateLoop();
-  // get-ready intro (lanes + notes, then cards + score bar) -> wait for the song to buffer -> 3-2-1 -> song and notes start together
   runIntro(token, () => { warmDecoder(token); runStartCountdown(token, () => {
     if (token !== playToken || mode !== 'starting') return;
     music.currentTime = 0;
@@ -5080,9 +4783,6 @@ function startPlayback() {
   setStatus(`▶ ${currentSong.title} | ${currentChart.length} notes | miss limit ${missLimit}`);
 }
 
-// ---------- TOUCH INPUT ----------
-// Lane from finger position. Uses the SAME perspective as the drawing, so what you see is what you hit,
-// and every touch counts: the left thumb owns the left lanes, the right thumb the right lanes.
 function findLaneFromPoint(x, y) {
   const F = FIELD;
   if (!F.W) return null;
@@ -5092,11 +4792,9 @@ function findLaneFromPoint(x, y) {
   return k < 0 ? 0 : k > 3 ? 3 : k;
 }
 
-// A finger that lands NEAR the pause button (it is a screen-wide playfield, so a slightly off tap would be a lane tap) pauses too.
-// The zone reaches PAUSE_ZONE_PX past the drawn button on every side; it only exists while the button is on screen.
 const PAUSE_ZONE_PX = 44;
 function nearPauseButton(x, y) {
-  if (x > 260 || y > 260 || !pauseBtn.classList.contains('show')) return false;   // cheap check first: only the top-left corner can match
+  if (x > 260 || y > 260 || !pauseBtn.classList.contains('show')) return false;
   const r = pauseBtn.getBoundingClientRect();
   return r.width > 0 && x >= r.left - PAUSE_ZONE_PX && x <= r.right + PAUSE_ZONE_PX && y >= r.top - PAUSE_ZONE_PX && y <= r.bottom + PAUSE_ZONE_PX;
 }
@@ -5105,9 +4803,9 @@ playfieldEl.addEventListener('touchstart', (e) => {
   e.preventDefault();
   for (const touch of e.changedTouches) {
     if (activeTouches.has(touch.identifier)) continue;
-    if (nearPauseButton(touch.clientX, touch.clientY)) {      // not a lane tap: pause, even while the other fingers are busy on the lanes
+    if (nearPauseButton(touch.clientX, touch.clientY)) {
       pauseGame();
-      try { ensureAudio(); UI_SND.pause(); } catch (err) { /* audio unavailable */ }
+      try { ensureAudio(); UI_SND.pause(); } catch (err) {  }
       return;
     }
     const lane = findLaneFromPoint(touch.clientX, touch.clientY);
@@ -5143,19 +4841,17 @@ game.addEventListener('touchstart', (e) => {
   if (e.target === game || e.target === playfieldEl) e.preventDefault();
 }, { passive: false });
 
-// ---------- BUTTONS ----------
 playBtn.addEventListener('click', () => {
   tryLandscapeLock();
-  try { ensureAudio(); } catch (e) { /* audio unavailable */ }   // unlock sound for the pack opening
-  if (window.Packs && Packs.needsStarter()) holdPreview = true;      // no preview music during the oshi picker
+  try { ensureAudio(); } catch (e) {  }
+  if (window.Packs && Packs.needsStarter()) holdPreview = true;
   showSongSelect();
-  warmPreview(window.SONGS && window.SONGS[0]);                   // no-op if the page-load warm-up already started it
-  unlockPreview();                                                // lets iPhones play previews later without a fresh tap
-  if (window.Packs) Packs.onFirstPlay();                          // new players get a free Starter Pack
+  warmPreview(window.SONGS && window.SONGS[0]);
+  unlockPreview();
+  if (window.Packs) Packs.onFirstPlay();
 });
 backToMainBtn.addEventListener('click', () => showMainMenu());
 
-// the "rotate your phone" screen is tappable: goes fullscreen and locks landscape where the browser allows it
 document.getElementById('rotate-hint').addEventListener('click', () => { tryFullscreen(); tryLandscapeLock(); });
 
 btnPlayAgain.addEventListener('click', () => { if (currentSong) startPlayback(); });
@@ -5169,26 +4865,22 @@ btnRestart.addEventListener('click', () => {
   if (window.Shop) Shop.setCheerPaused(false);
   startPlayback();
 });
-// The pause button reacts the instant a finger touches it (pointerdown), not after the finger lifts, and its tap area reaches 16px past the
-// drawn button on every side. A tap that lands next to it still counts, and it works with other fingers already holding lanes.
 (function easyPause() {
   const st = document.createElement('style');
   st.textContent = '#pause-btn::after{content:"";position:absolute;left:-16px;right:-16px;top:-16px;bottom:-16px;}' +
     '#pause-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}';
   document.head.appendChild(st);
-  try { if (getComputedStyle(pauseBtn).position === 'static') pauseBtn.style.position = 'fixed'; } catch (e) { /* ignore */ }
+  try { if (getComputedStyle(pauseBtn).position === 'static') pauseBtn.style.position = 'fixed'; } catch (e) {  }
   pauseBtn.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return;
     if (mode !== 'playing' && mode !== 'countdown') return;
     e.stopPropagation();
     pauseGame();
-    try { ensureAudio(); UI_SND.pause(); } catch (err) { /* audio unavailable */ }   // the button is hidden by now, so its click (and sound) may never come
+    try { ensureAudio(); UI_SND.pause(); } catch (err) {  }
   });
 })();
-pauseBtn.addEventListener('click', () => { pauseGame(); });      // keyboard / fallback; pauseGame ignores it when already paused
+pauseBtn.addEventListener('click', () => { pauseGame(); });
 
-// ---------- UI SOUND PACK ----------
-// Every tappable thing gets its own synthesized voice. uTone = one oscillator note, uNoise = a filtered noise burst.
 function uTone(freq, o = {}) {
   const t = audioCtx.currentTime + (o.at || 0), dur = o.dur || 0.12;
   const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -5216,39 +4908,39 @@ function uNoise(o = {}) {
   src.connect(f).connect(g).connect(audioCtx.destination);
   src.start(t, 0, Math.min(dur + 0.02, 0.24));
 }
-const PENTA = [0, 2, 4, 7, 9];                                   // major pentatonic: member chips sound like a little scale
+const PENTA = [0, 2, 4, 7, 9];
 const noteAt = (i, base = 523.25) => base * Math.pow(2, (PENTA[i % 5] + 12 * Math.floor(i / 5)) / 12);
 
 const UI_SND = {
-  start() {   // title PLAY: sparkling rising arpeggio + whoosh + low thump
+  start() {
     [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => uTone(f, { at: i * 0.05, dur: 0.34, vol: 0.1, type: 'triangle' }));
     uNoise({ from: 600, to: 5200, dur: 0.28, vol: 0.07, q: 0.8 });
     uTone(110, { dur: 0.22, to: 55, vol: 0.2 });
   },
-  back() {    // back arrows: two soft notes stepping down
+  back() {
     uTone(659.25, { dur: 0.09, vol: 0.13, type: 'triangle' });
     uTone(440, { at: 0.075, dur: 0.17, vol: 0.13, type: 'triangle' });
   },
-  shop() {    // CARD SHOP: shop-door bell / ka-ching
+  shop() {
     uTone(1318.5, { dur: 0.35, vol: 0.1, type: 'triangle' }); uTone(2637, { dur: 0.25, vol: 0.035 });
     uTone(1975.5, { at: 0.09, dur: 0.5, vol: 0.1, type: 'triangle' }); uTone(3951, { at: 0.09, dur: 0.3, vol: 0.03 });
     uNoise({ type: 'highpass', from: 5000, dur: 0.03, vol: 0.09 });
   },
-  cards() {   // MY CARDS: a deck being riffled and slapped down
+  cards() {
     for (let i = 0; i < 4; i++) uNoise({ at: i * 0.035, from: 2600 + i * 500, to: 900, dur: 0.05, vol: 0.1, q: 2 });
     uTone(220, { at: 0.13, dur: 0.09, to: 140, vol: 0.12 });
   },
-  playBtn() { // the ▶ on a song card: punchy "ready"
+  playBtn() {
     uTone(392, { dur: 0.15, to: 784, type: 'square', vol: 0.06, lp: 2600 });
     uTone(85, { dur: 0.15, to: 45, vol: 0.26 });
     uNoise({ type: 'highpass', from: 4200, dur: 0.02, vol: 0.08 });
   },
-  ask() {     // "PLAY THIS SONG?" pops up: a questioning two-note
+  ask() {
     uTone(659.25, { dur: 0.12, vol: 0.12 });
     uTone(987.77, { at: 0.09, dur: 0.3, vol: 0.12 }); uTone(1975.5, { at: 0.09, dur: 0.2, vol: 0.03 });
     uNoise({ from: 1500, to: 4000, dur: 0.08, vol: 0.04 });
   },
-  yes() {     // YES: triumphant run + kick + sparkle
+  yes() {
     [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
       uTone(f, { at: i * 0.04, dur: 0.3, type: 'sawtooth', vol: 0.05, lp: 3200 });
       uTone(f * 2, { at: i * 0.04, dur: 0.22, vol: 0.04, type: 'triangle' });
@@ -5256,89 +4948,87 @@ const UI_SND = {
     uTone(100, { dur: 0.2, to: 48, vol: 0.28 });
     uNoise({ type: 'highpass', from: 5500, dur: 0.14, vol: 0.06, at: 0.16 });
   },
-  no() {      // NO: dull sinking "nope"
+  no() {
     uTone(311, { dur: 0.16, to: 196, type: 'triangle', vol: 0.15 });
     uTone(233, { at: 0.1, dur: 0.24, to: 150, type: 'triangle', vol: 0.13 });
     uTone(90, { dur: 0.12, to: 55, vol: 0.18 });
   },
-  pause() {   // pause: tape slowing down
+  pause() {
     uTone(900, { dur: 0.26, to: 220, type: 'sawtooth', vol: 0.055, lp: 1800 });
     uNoise({ type: 'lowpass', from: 3000, to: 300, dur: 0.22, vol: 0.1 });
     uTone(180, { dur: 0.05, vol: 0.14 });
   },
-  resume() {  // resume: spinning back up
+  resume() {
     uTone(260, { dur: 0.2, to: 880, type: 'sawtooth', vol: 0.055, lp: 2600 });
     uNoise({ type: 'lowpass', from: 300, to: 3500, dur: 0.18, vol: 0.08 });
     uTone(1046.5, { at: 0.13, dur: 0.18, vol: 0.12, type: 'triangle' });
   },
-  quit() {    // quit: heavy door shutting
+  quit() {
     uTone(130, { dur: 0.3, to: 52, vol: 0.28 });
     uNoise({ type: 'lowpass', from: 700, to: 150, dur: 0.2, vol: 0.14 });
     uTone(330, { dur: 0.12, to: 220, type: 'triangle', vol: 0.07 });
   },
-  retry() {   // play again: quick rewind-and-go blips
+  retry() {
     [659.25, 783.99, 987.77, 1318.5].forEach((f, i) => uTone(f, { at: i * 0.04, dur: 0.1, type: 'square', vol: 0.045, lp: 3200 }));
     uNoise({ from: 5000, to: 1500, dur: 0.08, vol: 0.05 });
   },
-  tab(i = 0) { // team tabs: woodblock, a different pitch per team
+  tab(i = 0) {
     const p = 640 + (i % 6) * 110;
     uTone(p, { dur: 0.08, to: p * 0.7, vol: 0.18, type: 'triangle' });
     uNoise({ type: 'highpass', from: 3500, dur: 0.012, vol: 0.06 });
   },
-  chip(i = 0) { // member chips / filters: bubble pop climbing a scale
+  chip(i = 0) {
     const f = noteAt(i, 440);
     uTone(f, { dur: 0.09, to: f * 2, vol: 0.13 });
     uTone(f * 1.5, { at: 0.05, dur: 0.07, to: f * 3, vol: 0.06 });
   },
-  close() {   // ✕ / ×: short falling blip
+  close() {
     uTone(740, { dur: 0.1, to: 370, type: 'triangle', vol: 0.13 });
     uNoise({ type: 'highpass', from: 3000, dur: 0.015, vol: 0.05 });
   },
-  coin() {    // buy / open a pack: coin clink
+  coin() {
     uTone(1568, { dur: 0.08, type: 'square', vol: 0.045, lp: 5000 });
     uTone(2093, { at: 0.07, dur: 0.38, type: 'square', vol: 0.045, lp: 5000 }); uTone(3136, { at: 0.07, dur: 0.2, vol: 0.03 });
   },
   arrowL() { uNoise({ from: 3600, to: 700, dur: 0.1, vol: 0.12, q: 1.4 }); uTone(520, { dur: 0.06, to: 400, type: 'triangle', vol: 0.07 }); },
   arrowR() { uNoise({ from: 700, to: 3600, dur: 0.1, vol: 0.12, q: 1.4 }); uTone(520, { dur: 0.06, to: 650, type: 'triangle', vol: 0.07 }); },
-  rustle() {  // ODDS & RULES: paper rustle + tiny ding
+  rustle() {
     uNoise({ from: 1800, to: 3600, dur: 0.12, vol: 0.1, q: 0.7 }); uNoise({ at: 0.06, from: 3000, to: 1500, dur: 0.08, vol: 0.07, q: 0.7 });
     uTone(1318.5, { at: 0.1, dur: 0.2, vol: 0.07, type: 'triangle' });
   },
-  daily() {   // DAILY button: a gift being unwrapped
+  daily() {
     [880, 1108.73, 1318.5, 1760].forEach((f, i) => uTone(f, { at: i * 0.045, dur: 0.24, vol: 0.09, type: 'triangle' }));
     uNoise({ type: 'highpass', from: 6000, dur: 0.18, vol: 0.05 });
   },
-  checkin() { // CHECK IN: a stamp thump, then a bright chime
+  checkin() {
     uTone(140, { dur: 0.18, to: 55, vol: 0.28 }); uNoise({ from: 1200, to: 300, dur: 0.07, vol: 0.12 });
     [784, 1046.5, 1318.5].forEach((f, i) => uTone(f, { at: 0.07 + i * 0.06, dur: 0.32, vol: 0.1, type: 'triangle' }));
   },
-  rotate() {  // rotate-your-phone hint: gentle three-note chime
+  rotate() {
     [784, 1046.5, 1568].forEach((f, i) => uTone(f, { at: i * 0.1, dur: 0.32, vol: 0.11, type: 'triangle' }));
   },
 };
 
-// everything else that is tappable but not listed above gets a voice picked from its own name, so no two look-alikes sound identical
 function uiAuto(el) {
   const s = (el.id || '') + (el.className && el.className.baseVal === undefined ? el.className : '') + (el.getAttribute('aria-label') || '') + (el.textContent || '').slice(0, 24);
   let hsh = 0;
   for (let i = 0; i < s.length; i++) hsh = (hsh * 31 + s.charCodeAt(i)) >>> 0;
   const f = [392, 440, 494, 523.25, 587.33, 659.25, 740, 784][hsh % 8];
   switch ((hsh >> 3) % 5) {
-    case 0: uTone(f, { dur: 0.1, to: f * 0.8, type: 'triangle', vol: 0.15 }); break;                         // pluck
-    case 1: uTone(f, { dur: 0.09, to: f * 2, vol: 0.13 }); break;                                           // bubble
-    case 2: uTone(f * 2, { dur: 0.07, type: 'square', vol: 0.05, lp: 3000 }); break;                        // blip
-    case 3: uTone(f * 2, { dur: 0.22, vol: 0.12 }); uTone(f * 4, { dur: 0.14, vol: 0.035 }); break;         // ping
-    default: uNoise({ type: 'highpass', from: 4000, dur: 0.015, vol: 0.08 }); uTone(f, { dur: 0.06, vol: 0.12, type: 'triangle' });   // tick
+    case 0: uTone(f, { dur: 0.1, to: f * 0.8, type: 'triangle', vol: 0.15 }); break;
+    case 1: uTone(f, { dur: 0.09, to: f * 2, vol: 0.13 }); break;
+    case 2: uTone(f * 2, { dur: 0.07, type: 'square', vol: 0.05, lp: 3000 }); break;
+    case 3: uTone(f * 2, { dur: 0.22, vol: 0.12 }); uTone(f * 4, { dur: 0.14, vol: 0.035 }); break;
+    default: uNoise({ type: 'highpass', from: 4000, dur: 0.015, vol: 0.08 }); uTone(f, { dur: 0.06, vol: 0.12, type: 'triangle' });
   }
 }
-function playEmptyTap(lane) {      // tapping a lane with no note: a quiet, lane-pitched "tk"
+function playEmptyTap(lane) {
   ensureAudio();
   const f = [262, 311, 370, 440][lane % 4];
   uTone(f, { dur: 0.05, to: f * 0.75, type: 'triangle', vol: 0.05 });
   uNoise({ type: 'highpass', from: 4500, dur: 0.01, vol: 0.03 });
 }
 
-// first matching selector wins; null = that module already plays its own sound for it
 const UI_MAP = [
   ['#play-btn', 'start'],
   ['#back-to-main-btn, #cards-back-btn, .sh-back, .dy-back, #btn-back, #btn-go-back, .opt-done', 'back'],
@@ -5361,8 +5051,8 @@ const UI_MAP = [
   ['.cv-close, .sh-mx', 'close'],
   ['.op-arrow.l', 'arrowL'],
   ['.op-arrow.r', 'arrowR'],
-  ['.op-ok', null],                       // shop.js plays the oshi fanfare
-  ['.cv-btn.pink, .cv-btn.gold', null],   // cards.js plays deal / coin / merge sounds
+  ['.op-ok', null],
+  ['.cv-btn.pink, .cv-btn.gold', null],
   ['.cv-btn', 'chip'],
   ['.sh-odds', 'rustle'],
   ['.sh-btn.alt', 'chip'],
@@ -5385,22 +5075,19 @@ function playUiFor(target) {
   if (b) uiAuto(b);
 }
 
-// ---------- GLOBAL UI CLICK SOUND ----------
 document.addEventListener('click', (e) => {
-  if (mode === 'paused' && e.target.closest('#pause-btn')) return;   // already paused by pointerdown, which played the sound
-  if (e.target.closest('.song-card') && !e.target.closest('.card-play-btn')) return;   // song cards have their own select sound
+  if (mode === 'paused' && e.target.closest('#pause-btn')) return;
+  if (e.target.closest('.song-card') && !e.target.closest('.card-play-btn')) return;
   if (e.target.closest('button, [role="button"], #rotate-hint')) {
-    try { playUiFor(e.target); } catch (err) { /* audio unavailable */ }
+    try { playUiFor(e.target); } catch (err) {  }
   }
 }, true);
 
-// Daily screen "GO": select the featured song's card
 window.addEventListener('daily:goto', (e) => {
   const card = Array.prototype.find.call(songGrid.querySelectorAll('.song-card'), c => c.dataset.songId === e.detail.id);
   if (card) { selectCard(card, card._song); centerCard(card, true); }
 });
 
-// ---------- "PLAY THIS SONG?" CONFIRMATION ----------
 const confirmEl = document.createElement('div');
 confirmEl.id = 'confirm-play';
 confirmEl.innerHTML = `
@@ -5433,23 +5120,22 @@ function askPlay(song) {
   if (song.cover) cpImg.src = song.cover;
   confirmEl.classList.remove('show'); void confirmEl.offsetWidth;
   confirmEl.classList.add('show');
-  try { ensureAudio(); UI_SND.ask(); } catch (e) { /* audio unavailable */ }
+  try { ensureAudio(); UI_SND.ask(); } catch (e) {  }
   setTimeout(() => cpYes.focus({ preventScroll: true }), 40);
 }
 function closeConfirm() { confirmEl.classList.remove('show'); confirmSong = null; }
-function denyPlay() { try { ensureAudio(); UI_SND.no(); } catch (e) { /* ignore */ } closeConfirm(); }
+function denyPlay() { try { ensureAudio(); UI_SND.no(); } catch (e) {  } closeConfirm(); }
 cpYes.addEventListener('click', () => { const s = confirmSong; closeConfirm(); if (s) proceedSong(s); });
-cpNo.addEventListener('click', () => closeConfirm());          // the NO sound is played by the global click handler
+cpNo.addEventListener('click', () => closeConfirm());
 confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) denyPlay(); });
 cpHs.addEventListener('click', () => {
   if (!confirmSong) return;
-  if (!openHighScoreView(confirmSong)) {                 // never played this song yet
+  if (!openHighScoreView(confirmSong)) {
     cpHs.textContent = 'NO HIGH SCORE YET';
     setTimeout(() => { if (cpHs.textContent === 'NO HIGH SCORE YET') cpHs.textContent = 'VIEW HIGH SCORE'; }, 1400);
   }
 });
 
-// ---------- HIGH SCORE VIEW: the result card of the best run, as a pop-up (click outside the card to close) ----------
 let hsView = false, hsSavedTitle = '';
 function openHighScoreView(song) {
   const best = song && loadBest(song.id);
@@ -5502,9 +5188,8 @@ function closeHighScoreView() {
   exitHighScoreView();
   results.classList.remove('show');
 }
-results.addEventListener('click', (e) => { if (hsView && e.target === results) closeHighScoreView(); });   // tapping outside the box = NO
+results.addEventListener('click', (e) => { if (hsView && e.target === results) closeHighScoreView(); });
 
-// ---------- OPTION CARD (song select) ----------
 const optionEl = document.createElement('div');
 optionEl.id = 'option-overlay';
 optionEl.innerHTML = `
@@ -5552,28 +5237,26 @@ const optSpeed = optionEl.querySelector('#opt-speed'), optSpeedV = optionEl.quer
 const speedDemo = optionEl.querySelector('#opt-speed-demo'), speedDemoNotes = speedDemo.querySelectorAll('.osd-note');
 let speedAnims = [];
 
-// Live preview: two notes fall in a mini track using the SAME perspective formula as the real playfield (timeToScale),
-// and take exactly as long as a real note would (approachFor). Runs only while the Option card is open (Web Animations, no per-frame JS).
 function stopSpeedDemo() { speedAnims.forEach(a => a.cancel()); speedAnims = []; }
 function startSpeedDemo() {
   stopSpeedDemo();
   if (reduceMotion || !speedDemoNotes[0] || !speedDemoNotes[0].animate) return;
   const H = speedDemo.clientHeight;
   if (!H) return;
-  const hitY = H - 12;                                   // the hit line sits 12px above the bottom (see CSS .osd-line)
+  const hitY = H - 12;
   const ms = approachFor(OPT.speed), frames = [];
   for (let i = 0; i <= 12; i++) {
     const t = i / 12, sc = timeToScale(t);
     frames.push({
       transform: 'translateY(' + (((sc - S_FAR) / (1 - S_FAR)) * hitY).toFixed(1) + 'px) scale(' + sc.toFixed(3) + ')',
-      opacity: Math.min(1, t / 0.12),                    // same fade-in as the real notes
+      opacity: Math.min(1, t / 0.12),
     });
   }
   speedDemoNotes.forEach((el, k) => {
-    speedAnims.push(el.animate(frames, { duration: ms, iterations: Infinity, delay: -k * ms / 2 }));   // 2nd note starts half a trip later
+    speedAnims.push(el.animate(frames, { duration: ms, iterations: Infinity, delay: -k * ms / 2 }));
   });
 }
-optionEl.querySelector('#opt-vib-row').style.display = navigator.vibrate ? '' : 'none';   // no vibration motor (computers): no switch
+optionEl.querySelector('#opt-vib-row').style.display = navigator.vibrate ? '' : 'none';
 
 function syncOptions() {
   optMusic.value = Math.round(OPT.music * 100); optMusicV.textContent = Math.round(OPT.music * 100) + '%';
@@ -5594,37 +5277,36 @@ document.getElementById('option-btn').addEventListener('click', openOptions);
 optionEl.querySelector('.opt-done').addEventListener('click', closeOptions);
 optionEl.addEventListener('click', (e) => { if (e.target === optionEl) closeOptions(); });
 
-optMusic.addEventListener('input', () => { OPT.music = optMusic.value / 100; optMusicV.textContent = optMusic.value + '%'; saveOpt(); });   // the song preview follows live
+optMusic.addEventListener('input', () => { OPT.music = optMusic.value / 100; optMusicV.textContent = optMusic.value + '%'; saveOpt(); });
 optSfx.addEventListener('input', () => {
   OPT.sfx = optSfx.value / 100; optSfxV.textContent = optSfx.value + '%'; saveOpt();
   if (audioCtx && audioCtx.sfxBus) audioCtx.sfxBus.gain.value = SFX_VOLUME * OPT.sfx;
 });
 optSpeed.addEventListener('input', () => {
   OPT.speed = Number(optSpeed.value);
-  APPROACH_TIME = approachFor(OPT.speed);               // used by the next song (Option is only reachable from song select)
+  APPROACH_TIME = approachFor(OPT.speed);
   optSpeedV.textContent = OPT.speed.toFixed(1);
   saveOpt();
   startSpeedDemo();
 });
-optSfx.addEventListener('change', () => { try { ensureAudio(); UI_SND.chip(1); } catch (e) { /* audio unavailable */ } });   // a blip so the new level can be heard
+optSfx.addEventListener('change', () => { try { ensureAudio(); UI_SND.chip(1); } catch (e) {  } });
 optVib.addEventListener('click', () => { OPT.vib = !OPT.vib; saveOpt(); syncOptions(); if (OPT.vib) buzz(30); });
 optGfx.addEventListener('click', () => { OPT.gfx = !OPT.gfx; saveOpt(); syncOptions(); applyGfx(); });
 
-// ---------- KEYBOARD ----------
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
 
-  if (hsView) {                                        // high score card is open: Esc closes it, nothing else reacts
+  if (hsView) {
     if (e.code === 'Escape') { e.preventDefault(); closeHighScoreView(); }
     return;
   }
 
-  if (optionEl.classList.contains('show')) {           // Option card is open: Esc closes it, nothing else reacts
+  if (optionEl.classList.contains('show')) {
     if (e.code === 'Escape') { e.preventDefault(); closeOptions(); }
     return;
   }
 
-  if (confirmEl.classList.contains('show')) {          // "PLAY THIS SONG?" is open: Esc = NO, Enter on a button = its own click
+  if (confirmEl.classList.contains('show')) {
     if (e.code === 'Escape') { e.preventDefault(); denyPlay(); }
     return;
   }
@@ -5636,7 +5318,6 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // song select: arrow keys move through the carousel
   if (mode === 'idle' && menuScreen.style.display !== 'none') {
     if (e.code === 'ArrowRight') { e.preventDefault(); stepCarousel(1); return; }
     if (e.code === 'ArrowLeft') { e.preventDefault(); stepCarousel(-1); return; }
@@ -5658,7 +5339,6 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-// Switching tabs / apps pauses the song instead of letting notes slip past
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopPreview();
@@ -5666,9 +5346,8 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// ---------- LOOP ----------
 function updateBeat(now, dt) {
-  if (fxMid()) return;                          // R2 and up: no beat glow
+  if (fxMid()) return;
   let v = kick;
   kick *= Math.exp(-dt / 140);
   if (kick < 0.01) kick = 0;
@@ -5700,12 +5379,12 @@ function update(ts) {
   lastFrameT = ts;
 
   if (mode === 'countdown') { tickCountdown(); drawField(frozenTime, dt); if (songFx) songFxUpdate(dt); return; }
-  if (mode === 'starting' && introShow) {   // 3-2-1 before the song: the first notes are on the track, standing still at song time 0
-    if (introT0) {                          // get-ready intro: notes fade in during the second half of the lane entrance
+  if (mode === 'starting' && introShow) {
+    if (introT0) {
       const k = Math.min(1, Math.max(0, (performance.now() - introT0 - INTRO_NOTES_AT) / INTRO_NOTES_MS));
       introNoteK = 1 - Math.pow(1 - k, 3);
     }
-    if (introT0 && performance.now() - introT0 > INTRO_LANES_MS + INTRO_HUD_MS) { frameEma += (dt - frameEma) * 0.05; introFrames++; }   // frame rate while the notes stand still (loading + countdown)
+    if (introT0 && performance.now() - introT0 > INTRO_LANES_MS + INTRO_HUD_MS) { frameEma += (dt - frameEma) * 0.05; introFrames++; }
     while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= 0) {
       const n = queue[spawnIdx++];
       if (n.judged) continue;
@@ -5713,25 +5392,24 @@ function update(ts) {
       active.push(n);
     }
     drawField(0, dt);
-    if (warmFxPending) { warmFxPending = false; warmFxDraw(); }   // after drawField: it is flushed with this frame, then the next frame clears it
+    if (warmFxPending) { warmFxPending = false; warmFxDraw(); }
     if (songFx) songFxUpdate(dt);
-    if (startArm) {                         // audio started: hand over to the playing clock as soon as the audio position really moves
+    if (startArm) {
       if (startArm.token !== playToken) startArm = null;
       else if (music.currentTime > 0 || performance.now() - startArm.t0 > START_ARM_MAX_MS) { const go = startArm.go; startArm = null; go(true); }
     }
     return;
   }
-  if (mode !== 'playing') return;      // starting / paused / resuming: nothing moves
+  if (mode !== 'playing') return;
 
   trackPerformance(dt);
   if (DBG) dbgTick(dt);
   const now = getSongTime();
 
-  // 1) create elements for notes that are about to come into view
   while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= now) {
     const n = queue[spawnIdx++];
     if (n.judged) continue;
-    if (!n.holding && now - n.time > MAX_WINDOW) {   // fell way behind (e.g. a long frame): count it as missed
+    if (!n.holding && now - n.time > MAX_WINDOW) {
       registerMiss(n);
       if (mode !== 'playing') return;
       continue;
@@ -5740,7 +5418,6 @@ function update(ts) {
     active.push(n);
   }
 
-  // 2) only the notes on screen are processed
   for (let i = active.length - 1; i >= 0; i--) {
     const n = active[i];
     if (n.judged) { active.splice(i, 1); continue; }
@@ -5769,28 +5446,23 @@ function update(ts) {
 
   }
 
-  // 2b) cosmetic effects of the hits / releases that happened since the last frame, in one batch
   flushHitFx();
 
-  // 3) HUD: score counts up smoothly instead of jumping
   if (displayScore !== score) {
     const diff = score - displayScore;
     displayScore = Math.abs(diff) < 1 ? score : displayScore + diff * 0.3;
     const r = Math.round(displayScore);
-    if (r !== shownScoreInt) { shownScoreInt = r; scoreEl.textContent = 'Score: ' + NUM_FMT.format(r); }   // no text/layout work when the shown number did not change
+    if (r !== shownScoreInt) { shownScoreInt = r; scoreEl.textContent = 'Score: ' + NUM_FMT.format(r); }
   }
 
-  // 3b) draw the whole playfield in one go
   drawField(now, dt);
 
-  // 4) ambience: purely decorative, so it runs at ~30 fps (~20 in light mode) and only ONE of the two jobs per frame,
-  //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~30 fps with graphics on, ~20 off, ~12 in lite mode)
   accFx += dt; accBeat += dt;
-  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30;   // petals / song effects: 33 fps, 25 fps at R1, 16 fps at R2
-  if (performance.now() - playBeganAt < AMBIENT_DELAY_MS) { accFx = 0; accBeat = 0; }      // first 1.2 s: no ambience at all, every frame goes to the notes
+  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30;
+  if (performance.now() - playBeganAt < AMBIENT_DELAY_MS) { accFx = 0; accBeat = 0; }
   else if (accFx >= ambT) {
     const d = accFx; accFx = 0;
-    if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
+    if (songFx) songFxUpdate(d);
     else petals.update(d, getTier(combo));
   } else if (accBeat >= ambT) {
     const d = accBeat; accBeat = 0;
@@ -5798,7 +5470,6 @@ function update(ts) {
   }
 }
 
-// ---------- SONG ENDED ----------
 music.addEventListener('ended', () => {
   if (mode === 'playing') {
     displayScore = score;
@@ -5806,12 +5477,9 @@ music.addEventListener('ended', () => {
   }
 });
 
-// ---------- INIT ----------
 buildMenu();
 showMainMenu();
 
-// ---------- PHONE PLAY MODE ----------
-// While a song is on screen the launcher gives the game a smaller virtual screen (bigger lanes / notes for thumbs).
 (function watchPlayMode() {
   let last = null;
   function sync() {
