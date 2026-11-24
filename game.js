@@ -38,6 +38,8 @@ const fieldCv = document.getElementById('field');        // dynamic: notes, rece
 const bgCtx = fieldBgCv.getContext('2d');
 const ctx = fieldCv.getContext('2d');
 const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+// a real phone / tablet: touch is the main pointer AND no mouse / trackpad is attached. Laptops (even touchscreen ones) and browser device-emulation with a mouse keep the full effects.
+const PHONE_FX = COARSE && !(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
 
 const screenFlash = mk('div', 'screen-flash');
 const missFlash = mk('div', 'miss-flash');
@@ -302,6 +304,9 @@ const CLOCK_FAST_GAIN = 0.1;           // fast correction per 16.7 ms frame (the
 const CLOCK_BIG_MS = 60;               // a gap this big ...
 const CLOCK_BIG_HOLD_MS = 250;         // ... that lasts this long switches to the fast correction
 const WARMUP_MS = 2000;                // first seconds of a song: audio start-up jank alone must not flip the quality mode mid-song
+const CLOCK_EARLY_MS = 1500;           // the first 1.5 s of a song: the audio clock is at its noisiest, so the notes follow it very gently (no jump, no fast catch-up)
+const CLOCK_EARLY_SNAP_MS = 1000;      // ... and only a really huge gap may still make the clock jump in that window
+const AMBIENT_DELAY_MS = 1200;         // petals / song effects / beat glow wait this long after the song starts, so the first notes get every frame
 let playBeganAt = 0, introFrames = 0;
 
 // add ?debug to the game's address to see a small clock / frame readout in the bottom-left corner (for finding stutter)
@@ -355,13 +360,14 @@ function getSongTime() {
     const err = est - t;
     if (DBG && performance.now() - playBeganAt < 10000 && Math.abs(err) > dbg.maxErr) dbg.maxErr = Math.abs(err);
     const aerr = Math.abs(err);
-    if (aerr > CLOCK_SNAP_MS) { t = est; errSince = 0; if (DBG) dbg.snaps++; }
+    const early = playBeganAt > 0 && p - playBeganAt < CLOCK_EARLY_MS;
+    if (aerr > (early ? CLOCK_EARLY_SNAP_MS : CLOCK_SNAP_MS)) { t = est; errSince = 0; if (DBG) dbg.snaps++; }
     else {
       // how long has the gap been bigger than CLOCK_BIG_MS?
       if (aerr >= CLOCK_BIG_MS) { if (!errSince) errSince = p; } else errSince = 0;
       const k = Math.min(1, dt / 16.7);
       let corr, lim;
-      if (errSince && p - errSince >= CLOCK_BIG_HOLD_MS) {
+      if (errSince && !early && p - errSince >= CLOCK_BIG_HOLD_MS) {
         // a real, lasting offset: chase it quickly (same as before)
         corr = err * CLOCK_FAST_GAIN * k; lim = dt * CLOCK_MAX_SLEW;
         if (DBG && p - playBeganAt < 10000) dbg.fast++;
@@ -2461,7 +2467,7 @@ function drawField(now, dt) {
       const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 470 : 260);
       if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
       const x = laneX(f.lane, 1), inv = 1 - age;
-      if (f.big && qRung < 2 && !COARSE) {                      // R2 and up, and all phones: no light column
+      if (f.big && qRung < 2 && !PHONE_FX) {                    // R2 and up, and all phones: no light column
         const ch = F.hitY * 0.46 * (0.5 + 0.5 * age), cw = F.noteW * 0.68 * (1 - 0.3 * age);
         c.globalAlpha = inv * inv * 0.55;
         c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
@@ -2469,7 +2475,7 @@ function drawField(now, dt) {
       const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
       c.globalAlpha = (f.big ? 0.7 : 0.32) * inv * inv;
       c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
-      if (f.big && FLARE_SPR.core && qRung < 2 && !COARSE) {            // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
+      if (f.big && FLARE_SPR.core && qRung < 2 && !PHONE_FX) {          // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
         const cz = F.noteW * (0.7 + 0.5 * age), ci = 1 - age;
         c.globalAlpha = 0.6 * ci * ci * ci;
         c.drawImage(FLARE_SPR.core, x - cz / 2, F.hitY - cz * 0.35, cz, cz * 0.7);
@@ -2541,7 +2547,7 @@ function releaseFx() {                     // drop every live effect (the object
 function spawnShockwave(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
   let n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
-  if (COARSE && n > 1) n = 1;                                               // phones: one ring (+ the white PERFECT ring below)
+  if (PHONE_FX && n > 1) n = 1;                                               // phones: one ring (+ the white PERFECT ring below)
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) addRing(laneIndex, col, t + i * 70, 0, 0);
   if (isP && n > 0) addRing(laneIndex, '#ffffff', t, 1.7, 3.5);              // PERFECT only: one more big, thick, white ring that spreads wider than the rest
@@ -2551,7 +2557,7 @@ function spawnParticles(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
   const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : qRung >= 1 ? 0.75 : 1;   // R1: 3/4, R2: half the particles
   let n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
-  if (COARSE && n > 4) n = 4;                                               // phones: at most 4 particles per hit
+  if (PHONE_FX && n > 4) n = 4;                                               // phones: at most 4 particles per hit
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 64; i++) {
@@ -2598,7 +2604,7 @@ function triggerMissFlash(kind) {
 // Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
-  if (fxMid() || COARSE) return;               // R2 and up, and all phones: no shaking at all
+  if (fxMid() || PHONE_FX) return;               // R2 and up, and all phones: no shaking at all
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
@@ -4187,6 +4193,9 @@ function songFxUpdate(dt) {
 const Q_MAX = 3, Q_KEY = 'jeketi.q';
 const Q_WINDOW_MS = 5000, Q_EVAL_MS = 500, Q_MIN_SAMPLES = 60;
 const Q_DOWN_P95 = 20, Q_UP_P95 = 18.5;           // ms. between the two: stay where we are
+// A STEADY slow frame rate (e.g. a locked 30 fps: every frame ~33 ms) feels smooth, so it is NOT a reason to lower the quality. Only UNEVEN frames are
+// (p95 well above the typical frame), or a frame rate so low that even a steady one is bad (typical frame above Q_SLOW_MEDIAN).
+const Q_UNEVEN = 1.3, Q_SLOW_MEDIAN = 40;
 const Q_UP_AFTER_MS = 20000, Q_RELAPSE_MS = 30000, Q_SAVE_AFTER_MS = 15000;
 const Q_BUF = 720;
 const qT = new Float64Array(Q_BUF), qD = new Float32Array(Q_BUF), qScratch = new Float32Array(Q_BUF);
@@ -4216,7 +4225,7 @@ function qApply() {
 // A song is about to start: pick the rung to start at (the saved one for this device) and the canvas size that goes with it.
 function qBegin() {
   const saved = qLoad();
-  qRung = saved >= 0 ? saved : WEAK_DEVICE ? 2 : 0;
+  qRung = OPT.gfx ? 0 : (saved >= 0 ? saved : WEAK_DEVICE ? 2 : 0);   // Graphics ON: always the full look (R0), the saved rung is ignored
   qSaved = saved;
   qLowRes = qRung >= 3;
   qN = 0; qHead = 0; qLastEval = 0; qP95 = 0;
@@ -4227,7 +4236,7 @@ function qBegin() {
 
 function qSetRung(r, now) {
   r = Math.max(0, Math.min(Q_MAX, r));
-  if (r === qRung) return;
+  if (OPT.gfx || r === qRung) return;                     // Graphics ON: the quality ladder never changes the look (no lite mode)
   if (r > qRung) {                                        // quality goes DOWN
     if (qLastUpAt && now - qLastUpAt < Q_RELAPSE_MS) {    // we went up a moment ago and it did not hold: wait longer, and after two relapses stop going up
       qUpWait = Math.min(qUpWait * 2, 120000);
@@ -4248,8 +4257,10 @@ function qEvaluate(now) {
   if (n < Q_MIN_SAMPLES || now - oldest < Q_WINDOW_MS * 0.8) return;     // not enough fresh frames yet
   const s = qScratch.subarray(0, n); s.sort();
   const p95 = qP95 = s[Math.floor(0.95 * (n - 1))];
-  if (p95 > Q_DOWN_P95) { qGoodSince = 0; if (qRung < Q_MAX) { qSetRung(qRung + 1, now); return; } }
-  else if (qRung > 0 && !qUpBlocked && p95 <= Q_UP_P95) {
+  const p50 = s[Math.floor(0.5 * (n - 1))];
+  const steady = p50 <= Q_SLOW_MEDIAN && p95 <= p50 * Q_UNEVEN;     // even frames at an acceptable rate
+  if (p95 > Q_DOWN_P95 && !steady) { qGoodSince = 0; if (qRung < Q_MAX) { qSetRung(qRung + 1, now); return; } }
+  else if (qRung > 0 && !qUpBlocked && (p95 <= Q_UP_P95 || steady)) {   // a steady 30 fps also counts as 'fine': a lowered rung may climb back
     if (!qGoodSince) qGoodSince = now;
     else if (now - qGoodSince >= qUpWait) { qSetRung(qRung - 1, now); return; }
   } else qGoodSince = 0;
@@ -4593,7 +4604,7 @@ function queueHitFx(k, lane, name, signed, comboAt, burst) {
 }
 function streakBurst() {
   if (fxLite()) return;
-  if (COARSE) return;                          // phones: no 4-lane burst, no screen flash, no vibration
+  if (PHONE_FX) return;                        // phones: no 4-lane burst, no screen flash, no vibration
   for (let l = 0; l < 4; l++) { spawnShockwave(l, 'perfect', 1); spawnFlare(l, 'PERFECT'); }
   if (!fxLight()) triggerScreenFlash();
   buzz(30);
@@ -4911,7 +4922,7 @@ function warmFxDraw() {
 
 // If the phone is clearly struggling while the notes only stand still, go down ONE rung of the quality ladder now (before the song).
 function autoPickQuality() {
-  if (introFrames > 30 && frameEma > 21 && qRung < Q_MAX) qSetRung(qRung + 1, performance.now());   // one rung only; no canvas resize any more
+  if (introFrames > 30 && frameEma > Q_SLOW_MEDIAN && qRung < Q_MAX) qSetRung(qRung + 1, performance.now());   // one rung only; no canvas resize any more
 }
 
 const START_COUNTDOWN_STEP = 1000;          // ms per number before a song starts (3 numbers = 3 seconds)
@@ -4960,6 +4971,24 @@ function applySongVolume(song) {
   }
   if (musicGain) { musicGain.gain.value = vol * OPT.music; music.volume = 1; }
   else music.volume = Math.min(1, vol * OPT.music);
+}
+
+// DECODER WARM-UP: the first play() of a song makes the phone start its audio decoder, which can freeze a few frames. Do that now, silently,
+// while the 3-2-1 is still ahead (muted, ~250 ms, then paused and rewound), so the real start does not pay for it with the first notes on screen.
+function warmDecoder(token) {
+  try {
+    const wasMuted = music.muted;
+    const restore = () => { music.muted = wasMuted; };
+    const fin = () => {
+      try { music.pause(); music.currentTime = 0; } catch (e) { /* ignore */ }
+      restore();
+      frameEma = 16.7;                           // the decoder start-up hiccup must not count as 'this device is slow' in autoPickQuality
+    };
+    music.muted = true;
+    const p = music.play();
+    if (p && p.then) p.then(() => setTimeout(fin, 250), restore);
+    else setTimeout(fin, 250);
+  } catch (e) { /* ignore: the normal start still works */ }
 }
 
 function startPlayback() {
@@ -5039,14 +5068,14 @@ function startPlayback() {
   introShow = true;
   startUpdateLoop();
   // get-ready intro (lanes + notes, then cards + score bar) -> wait for the song to buffer -> 3-2-1 -> song and notes start together
-  runIntro(token, () => runStartCountdown(token, () => {
+  runIntro(token, () => { warmDecoder(token); runStartCountdown(token, () => {
     if (token !== playToken || mode !== 'starting') return;
     music.currentTime = 0;
     wallStart = performance.now();
     const p = music.play();
     if (p && p.then) p.then(() => arm(true), () => arm(false));
     else arm(true);
-  }));
+  }); });
 
   setStatus(`▶ ${currentSong.title} | ${currentChart.length} notes | miss limit ${missLimit}`);
 }
@@ -5758,7 +5787,8 @@ function update(ts) {
   //    which keeps every frame about the same cost (no judder) and frees time for the notes and input. (~30 fps with graphics on, ~20 off, ~12 in lite mode)
   accFx += dt; accBeat += dt;
   const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30;   // petals / song effects: 33 fps, 25 fps at R1, 16 fps at R2
-  if (accFx >= ambT) {
+  if (performance.now() - playBeganAt < AMBIENT_DELAY_MS) { accFx = 0; accBeat = 0; }      // first 1.2 s: no ambience at all, every frame goes to the notes
+  else if (accFx >= ambT) {
     const d = accFx; accFx = 0;
     if (songFx) songFxUpdate(d);                        // songs with their own effect (moon...) skip the sakura petals
     else petals.update(d, getTier(combo));
