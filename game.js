@@ -2461,7 +2461,7 @@ function drawField(now, dt) {
       const f = fxFlares[i], age = (wall - f.t0) / (f.big ? 470 : 260);
       if (age >= 1) { fxFlares[i] = fxFlares[fxFlares.length - 1]; fxFlares.pop(); continue; }
       const x = laneX(f.lane, 1), inv = 1 - age;
-      if (f.big && qRung < 2) {                                 // R2 and up: no light column
+      if (f.big && qRung < 2 && !COARSE) {                      // R2 and up, and all phones: no light column
         const ch = F.hitY * 0.46 * (0.5 + 0.5 * age), cw = F.noteW * 0.68 * (1 - 0.3 * age);
         c.globalAlpha = inv * inv * 0.55;
         c.drawImage(FLARE_SPR.col, x - cw / 2, F.hitY - ch, cw, ch);
@@ -2469,7 +2469,7 @@ function drawField(now, dt) {
       const sz = F.noteW * (f.big ? 1.2 + 0.9 * age : 0.95 + 0.5 * age);
       c.globalAlpha = (f.big ? 0.7 : 0.32) * inv * inv;
       c.drawImage(f.big ? FLARE_SPR.perfect : FLARE_SPR.great, x - sz / 2, F.hitY - sz * 0.35, sz, sz * 0.7);
-      if (f.big && FLARE_SPR.core && qRung < 2) {              // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
+      if (f.big && FLARE_SPR.core && qRung < 2 && !COARSE) {            // R2 and up: no white core                       // quick white flash in the middle of a PERFECT
         const cz = F.noteW * (0.7 + 0.5 * age), ci = 1 - age;
         c.globalAlpha = 0.6 * ci * ci * ci;
         c.drawImage(FLARE_SPR.core, x - cz / 2, F.hitY - cz * 0.35, cz, cz * 0.7);
@@ -2540,7 +2540,8 @@ function releaseFx() {                     // drop every live effect (the object
 
 function spawnShockwave(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
-  const n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
+  let n = fxLite() ? 0 : fxLight() ? (isP ? 2 : 1) : Math.min(count, 2);   // PERFECT always gets a double ring, even in the light look
+  if (COARSE && n > 1) n = 1;                                               // phones: one ring (+ the white PERFECT ring below)
   const col = fxColor(judgement), t = performance.now();
   for (let i = 0; i < n; i++) addRing(laneIndex, col, t + i * 70, 0, 0);
   if (isP && n > 0) addRing(laneIndex, '#ffffff', t, 1.7, 3.5);              // PERFECT only: one more big, thick, white ring that spreads wider than the rest
@@ -2549,7 +2550,8 @@ function spawnShockwave(laneIndex, judgement, count) {
 function spawnParticles(laneIndex, judgement, count) {
   const isP = String(judgement).toLowerCase() === 'perfect';
   const pk = qRung >= 2 ? 0.5 : !OPT.gfx ? (isP ? 0.8 : 0.4) : qRung >= 1 ? 0.75 : 1;   // R1: 3/4, R2: half the particles
-  const n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
+  let n = fxLite() ? 0 : Math.round(count * pk * (COARSE ? 0.6 : 1));
+  if (COARSE && n > 4) n = 4;                                               // phones: at most 4 particles per hit
   const col = fxColor(judgement), t = performance.now();
   const x = laneX(laneIndex, 1), y = FIELD.hitY, sc = Math.max(0.6, FIELD.lw / 110);
   for (let i = 0; i < n && fxParts.length < 64; i++) {
@@ -2596,7 +2598,7 @@ function triggerMissFlash(kind) {
 // Subtle screen shake: small, short, capped, and no forced reflow
 let shakeAnim = null;
 function shakeScreen(intensity) {
-  if (fxMid()) return;                         // R2 and up: no shaking at all
+  if (fxMid() || COARSE) return;               // R2 and up, and all phones: no shaking at all
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
@@ -4591,6 +4593,7 @@ function queueHitFx(k, lane, name, signed, comboAt, burst) {
 }
 function streakBurst() {
   if (fxLite()) return;
+  if (COARSE) return;                          // phones: no 4-lane burst, no screen flash, no vibration
   for (let l = 0; l < 4; l++) { spawnShockwave(l, 'perfect', 1); spawnFlare(l, 'PERFECT'); }
   if (!fxLight()) triggerScreenFlash();
   buzz(30);
