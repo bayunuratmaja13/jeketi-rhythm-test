@@ -107,6 +107,7 @@
   }
   let pill = null, pillTimer = null;
   function say(text, hideAfter) {
+    if (gameBusy()) { quiet(); return; }            // never show the pill while a song is being played
     css();
     if (!pill) { pill = document.createElement('div'); pill.id = 'dl-pill'; document.body.appendChild(pill); }
     pill.textContent = text;
@@ -115,6 +116,9 @@
     if (hideAfter) pillTimer = setTimeout(() => pill && pill.classList.remove('dl-on'), hideAfter);
   }
   function quiet() { clearTimeout(pillTimer); if (pill) pill.classList.remove('dl-on'); }
+  // safety net: whatever happens, the pill disappears the moment a song starts (even if a download is stuck)
+  setInterval(() => { if (pill && pill.classList.contains('dl-on') && gameBusy()) quiet(); }, 200);
+  addEventListener('jeketi:busy', quiet);
 
   // ---------- talking to sw.js ----------
   function getSW() {
@@ -141,12 +145,20 @@
   // again after the song, and that does not count as a failed attempt.
   async function fetchOne(sw, url, guard) {
     for (let i = 0; i < 3; i++) {
-      let watch = 0;
-      const stop = () => { try { sw.postMessage({ type: 'pack-abort' }); } catch (e) { /* ignore */ } };
+      let watch = 0, giveUp = null, giveUpTimer = 0;
+      const stop = () => {
+        quiet();
+        try { sw.postMessage({ type: 'pack-abort' }); } catch (e) { /* ignore */ }
+        // if sw.js does not answer the abort quickly, stop waiting for it: the file is retried after the song
+        if (!giveUpTimer) giveUpTimer = setTimeout(() => giveUp && giveUp({ ok: false, aborted: true }), 1500);
+      };
       if (guard) { watch = setInterval(() => { if (gameBusy()) stop(); }, 250); addEventListener('jeketi:busy', stop); }
       let r;
-      try { r = await ask(sw, { type: 'pack-fetch', url }); }
-      finally { if (guard) { clearInterval(watch); removeEventListener('jeketi:busy', stop); } }
+      try {
+        const req = ask(sw, { type: 'pack-fetch', url });
+        r = guard ? await Promise.race([req, new Promise((res) => { giveUp = res; })]) : await req;
+      }
+      finally { if (guard) { clearInterval(watch); clearTimeout(giveUpTimer); removeEventListener('jeketi:busy', stop); } }
       if (r && r.ok) return r;
       if (guard && r && r.aborted) {
         quiet();
