@@ -143,15 +143,15 @@ const JUDGE = {
   GOOD:    { name: 'GOOD',    points: 40,  color: '#3cb54a', beam: '#66d9a8', kick: 0.15 },
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
 };
-const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.80, GOOD: 0.5, BAD: -5, MISS: -10 };
+const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.9, GOOD: 0.7, BAD: -5, MISS: -10 };
 const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
 const BASE_MAX_SCORE = 500000;
 const GRADE_RULES = [
-  { g: 'SS', score: 1400000, acc: 0.95, noMiss: true },
-  { g: 'S',  score: 1000000, acc: 0.90 },
-  { g: 'A',  score: 800000,  acc: 0.85 },
-  { g: 'B',  score: 600000,  acc: 0.80 },
+  { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },
+  { g: 'S',  score: 1000000, acc: 0.95 },
+  { g: 'A',  score: 800000,  acc: 0.90 },
+  { g: 'B',  score: 600000,  acc: 0.85 },
 ];
 
 const SHAKE_SCALE = reduceMotion ? 0 : 0.5;
