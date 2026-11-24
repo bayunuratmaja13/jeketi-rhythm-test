@@ -180,7 +180,7 @@ const BASE_MAX_SCORE = 500000;
 const GRADE_RULES = [
   { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },   // SS also needs ZERO misses
   { g: 'S',  score: 1000000, acc: 0.96 },
-  { g: 'A',  score: 800000,  acc: 0.93 },
+  { g: 'A',  score: 750000,  acc: 0.93 },
   { g: 'B',  score: 600000,  acc: 0.90 },
 ];
 
