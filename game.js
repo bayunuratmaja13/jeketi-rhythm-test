@@ -143,7 +143,7 @@ const JUDGE = {
   GOOD:    { name: 'GOOD',    points: 40,  color: '#3cb54a', beam: '#66d9a8', kick: 0.15 },
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
 };
-const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.96, GOOD: 0.8, BAD: 0.25, MISS: 0 };
+const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.96, GOOD: 0.8, BAD: -5, MISS: -10 };
 const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
 const BASE_MAX_SCORE = 500000;
@@ -1174,7 +1174,7 @@ function calcAccuracy() {
   if (judgedCount <= 0) return 0;
   let sum = 0;
   for (const k in ACC_WEIGHTS) sum += stats[k] * ACC_WEIGHTS[k];
-  return sum / judgedCount;
+  return Math.max(0, Math.min(1, sum / judgedCount));
 }
 
 function gradeFor(acc, sc) {
