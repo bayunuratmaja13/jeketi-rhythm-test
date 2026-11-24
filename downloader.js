@@ -232,7 +232,8 @@
     const missing = new Set(await missingOf(sw, list));
     const todo = songs.filter((s) => songFiles(s).some((f) => missing.has(abs(f))));
     if (!todo.length) return;
-    const total = songs.length;
+    // the counter shows ALL songs (starter songs included), so the player sees the real total, e.g. 3 / 80 at the start
+    const total = window.SONGS.filter((s) => s.audio).length;
     let have = total - todo.length;
     for (const s of todo) {
       while (gameBusy() || document.hidden) { quiet(); await sleep(2500); }    // never compete with a song that is playing (and no pill on screen during play)
