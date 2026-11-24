@@ -1,4 +1,3 @@
-
 if (window.__applyViewport) window.__applyViewport();
 
 const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -4789,7 +4788,8 @@ function findLaneFromPoint(x, y) {
   let s = (y - F.top - F.yH) / (F.hitY - F.yH);
   if (s < 0.9) s = 0.9; else if (s > 1.6) s = 1.6;
   const k = Math.floor((x - F.left - F.cx) / (F.lw * s) + 2);
-  return k < 0 ? 0 : k > 3 ? 3 : k;
+  if (k < 0 || k > 3) return null;
+  return k;
 }
 
 const PAUSE_ZONE_PX = 44;
