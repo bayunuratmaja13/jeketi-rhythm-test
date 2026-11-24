@@ -133,11 +133,12 @@ window.CHART_DATA = [
   {
     "time": 12446,
     "lane": 1,
-    "duration": 299
+    "duration": 234
   },
   {
-    "time": 12849,
-    "lane": 3
+    "time": 12680,
+    "lane": 2,
+    "duration": 234
   },
   {
     "time": 13047,
@@ -279,7 +280,7 @@ window.CHART_DATA = [
   {
     "time": 24405,
     "lane": 2,
-    "duration": 561
+    "duration": 1074
   },
   {
     "time": 25820,
@@ -542,11 +543,12 @@ window.CHART_DATA = [
     "lane": 1
   },
   {
-    "time": 48600,
-    "lane": 0
+    "time": 48510,
+    "lane": 0,
+    "duration": 498
   },
   {
-    "time": 49008,
+    "time": 49062,
     "lane": 3
   },
   {
@@ -564,10 +566,14 @@ window.CHART_DATA = [
   {
     "time": 50009,
     "lane": 1,
-    "duration": 1096
+    "duration": 899
   },
   {
-    "time": 51264,
+    "time": 50908,
+    "lane": 2
+  },
+  {
+    "time": 51296,
     "lane": 2,
     "duration": 803
   },
@@ -876,13 +882,9 @@ window.CHART_DATA = [
     "lane": 3
   },
   {
-    "time": 75351,
-    "lane": 1
-  },
-  {
-    "time": 76198,
-    "lane": 2,
-    "duration": 276
+    "time": 75407,
+    "lane": 1,
+    "duration": 791
   },
   {
     "time": 76576,
@@ -1719,12 +1721,12 @@ window.CHART_DATA = [
   {
     "time": 143040,
     "lane": 0,
-    "duration": 1006
+    "duration": 927
   },
   {
-    "time": 144152,
+    "time": 144027,
     "lane": 1,
-    "duration": 219
+    "duration": 398
   },
   {
     "time": 144481,
@@ -1734,7 +1736,7 @@ window.CHART_DATA = [
   {
     "time": 145573,
     "lane": 1,
-    "duration": 202
+    "duration": 354
   },
   {
     "time": 145927,
@@ -3193,7 +3195,7 @@ window.CHART_DATA = [
   {
     "time": 256998,
     "lane": 3,
-    "duration": 2859
+    "duration": 1466
   },
   {
     "time": 258464,
@@ -3228,28 +3230,27 @@ window.CHART_DATA = [
     "duration": 616
   },
   {
-    "time": 263626,
+    "time": 263534,
     "lane": 0,
     "duration": 355
   },
   {
     "time": 264060,
-    "lane": 1,
-    "duration": 435
+    "lane": 1
   },
   {
-    "time": 264549,
-    "lane": 2,
-    "duration": 273
+    "time": 264238,
+    "lane": 3,
+    "duration": 565
   },
   {
-    "time": 264920,
+    "time": 264822,
     "lane": 1,
     "duration": 249
   },
   {
-    "time": 265268,
-    "lane": 3,
-    "duration": 158
+    "time": 265071,
+    "lane": 2,
+    "duration": 727
   }
 ];
