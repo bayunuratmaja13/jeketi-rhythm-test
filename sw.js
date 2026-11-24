@@ -150,6 +150,14 @@ async function mediaResponse(req, u, event) {
     if (hit) { cache = pack; fromPack = true; }
     else { cache = await caches.open(MEDIA); hit = await cache.match(key); }
   } catch (err) { return fetch(req); }
+  // CHARTS: network first, so an edited chart reaches players on their very next play. The saved copy is only used offline / on a failed request.
+  if (isChart(u)) {
+    try {
+      const res = await fetch(req);
+      if (res && res.ok && res.status === 200) { cache.put(keyOf(u), res.clone()).catch(() => {}); return res; }
+      return hit || res;
+    } catch (err) { if (hit) return hit; throw err; }
+  }
   // downloaded pack images are served as they are (no network request each time = less work on slow phones).
   // charts are still refreshed quietly in the background, so a fixed chart reaches players.
   if (hit && fromPack && !isChart(u)) return hit;

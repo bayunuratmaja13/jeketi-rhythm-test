@@ -1019,7 +1019,8 @@ function loadChartFile(url) {
     window.CHART_DATA = undefined;
 
     const s = document.createElement('script');
-    s.src = url;
+    // chart address gets ?v=<GAME_VERSION> (version.js), so bumping version.js makes the browser fetch charts again
+    s.src = url + (window.GAME_VERSION ? (url.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(window.GAME_VERSION) : '');
     s.onload = () => {
       const data = window.CHART_DATA;
       window.CHART_DATA = prevData;

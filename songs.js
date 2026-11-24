@@ -786,5 +786,32 @@ window.SONGS = [
     audio: 'music/himawari.ogg',
     chart: 'charts/himawari.js',
     cover: 'images/matahari_milikku.webp'
+  },
+    {
+    id: 'river',
+    title: 'River',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/river.ogg',
+    chart: 'charts/river.js',
+    cover: 'images/river.webp'
+  },
+    {
+    id: 'jejak_awan_pesawat',
+    title: 'Jejak Awan Pesawat',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/jejak_awan_pesawat.ogg',
+    chart: 'charts/jejak_awan_pesawat.js',
+    cover: 'images/rkj.webp'
+  },
+    {
+    id: 'cahaya_panjang',
+    title: 'Cahaya Panjang',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/cahaya_panjang.ogg',
+    chart: 'charts/cahaya_panjang.js',
+    cover: 'images/rkj.webp'
   }
 ];
