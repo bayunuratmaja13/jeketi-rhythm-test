@@ -23,17 +23,17 @@
       p1: '#6fd68a', p2: '#1d6b45', accent: '#e8ffb0', emblem: '☀', sub: 'Your free pack for today',
     },
     standard: {
-      name: 'Standard Pack', count: 5, price: 500, minBest: 'B',
+      name: 'Standard Pack', count: 5, price: 1000, minBest: 'B',
       odds: { C: 70, B: 24, A: 6 },
       p1: '#6cb8ff', p2: '#1d4a9c', accent: '#d8f0ff', emblem: '★', sub: 'At least one B or better',
     },
     premium: {
-      name: 'Premium Pack', count: 5, price: 1200, minBest: 'A',
+      name: 'Premium Pack', count: 5, price: 2400, minBest: 'A',
       odds: { C: 35, B: 45, A: 20 },
       p1: '#ffd54a', p2: '#9a5b00', accent: '#fff6c2', emblem: '♛', sub: 'At least one A guaranteed',
     },
     oshi: {
-      name: 'Oshi Pack', count: 5, price: 800, minBest: 'B', oshi: 0.5,
+      name: 'Oshi Pack', count: 5, price: 1600, minBest: 'B', oshi: 0.5,
       odds: { C: 70, B: 24, A: 6 },
       p1: '#ff7ab3', p2: '#9c1f5a', accent: '#ffe0f0', emblem: '♥', sub: 'Boosted chance of your oshi',
     },

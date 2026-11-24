@@ -181,7 +181,7 @@ const GRADE_RULES = [
   { g: 'SS', score: 1400000, acc: 0.98, noMiss: true },   // SS also needs ZERO misses
   { g: 'S',  score: 1000000, acc: 0.95 },
   { g: 'A',  score: 750000,  acc: 0.90 },
-  { g: 'B',  score: 450000,  acc: 0.80 },
+  { g: 'B',  score: 650000,  acc: 0.85 },
 ];
 
 const SHAKE_SCALE = reduceMotion ? 0 : 0.5;  // overall shake strength (subtle)
