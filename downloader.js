@@ -1,7 +1,7 @@
 // ============================================================
 //  JEKETI RHYTHM — downloader.js  (first-launch download)
 //  Step 1 (shows a loading screen, first launch only): UI images, song covers, card images and the starter songs.
-//  Step 2 (quiet, in the background): every other song, one at a time, paused while a song is being played.
+//  Step 2 (silent, in the background, no text on screen): every other song, one at a time, paused while a song is being played.
 //  Everything is saved on the device through sw.js. If anything here fails, the game simply works as before
 //  (files that are not saved yet just stream from the internet).
 //  Emergency off switch: ?nosw
@@ -74,10 +74,6 @@
       '#dl-btns button{font:inherit;font-weight:700;font-size:clamp(15px,1.9vw,26px);padding:.55em 1.3em;border-radius:99px;',
       'border:2px solid #f3ecd8;background:transparent;color:#f3ecd8;cursor:pointer}',
       '#dl-btns button.dl-main{background:#f3ecd8;color:#1d3a2a}',
-      '#dl-pill{position:fixed;bottom:calc(8px + env(safe-area-inset-bottom,0px));right:8px;z-index:2147482000;max-width:70%;padding:5px 12px;border-radius:99px;',
-      'background:rgba(22,38,28,.82);color:#f3ecd8;font:600 13px/1.3 system-ui,sans-serif;pointer-events:none;',
-      'opacity:0;transition:opacity .4s}',
-      '#dl-pill.dl-on{opacity:1}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -105,21 +101,6 @@
     el.classList.add('dl-out');
     setTimeout(() => el.remove(), 600);
   }
-  let pill = null, pillTimer = null;
-  function say(text, hideAfter) {
-    if (gameBusy()) { quiet(); return; }            // never show the pill while a song is being played
-    css();
-    if (!pill) { pill = document.createElement('div'); pill.id = 'dl-pill'; document.body.appendChild(pill); }
-    pill.textContent = text;
-    pill.classList.add('dl-on');
-    clearTimeout(pillTimer);
-    if (hideAfter) pillTimer = setTimeout(() => pill && pill.classList.remove('dl-on'), hideAfter);
-  }
-  function quiet() { clearTimeout(pillTimer); if (pill) pill.classList.remove('dl-on'); }
-  // safety net: whatever happens, the pill disappears the moment a song starts (even if a download is stuck)
-  setInterval(() => { if (pill && pill.classList.contains('dl-on') && gameBusy()) quiet(); }, 200);
-  addEventListener('jeketi:busy', quiet);
-
   // ---------- talking to sw.js ----------
   function getSW() {
     return Promise.race([
@@ -147,7 +128,6 @@
     for (let i = 0; i < 3; i++) {
       let watch = 0, giveUp = null, giveUpTimer = 0;
       const stop = () => {
-        quiet();
         try { sw.postMessage({ type: 'pack-abort' }); } catch (e) { /* ignore */ }
         // if sw.js does not answer the abort quickly, stop waiting for it: the file is retried after the song
         if (!giveUpTimer) giveUpTimer = setTimeout(() => giveUp && giveUp({ ok: false, aborted: true }), 1500);
@@ -161,7 +141,6 @@
       finally { if (guard) { clearInterval(watch); clearTimeout(giveUpTimer); removeEventListener('jeketi:busy', stop); } }
       if (r && r.ok) return r;
       if (guard && r && r.aborted) {
-        quiet();
         while (gameBusy() || document.hidden) await sleep(1500);
         i--; continue;
       }
@@ -180,8 +159,6 @@
       if (visible && ui) {
         ui.fill.style.width = (total ? Math.round(done / total * 100) : 100) + '%';
         ui.info.textContent = done + ' / ' + total + ' files' + (bytes ? '  ·  ' + mb(bytes) + ' MB' : '');
-      } else if (!visible && missing.length) {
-        say('Updating game data… ' + done + ' / ' + total);
       }
     };
     if (visible && ui) ui.skip.onclick = () => { skipped = true; hideScreen(); };
@@ -212,7 +189,6 @@
     }
     store.set(FLAG, '1');
     hideScreen();
-    if (!visible) quiet();
   }
 
   // ---------- step 2 ----------
@@ -232,21 +208,16 @@
     const missing = new Set(await missingOf(sw, list));
     const todo = songs.filter((s) => songFiles(s).some((f) => missing.has(abs(f))));
     if (!todo.length) return;
-    // the counter shows ALL songs (starter songs included), so the player sees the real total, e.g. 3 / 80 at the start
-    const total = window.SONGS.filter((s) => s.audio).length;
-    let have = total - todo.length;
     for (const s of todo) {
-      while (gameBusy() || document.hidden) { quiet(); await sleep(2500); }    // never compete with a song that is playing (and no pill on screen during play)
-      if (await lowStorage()) { say('Storage almost full: the other songs will stream instead', 6000); return; }
-      say('Downloading songs… ' + have + ' / ' + total);
+      while (gameBusy() || document.hidden) await sleep(2500);    // never compete with a song that is playing
+      if (await lowStorage()) return;                              // phone almost full: the other songs just stream
       let ok = true;
       for (const f of songFiles(s)) {
         const r = await fetchOne(sw, abs(f), true);
         if (!r.ok) { ok = false; break; }
       }
-      if (ok) have++; else { say('Download paused: connection problem. It will continue next time.', 5000); return; }
+      if (!ok) return;                                             // connection problem: continues next launch
     }
-    say('All songs downloaded ✓', 3500);
   }
 
   // ---------- start ----------
@@ -260,7 +231,7 @@
     await sleep(1500);
     await step2(sw);
   }
-  const start = () => run().catch(() => { hideScreen(); quiet(); });
+  const start = () => run().catch(() => { hideScreen(); });
   if (document.body) start(); else addEventListener('DOMContentLoaded', start);
 
   window.JeketiPack = { step1Files: STEP1.length, reset: () => { try { localStorage.removeItem(FLAG); } catch (e) { /* ignore */ } } };
