@@ -632,7 +632,7 @@ window.SONGS = [
     slots: 5,
     audio: 'music/cinta_pertama.ogg',
     chart: 'charts/cinta_pertama.js',
-    cover: 'images/rkj.webp'
+    cover: 'images/sekarang_sedang_jatuh_cinta.webp'
   },
     {
     id: 'sungai_impian',
