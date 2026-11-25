@@ -265,6 +265,41 @@
   window.addEventListener('load', place);
   setTimeout(place, 300);
 
+  // ---- CREDITS button + page ----
+  const crHeader = document.querySelector('#menu-screen .menu-header');
+  const crBtn = document.createElement('button');
+  crBtn.type = 'button'; crBtn.id = 'credits-btn'; crBtn.className = 'gif-btn'; crBtn.setAttribute('aria-label', 'Credits');
+  crBtn.innerHTML = '<span class="back-pill credits-pill">CREDITS</span>';
+  if (crHeader) crHeader.appendChild(crBtn);
+
+  const crScreen = document.createElement('div');
+  crScreen.id = 'credits-screen';
+  crScreen.innerHTML = '<div class="dy-head"><button class="dy-back gif-btn" type="button" aria-label="Back"><span class="back-pill">BACK</span></button></div>' +
+    '<div class="cr-body"><div class="desk-paper cr-paper"><div class="pin pin-tl"></div><div class="pin pin-tr"></div>' +
+    '<img class="cr-gif" src="images/credits.gif" alt="Credits" onerror="this.style.display=\'none\'">' +
+    '<div class="cr-ent-wrap"><img class="cr-fontby" src="images/credits-fontby.png" alt="font by">' +
+    '<button type="button" class="cr-ent gif-btn" aria-label="@ent_stuff on X"><span class="back-pill cr-ent-pill">@ent_stuff</span></button></div></div></div>';
+  document.body.appendChild(crScreen);
+  const crOpen = () => crScreen.classList.contains('show');
+  crBtn.addEventListener('click', () => crScreen.classList.add('show'));
+  crScreen.addEventListener('click', (e) => { if (e.target.closest('.dy-back')) crScreen.classList.remove('show');
+    else if (e.target.closest('.cr-ent')) window.open('https://x.com/ent_stuff', '_blank', 'noopener,noreferrer');
+  });
+  document.addEventListener('keydown', (e) => { if (e.code === 'Escape' && crOpen()) { e.preventDefault(); crScreen.classList.remove('show'); } });
+
+  function placeCredits() {
+    if (!chip) return;
+    const r = chip.getBoundingClientRect();
+    if (!r.height) return;
+    crBtn.style.right = (document.documentElement.clientWidth - r.left + 10) + 'px';
+    crBtn.style.top = (r.top + (r.height - crBtn.offsetHeight) / 2) + 'px';
+  }
+  if (chip && window.ResizeObserver) new ResizeObserver(placeCredits).observe(chip);
+  window.addEventListener('resize', placeCredits);
+  window.addEventListener('orientationchange', () => setTimeout(placeCredits, 250));
+  window.addEventListener('load', placeCredits);
+  setTimeout(placeCredits, 300);
+
   ensureToday(); refreshDot();
 
   window.Daily = {
