@@ -143,7 +143,7 @@ const JUDGE = {
   GOOD:    { name: 'GOOD',    points: 40,  color: '#3cb54a', beam: '#66d9a8', kick: 0.15 },
   BAD:     { name: 'BAD',     points: 0,   color: '#e6212a', beam: '#ff5252', kick: 0 },
 };
-const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.9, GOOD: 0.8, BAD: -5, MISS: -10 };
+const ACC_WEIGHTS = { PERFECT: 1, GREAT: 0.9, GOOD: 0.8, BAD: 0, MISS: -5 };
 const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
 const BASE_MAX_SCORE = 500000;
