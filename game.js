@@ -149,9 +149,9 @@ const GRADE_RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 const BASE_MAX_SCORE = 500000;
 const GRADE_RULES = [
   { g: 'SS', score: 1400000, acc: 0.95, noMiss: true },
-  { g: 'S',  score: 1200000, acc: 0.90 },
-  { g: 'A',  score: 1000000,  acc: 0.85 },
-  { g: 'B',  score: 800000,  acc: 0.80 },
+  { g: 'S',  score: 1000000, acc: 0.90 },
+  { g: 'A',  score: 800000,  acc: 0.85 },
+  { g: 'B',  score: 600000,  acc: 0.80 },
 ];
 
 const SHAKE_SCALE = reduceMotion ? 0 : 0.5;
