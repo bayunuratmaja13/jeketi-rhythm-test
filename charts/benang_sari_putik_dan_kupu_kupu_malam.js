@@ -5,7 +5,7 @@ window.CHART_DATA = [
     "duration": 2844
   },
   {
-    "time": 11673,
+    "time": 11641,
     "lane": 0
   },
   {
@@ -42,7 +42,7 @@ window.CHART_DATA = [
     "duration": 1262
   },
   {
-    "time": 15140,
+    "time": 15082,
     "lane": 0
   },
   {
@@ -114,7 +114,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 23223,
+    "time": 23155,
     "lane": 1,
     "duration": 716
   },
@@ -278,7 +278,7 @@ window.CHART_DATA = [
   {
     "time": 45777,
     "lane": 2,
-    "duration": 1988
+    "duration": 3162
   },
   {
     "time": 49557,
@@ -800,22 +800,22 @@ window.CHART_DATA = [
     "duration": 797
   },
   {
-    "time": 95894,
+    "time": 95968,
     "lane": 1,
     "duration": 697
   },
   {
-    "time": 96825,
+    "time": 96709,
     "lane": 0,
     "duration": 1027
   },
   {
-    "time": 96825,
-    "lane": 1,
+    "time": 96709,
+    "lane": 2,
     "duration": 1027
   },
   {
-    "time": 97975,
+    "time": 97896,
     "lane": 2,
     "duration": 331
   },
@@ -1007,12 +1007,12 @@ window.CHART_DATA = [
     "duration": 254
   },
   {
-    "time": 113656,
+    "time": 113675,
     "lane": 1,
     "duration": 900
   },
   {
-    "time": 113656,
+    "time": 113675,
     "lane": 2,
     "duration": 900
   },
@@ -1704,15 +1704,11 @@ window.CHART_DATA = [
     "duration": 395
   },
   {
-    "time": 173473,
+    "time": 173396,
     "lane": 0
   },
   {
-    "time": 173473,
-    "lane": 2
-  },
-  {
-    "time": 173697,
+    "time": 173652,
     "lane": 3
   },
   {
@@ -1836,12 +1832,12 @@ window.CHART_DATA = [
     "duration": 771
   },
   {
-    "time": 185359,
-    "lane": 2
+    "time": 185306,
+    "lane": 1
   },
   {
-    "time": 185359,
-    "lane": 3
+    "time": 185421,
+    "lane": 2
   },
   {
     "time": 185579,
@@ -2001,9 +1997,9 @@ window.CHART_DATA = [
     "duration": 785
   },
   {
-    "time": 197222,
+    "time": 197304,
     "lane": 3,
-    "duration": 454
+    "duration": 428
   },
   {
     "time": 197758,
@@ -2251,10 +2247,10 @@ window.CHART_DATA = [
   {
     "time": 220875,
     "lane": 2,
-    "duration": 15812
+    "duration": 15972
   },
   {
-    "time": 221983,
+    "time": 222029,
     "lane": 0
   },
   {

@@ -880,7 +880,12 @@ window.CHART_DATA = [
     "duration": 1630
   },
   {
-    "time": 94474,
+    "time": 94056,
+    "lane": 2,
+    "duration": 335
+  },
+  {
+    "time": 94446,
     "lane": 1,
     "duration": 366
   },
@@ -933,11 +938,12 @@ window.CHART_DATA = [
   {
     "time": 97610,
     "lane": 0,
-    "duration": 441
+    "duration": 272
   },
   {
-    "time": 98175,
-    "lane": 1
+    "time": 97882,
+    "lane": 1,
+    "duration": 366
   },
   {
     "time": 98337,
@@ -1876,6 +1882,11 @@ window.CHART_DATA = [
     "duration": 1810
   },
   {
+    "time": 177575,
+    "lane": 1,
+    "duration": 366
+  },
+  {
     "time": 177958,
     "lane": 2,
     "duration": 301
@@ -1994,9 +2005,13 @@ window.CHART_DATA = [
     "lane": 2
   },
   {
-    "time": 185695,
+    "time": 185616,
     "lane": 3,
     "duration": 287
+  },
+  {
+    "time": 186036,
+    "lane": 2
   },
   {
     "time": 186245,
@@ -2286,6 +2301,10 @@ window.CHART_DATA = [
     "duration": 1305
   },
   {
+    "time": 220146,
+    "lane": 2
+  },
+  {
     "time": 220274,
     "lane": 2
   },
@@ -2340,7 +2359,7 @@ window.CHART_DATA = [
   {
     "time": 223735,
     "lane": 0,
-    "duration": 2735
+    "duration": 3182
   },
   {
     "time": 225254,

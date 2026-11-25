@@ -672,7 +672,11 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 53066,
+    "time": 52993,
+    "lane": 2
+  },
+  {
+    "time": 53397,
     "lane": 2
   },
   {
@@ -992,6 +996,10 @@ window.CHART_DATA = [
   {
     "time": 77240,
     "lane": 3
+  },
+  {
+    "time": 77411,
+    "lane": 1
   },
   {
     "time": 77637,
