@@ -1396,15 +1396,35 @@ function tickCountdown() {
   }
 }
 
+function resyncNotes(now) {
+  active = [];
+  spawnIdx = 0;
+  while (spawnIdx < queue.length && queue[spawnIdx].time - APPROACH_TIME - SPAWN_LEAD <= now) {
+    const n = queue[spawnIdx++];
+    if (n.judged) continue;
+    if (!n.holding && now - n.time > MAX_WINDOW) continue;
+    n.el = acquireNoteEl(n);
+    active.push(n);
+  }
+  laneHead = [0, 0, 0, 0];
+}
+
 function endCountdown() {
   mode = 'resuming';
   countdownEl.classList.remove('show');
+  if (useAudio) {
+    try {
+      if (Math.abs(music.currentTime * 1000 - frozenTime) > 150) music.currentTime = frozenTime / 1000;
+    } catch (e) {  }
+  }
   const go = () => {
     if (mode !== 'resuming') return;
     if (!useAudio) wallOffset += performance.now() - pauseStartWall;
     mode = 'playing';
     lastFrameT = 0;
     resetClock();
+    if (useAudio && Math.abs(smoothT - frozenTime) > 300) smoothT = frozenTime;
+    resyncNotes(getSongTime());
     for (let i = 0; i < active.length; i++) {
       const n = active[i];
       if (n.holding && !n.judged && !pressedLanes.has(n.lane)) breakHold(n);
