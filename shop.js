@@ -75,6 +75,7 @@
     zee: { id: 'zee', name: 'Zee', team: 'Special', color: '#ff6ad5', front: 'images/cards/zee.webp', back: 'images/cards/love_back.webp', guest: true },
     haruka: { id: 'haruka', name: 'Haruka', team: 'Special', color: '#ff6ad5', front: 'images/cards/haruka.webp', back: 'images/cards/love_back.webp', guest: true },
     vienny: { id: 'vienny', name: 'Vienny', team: 'Special', color: '#ff6ad5', front: 'images/cards/vienny.webp', back: 'images/cards/love_back.webp', guest: true },
+    djtaz: { id: 'djtaz', name: 'DJ Taz', team: 'Special', color: '#ff6ad5', front: 'images/cards/djtaz.webp', back: 'images/cards/love_back.webp', guest: true },
   };
   const GUEST_BONUS = 25;
   GUESTS.melody.bonus = 48;

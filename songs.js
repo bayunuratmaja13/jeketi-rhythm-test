@@ -790,5 +790,45 @@ window.SONGS = [
     audio: 'music/cahaya_panjang.ogg',
     chart: 'charts/cahaya_panjang.js',
     cover: 'images/rkj.webp'
+  },
+    {
+    id: 'ekor_malaikat',
+    title: 'Ekor Malaikat',
+    artist: 'JKT48',
+    team: null,
+    slots: 3,
+    audio: 'music/ekor_malaikat.ogg',
+    chart: 'charts/ekor_malaikat.js',
+    cover: 'images/pajama_drive.webp'
+  },
+    {
+    id: 'jurus_rahasia_teleport',
+    title: 'Jurus Rahasia Teleport',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/jurus_rahasia_teleport.ogg',
+    chart: 'charts/jurus_rahasia_teleport.js',
+    cover: 'images/pajama_drive.webp'
+  },
+    {
+    id: 'Heavy_Rotation',
+    title: 'Heavy Rotation',
+    artist: 'JKT48',
+    team: null,
+    audio: 'music/heavy_rotation.ogg',
+    chart: 'charts/heavy_rotation.js',
+    cover: 'images/heavy_rotation.webp'
+  },
+    {
+    id: 'overture',
+    title: 'Overture',
+    artist: 'DJ Taz',
+    team: null,
+    slots: 2,
+    duet: true,
+    guest: 'djtaz',
+    audio: 'music/overture.ogg',
+    chart: 'charts/overture.js',
+    cover: 'images/heavy_rotation.webp'
   }
 ];

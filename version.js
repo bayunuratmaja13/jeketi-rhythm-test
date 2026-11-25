@@ -1,1 +1,1 @@
-window.GAME_VERSION = 25;
+window.GAME_VERSION = 26;
