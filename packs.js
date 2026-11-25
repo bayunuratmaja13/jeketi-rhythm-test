@@ -2,6 +2,7 @@
   'use strict';
 
   const STARTER_KEY = 'jeketi.starterClaimed';
+  const OSHI_GIFT_KEY = 'jeketi.oshiGifted';
 
   const PACKS = {
     starter: {
@@ -450,19 +451,30 @@
     return drops;
   }
 
+  function giveOshiCard() {
+    try {
+      if (localStorage.getItem(OSHI_GIFT_KEY) === '1') return;
+      const oshi = window.Shop && Shop.getOshi ? Shop.getOshi() : null;
+      if (!oshi || !window.Cards) return;
+      if (!Cards.give(oshi, 'C')) return;
+      localStorage.setItem(OSHI_GIFT_KEY, '1');
+      window.dispatchEvent(new CustomEvent('cards:change'));
+    } catch (e) {  }
+  }
+
   function onFirstPlay() {
     if (claimed()) return;
     setTimeout(() => {
       if (claimed()) return;
-      if (window.Shop && !Shop.getOshi()) Shop.pickOshi(() => setTimeout(() => open('starter'), 350));
-      else open('starter');
+      if (window.Shop && !Shop.getOshi()) Shop.pickOshi(() => { giveOshiCard(); setTimeout(() => open('starter'), 350); });
+      else { giveOshiCard(); open('starter'); }
     }, 500);
   }
 
   window.Packs = {
     PACKS, open, onFirstPlay, needsStarter: () => !claimed(),
     resetStarter() {
-      try { localStorage.removeItem(STARTER_KEY); } catch (e) {  }
+      try { localStorage.removeItem(STARTER_KEY); localStorage.removeItem(OSHI_GIFT_KEY); } catch (e) {  }
       if (window.Shop) Shop.setOshi(null);
     },
   };
