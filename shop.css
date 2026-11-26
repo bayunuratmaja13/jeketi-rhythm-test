@@ -5,10 +5,10 @@
   left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
   z-index: 10;
 }
-#shop-btn .btn-gif { height: clamp(37px, 8vh, 67px); width: auto; }
+#shop-btn .btn-gif { height: clamp(56px, 12vh, 100px); width: auto; }
 #shop-btn .btn-fallback {
-  font-family: 'Fredoka', var(--font-game), sans-serif; font-weight: 700; font-size: 17.6px; line-height: 1; color: #fff;
-  background: var(--sky); padding: 8px 13px; border-radius: 8px; box-shadow: 0 3px 0 #2a72c0;
+  font-family: 'Fredoka', var(--font-game), sans-serif; font-weight: 700; font-size: 26.4px; line-height: 1; color: #fff;
+  background: var(--sky); padding: 12px 20px; border-radius: 12px; box-shadow: 0 4px 0 #2a72c0;
 }
 #shop-btn.has-new::after, #my-cards-btn.has-new::after { pointer-events: none; }
 #shop-btn.has-new::after {
