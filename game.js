@@ -134,7 +134,7 @@ const HOLD_TICK_INTERVAL = 100;
 const HOLD_TICK_POINTS = 15;
 const SPAWN_LEAD = 150;
 
-const TIER_STEPS = [50, 100, 200, 480];
+const TIER_STEPS = [48, 100, 200, 480];
 const COMBO_SHOW_FROM = 10;
 
 const JUDGE = {
@@ -1204,10 +1204,11 @@ function showResults() {
   const grade = gradeFor(acc, score);
   const fullCombo = stats.MISS === 0 && judgedCount > 0;
   const allPerfect = fullCombo && stats.BAD === 0 && stats.GREAT === 0 && stats.GOOD === 0;
-  if (window.Leaderboard) { try { Leaderboard.onResults(currentSong, score, acc); } catch (e) {  } }
+  const isHalf = halfEnd > 0;
+  if (window.Leaderboard && !isHalf) { try { Leaderboard.onResults(currentSong, score, acc); } catch (e) {  } }
 
   let isRecord = false;
-  if (currentSong) {
+  if (currentSong && !isHalf) {
     const prev = loadBest(currentSong.id);
     isRecord = !prev || score > (prev.score || 0);
     if (isRecord) {
@@ -1225,7 +1226,7 @@ function showResults() {
   }
 
   clearResultTimers();
-  if (finalSongEl) finalSongEl.textContent = currentSong ? currentSong.title : '';
+  if (finalSongEl) finalSongEl.textContent = currentSong ? currentSong.title + (isHalf ? ' (HALF)' : '') : '';
   setCoverImage(finalCoverEl, currentSong);
 
   finalScoreEl.textContent = '0';
@@ -1295,7 +1296,7 @@ function showResults() {
   }
 
   let dailyBonus = false;
-  if (window.Daily) {
+  if (window.Daily && !isHalf) {
     try {
       dailyBonus = !!(currentSong && Daily.isFeatured(currentSong.id));
       Daily.onRun({ songId: currentSong && currentSong.id, grade, fullCombo, allPerfect, maxCombo, perfects: stats.PERFECT, score });
@@ -1304,6 +1305,7 @@ function showResults() {
   if (window.Points) {
     let earned = Points.earnFor(grade, fullCombo, allPerfect);
     if (dailyBonus) earned = Math.round(earned * Daily.FEATURED_MULT);
+    if (isHalf) earned = 0;
     Points.add(earned);
     finalPointsEl.innerHTML =
       '<div class="rl-pt-line">' + POINT_LOGO_HTML + '<span class="rl-pt-amt">+' + earned.toLocaleString('en-US') + '</span></div>' +
@@ -3368,7 +3370,7 @@ const moonFx = (() => {
 })();
 
 const SPARK = {
-  FIRST_AT: 50, MORE_AT: 100, FIREWORK_AT: 200, FIREWORK2_AT: 300,
+  FIRST_AT: 48, MORE_AT: 100, FIREWORK_AT: 200, FIREWORK2_AT: 300,
   DARK: 0.5,
   SPOTS: [[0.14, 0.64], [0.86, 0.58], [0.22, 0.30], [0.78, 0.26]],
   FIREWORKS: [
@@ -3825,7 +3827,7 @@ const magicFx = (() => {
   };
 })();
 
-const METEOR = { MARKS: [50, 100, 200, 300, 400, 480], COUNTS: [3, 5, 8, 11, 14, 20], SPREAD: 2.4 };
+const METEOR = { MARKS: [48, 100, 200, 300, 400, 480], COUNTS: [3, 5, 8, 11, 14, 20], SPREAD: 2.4 };
 const meteorFx = (() => {
   const cv = document.createElement('canvas');
   cv.id = 'meteor-fx';
@@ -4719,6 +4721,8 @@ function warmDecoder(token) {
   } catch (e) {  }
 }
 
+let halfMode = false, halfEnd = 0;
+
 function startPlayback() {
   hideResults();
   hideGameOverScreen();
@@ -4731,10 +4735,18 @@ function startPlayback() {
   resetRunState();
   scoreMult = 1;
   if (window.Shop) { const run = Shop.beginRun(currentSong); scoreMult = run.mult; }
+  halfEnd = 0;
+  let runChart = currentChart;
+  if (halfMode && currentSong && currentSong.halfEnd > 0) {
+    halfEnd = +currentSong.halfEnd;
+    runChart = currentChart.filter(n => n.time + (n.duration || n.dur || 0) <= halfEnd);
+    if (!runChart.length) { halfEnd = 0; runChart = currentChart; }
+  }
   missLimit = Math.min(20, Math.max(10, Math.ceil(currentChart.length * 0.05)));
   updateLife();
   buildQueue(currentChart);
   { const total = perfectRunTotal(); scoreNorm = total > 0 ? BASE_MAX_SCORE / total : 1; }
+  if (runChart !== currentChart) buildQueue(runChart);
   setComboHidden();
   document.body.dataset.tier = 0;
   petals.clear();
@@ -5120,16 +5132,37 @@ confirmEl.innerHTML = `
       <button type="button" class="cp-yes">YES</button>
       <button type="button" class="cp-no">NO</button>
     </div>
+    <button type="button" class="cp-hs cp-half" style="display:none">PLAY HALF SONG<br>(NO POINT)</button>
     <button type="button" class="cp-hs">VIEW HIGH SCORE</button>
   </div>`;
 document.body.appendChild(confirmEl);
 const cpSong = confirmEl.querySelector('.cp-song'), cpArtist = confirmEl.querySelector('.cp-artist');
 const cpImg = confirmEl.querySelector('.cp-cover img'), cpYes = confirmEl.querySelector('.cp-yes'), cpNo = confirmEl.querySelector('.cp-no');
-const cpHs = confirmEl.querySelector('.cp-hs');
+const cpHs = confirmEl.querySelector('.cp-hs:not(.cp-half)');
+const cpHalf = confirmEl.querySelector('.cp-half');
+{
+  const box = confirmEl.querySelector('.cp-box');
+  const keepLast = () => { if (box.lastElementChild !== cpHalf) box.appendChild(cpHalf); };
+  new MutationObserver(keepLast).observe(box, { childList: true });
+  keepLast();
+}
+{
+  const st = document.createElement('style');
+  st.textContent = '.cp-hs.cp-half{line-height:1.1;padding:6px 0;background:linear-gradient(180deg,#6cb2ff,#2f74e0);box-shadow:0 4px 0 #1d4fa0;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.25)}' +
+    '.cp-hs.cp-half:active{box-shadow:0 1px 0 rgba(0,0,0,.35)}';
+  document.head.appendChild(st);
+}
+cpHalf.addEventListener('click', () => {
+  const s = confirmSong; closeConfirm();
+  if (s && s.halfEnd > 0) { halfMode = true; proceedSong(s); }
+});
 let confirmSong = null;
 
 function askPlay(song) {
   confirmSong = song;
+  halfMode = false;
+  cpHalf.style.display = song.halfEnd > 0 ? '' : 'none';
+  if (cpHalf.parentNode.lastElementChild !== cpHalf) cpHalf.parentNode.appendChild(cpHalf);
   cpHs.textContent = 'VIEW HIGH SCORE';
   cpSong.textContent = song.title || song.id || '';
   cpArtist.textContent = song.artist || '';
@@ -5145,7 +5178,7 @@ function askPlay(song) {
 }
 function closeConfirm() { confirmEl.classList.remove('show'); confirmSong = null; }
 function denyPlay() { try { ensureAudio(); UI_SND.no(); } catch (e) {  } closeConfirm(); }
-cpYes.addEventListener('click', () => { const s = confirmSong; closeConfirm(); if (s) proceedSong(s); });
+cpYes.addEventListener('click', () => { const s = confirmSong; closeConfirm(); halfMode = false; if (s) proceedSong(s); });
 cpNo.addEventListener('click', () => closeConfirm());
 confirmEl.addEventListener('click', (e) => { if (e.target === confirmEl) denyPlay(); });
 cpHs.addEventListener('click', () => {
@@ -5467,6 +5500,13 @@ function update(ts) {
   }
 
   flushHitFx();
+
+  if (halfEnd > 0 && now >= halfEnd + MAX_WINDOW + 150) {
+    try { music.pause(); } catch (e) {  }
+    displayScore = score;
+    showResults();
+    return;
+  }
 
   if (displayScore !== score) {
     const diff = score - displayScore;

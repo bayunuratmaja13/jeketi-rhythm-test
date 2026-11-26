@@ -8,7 +8,8 @@ window.SONGS = [
     team: null,
     audio: 'music/ayo_senyumlah.ogg',
     chart: 'charts/ayo_senyumlah.js',
-    cover: 'images/ayo_senyumlah.webp'
+    cover: 'images/ayo_senyumlah.webp',
+    halfEnd: 131200
   },
   {
     id: 'wakaka_people',
@@ -17,7 +18,8 @@ window.SONGS = [
     team: 'dream',
     audio: 'music/wakaka_people.ogg',
     chart: 'charts/wakaka_people.js',
-    cover: 'images/wakaka_people.webp'
+    cover: 'images/wakaka_people.webp',
+    halfEnd: 122200
   },
     {
     id: '12_seconds',
@@ -26,7 +28,8 @@ window.SONGS = [
     team: 'love',
     audio: 'music/12_seconds.ogg',
     chart: 'charts/12_seconds.js',
-    cover: 'images/12_seconds.webp'
+    cover: 'images/12_seconds.webp',
+    halfEnd: 89700
   },
     {
     id: 'dekat_namun_jauh',
@@ -35,7 +38,8 @@ window.SONGS = [
     team: 'passion',
     audio: 'music/dekat_namun_jauh.ogg',
     chart: 'charts/dekat_namun_jauh.js',
-    cover: 'images/dekat_namun_jauh.webp'
+    cover: 'images/dekat_namun_jauh.webp',
+    halfEnd: 141200
   },
     {
     id: 'jurus_rahasia_teleport_revoice',
@@ -45,7 +49,8 @@ window.SONGS = [
     only: ['aralie', 'oniel', 'cynthia', 'freya', 'ella'],
     audio: 'music/jurus_rahasia_teleport_revoice.ogg',
     chart: 'charts/jurus_rahasia_teleport_revoice.js',
-    cover: 'images/jurus_rahasia_teleport_revoice.webp'
+    cover: 'images/jurus_rahasia_teleport_revoice.webp',
+    halfEnd: 146000
   },
     {
     id: 'refrain_penuh_harapan_revoice',
@@ -55,7 +60,8 @@ window.SONGS = [
     only: ['greesel', 'eli', 'lyn', 'lulu'],
     audio: 'music/refrain_penuh_harapan_revoice.ogg',
     chart: 'charts/refrain_penuh_harapan_revoice.js',
-    cover: 'images/refrain_penuh_harapan_revoice.webp'
+    cover: 'images/refrain_penuh_harapan_revoice.webp',
+    halfEnd: 103300
   },
     {
     id: 'seesaw_game_penuh_air_mata_revoice',
@@ -65,7 +71,8 @@ window.SONGS = [
     only: ['lulu', 'oniel', 'freya', 'eli'],
     audio: 'music/seesaw_game_penuh_air_mata_revoice.ogg',
     chart: 'charts/seesaw_game_penuh_air_mata_revoice.js',
-    cover: 'images/seesaw_game_penuh_air_mata_revoice.webp'
+    cover: 'images/seesaw_game_penuh_air_mata_revoice.webp',
+    halfEnd: 134000
   },
     {
     id: 'kamulah_yang_memberi_tahu_aku',
@@ -75,7 +82,8 @@ window.SONGS = [
     only: ['cynthia', 'freya', 'lyn', 'nachia'],
     audio: 'music/kamulah_yang_memberi_tahu_aku_revoice.ogg',
     chart: 'charts/kamulah_yang_memberi_tahu_aku_revoice.js',
-    cover: 'images/kamulah_yang_memberi_tahu_aku_revoice.webp'
+    cover: 'images/kamulah_yang_memberi_tahu_aku_revoice.webp',
+    halfEnd: 123000
   },
   {
     id: 'andai_ku_bukan_idola',
@@ -85,7 +93,8 @@ window.SONGS = [
   only: ['fiony', 'christy', 'olla', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'kathrina', 'marsha', 'michie', 'muthe'],
   audio: 'music/andai_ku_bukan_idola.ogg',
   chart: 'charts/andai_ku_bukan_idola.js',
-  cover: 'images/andai_ku_bukan_idola.webp'
+  cover: 'images/andai_ku_bukan_idola.webp',
+  halfEnd: 103100
   },
     {
     id: 'beginners_gamble',
@@ -95,6 +104,7 @@ window.SONGS = [
     only: ['christy', 'lia', 'fiony', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'marsha', 'michie', 'muthe', 'kathrina'],
     audio: 'music/beginners_gamble.ogg',
     chart: 'charts/beginners_gamble.js',
+    halfEnd: 113300,
     cover: 'images/pertaruhan_cinta.webp'
   },
     {
@@ -105,6 +115,7 @@ window.SONGS = [
     only: ['christy', 'lia', 'fiony', 'freya', 'gita', 'gracie', 'greesel', 'jessi', 'marsha', 'michie', 'muthe', 'kathrina'],
     audio: 'music/raja_hati.ogg',
     chart: 'charts/raja_hati.js',
+    halfEnd: 91200,
     cover: 'images/pertaruhan_cinta.webp'
   },
     {
@@ -115,6 +126,7 @@ window.SONGS = [
     slots: 2,
     audio: 'music/sahabat_atau_cinta.ogg',
     chart: 'charts/sahabat_atau_cinta.js',
+    halfEnd: 91700,
     cover: 'images/pertaruhan_cinta.webp'
   },
     {
@@ -127,6 +139,7 @@ window.SONGS = [
     fx: 'sparkler',
     audio: 'music/percik_kecil.ogg',
     chart: 'charts/percik_kecil.js',
+    halfEnd: 102000,
     cover: 'images/percik_kecil.webp'
   },
     {
@@ -136,6 +149,7 @@ window.SONGS = [
     team: null,
     audio: 'music/oh_my_pumpkin.ogg',
     chart: 'charts/oh_my_pumpkin.js',
+    halfEnd: 138000,
     cover: 'images/oh_my_pumpkin.webp'
   },
     {
@@ -147,6 +161,7 @@ window.SONGS = [
     only: ['michie', 'lia', 'lana', 'elin', 'fritzy', 'ella', 'gracie', 'greesel', 'lyn', 'christy', 'fiony', 'freya'],
     audio: 'music/go_and_fight.ogg',
     chart: 'charts/go_and_fight.js',
+    halfEnd: 89300,
     cover: 'images/go_and_fight.webp'
   },
     {
@@ -157,6 +172,7 @@ window.SONGS = [
     only: ['indah', 'olla', 'lana', 'gracie', 'erine', 'kathrina', 'greesel', 'eli', 'ella', 'delynn'],
     audio: 'music/bibir_yang_telah_dicuri.ogg',
     chart: 'charts/bibir_yang_telah_dicuri.js',
+    halfEnd: 82500,
     cover: 'images/bibir_yang_telah_dicuri.webp'
   },
     {
@@ -167,6 +183,7 @@ window.SONGS = [
     only: ['feni', 'christy', 'jessi', 'fiony', 'muthe', 'freya', 'gita', 'marsha', 'lia', 'lulu', 'oniel'],
     audio: 'music/kusangatsuka.ogg',
     chart: 'charts/kusangatsuka.js',
+    halfEnd: 104700,
     cover: 'images/bibir_yang_telah_dicuri.webp'
   },
     {
@@ -176,6 +193,7 @@ window.SONGS = [
     team: null,
     audio: 'music/laptime_masa_remaja.ogg',
     chart: 'charts/laptime_masa_remaja.js',
+    halfEnd: 98600,
     cover: 'images/laptime_masa_remaja.webp',
     volume: 1.3
   },
@@ -187,6 +205,7 @@ window.SONGS = [
     only: ['michie', 'anindya', 'elin', 'cynthia', 'danella', 'daisy', 'aralie', 'lana', 'erine', 'fritzy', 'lily', 'trisha', 'levi', 'nayla', 'nachia', 'oline', 'nala', 'ribka', 'kimmy'],
     audio: 'music/belalang_yang_membangkang.ogg',
     chart: 'charts/belalang_yang_membangkang.js',
+    halfEnd: 97800,
     cover: 'images/belalang_yang_membangkang.webp',
     volume: 1.3
   },
@@ -200,6 +219,7 @@ window.SONGS = [
     chart: 'charts/magic_hour.js',
     petalSpell: true,
     coldMist: true,
+    halfEnd: 99500,
     cover: 'images/magic_hour.webp',
     volume: 2
   },
@@ -212,6 +232,7 @@ window.SONGS = [
     guest: 'pia',
     audio: 'music/langit_biru_cinta_searah.ogg',
     chart: 'charts/langit_biru_cinta_searah.js',
+    halfEnd: 102700,
     cover: 'images/langit_biru_cinta_searah.webp',
     volume: 1.3
   },
@@ -222,6 +243,7 @@ window.SONGS = [
     team: null,
     audio: 'music/must_be_now.ogg',
     chart: 'charts/must_be_now.js',
+    halfEnd: 84300,
     cover: 'images/must_be_now.webp'
   },
     {
@@ -231,6 +253,7 @@ window.SONGS = [
     team: null,
     audio: 'music/apa_yang_sang_gadis_perbuat_di_musim_panas.ogg',
     chart: 'charts/apa_yang_sang_gadis_perbuat_di_musim_panas.js',
+    halfEnd: 109700,
     cover: 'images/must_be_now.webp'
   },
     {
@@ -241,6 +264,7 @@ window.SONGS = [
     guest: 'zee',
     audio: 'music/eureka_milik_kita.ogg',
     chart: 'charts/eureka_milik_kita.js',
+    halfEnd: 100300,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -250,6 +274,7 @@ window.SONGS = [
     team: null,
     audio: 'music/jiwaru_days.ogg',
     chart: 'charts/jiwaru_days.js',
+    halfEnd: 122600,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -259,6 +284,7 @@ window.SONGS = [
     team: null,
     audio: 'music/green_flash.ogg',
     chart: 'charts/green_flash.js',
+    halfEnd: 105400,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -268,6 +294,7 @@ window.SONGS = [
     team: null,
     audio: 'music/better.ogg',
     chart: 'charts/better.js',
+    halfEnd: 99500,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -277,6 +304,7 @@ window.SONGS = [
     team: null,
     audio: 'music/seventeen.ogg',
     chart: 'charts/seventeen.js',
+    halfEnd: 85500,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -286,6 +314,7 @@ window.SONGS = [
     team: null,
     audio: 'music/aitakatta.ogg',
     chart: 'charts/aitakatta.js',
+    halfEnd: 87800,
     cover: 'images/jiwaru_days.webp'
   },
     {
@@ -296,6 +325,7 @@ window.SONGS = [
     only: ['christy', 'feni', 'fiony', 'gita', 'eli', 'indah', 'kathrina', 'marsha', 'muthe'],
     audio: 'music/sayonara_crawl.ogg',
     chart: 'charts/sayonara_crawl.js',
+    halfEnd: 99400,
     cover: 'images/sayonara_crawl.webp'
   },
     {
@@ -306,6 +336,7 @@ window.SONGS = [
     only: ['christy', 'freya', 'ella', 'gita', 'marsha'],
     audio: 'music/kebun_binatang_saat_hujan.ogg',
     chart: 'charts/kebun_binatang_saat_hujan.js',
+    halfEnd: 75500,
     cover: 'images/kebun_binatang_saat_hujan.webp'
   },
     {
@@ -315,6 +346,7 @@ window.SONGS = [
     team: null,
     audio: 'music/ponytail_dan_shu_shu.ogg',
     chart: 'charts/ponytail_dan_shu_shu.js',
+    halfEnd: 91300,
     cover: 'images/ponytail_dan_shu_shu.webp',
     volume: 1.5
   },
@@ -326,6 +358,7 @@ window.SONGS = [
     only: ['ella', 'lia', 'lyn', 'raisha', 'greesel', 'gracie', 'anindya', 'elin', 'cynthia', 'danella', 'daisy', 'michie'],
     audio: 'music/masa_depan_yang_menyilaukan_mata.ogg',
     chart: 'charts/masa_depan_yang_menyilaukan_mata.js',
+    halfEnd: 104000,
     cover: 'images/masa_depan_yang_menyilaukan_mata.webp'
   },
     {
@@ -337,6 +370,7 @@ window.SONGS = [
     fx: 'moon',
     audio: 'music/benang_sari_putik_dan_kupu_kupu_malam.ogg',
     chart: 'charts/benang_sari_putik_dan_kupu_kupu_malam.js',
+    halfEnd: 132200,
     cover: 'images/new_era.webp'
   },
     {
@@ -346,6 +380,7 @@ window.SONGS = [
     team: null,
     audio: 'music/dialog_dengan_kenari.ogg',
     chart: 'charts/dialog_dengan_kenari.js',
+    halfEnd: 83000,
     cover: 'images/new_era.webp'
   },
     {
@@ -356,6 +391,7 @@ window.SONGS = [
     petalText: 'oaoeeee',
     audio: 'music/only_today.ogg',
     chart: 'charts/only_today.js',
+    halfEnd: 100400,
     cover: 'images/new_era.webp'
   },
     {
@@ -365,6 +401,7 @@ window.SONGS = [
     team: null,
     audio: 'music/109_marukyuu.ogg',
     chart: 'charts/109_marukyuu.js',
+    halfEnd: 119300,
     cover: 'images/new_era.webp'
   },
     {
@@ -374,6 +411,7 @@ window.SONGS = [
     team: null,
     audio: 'music/flying_high.ogg',
     chart: 'charts/flying_high.js',
+    halfEnd: 95300,
     cover: 'images/flying_high.webp'
   },
     {
@@ -384,6 +422,7 @@ window.SONGS = [
     theme: 'crimson',
     audio: 'music/cara_ceroboh_untuk_mencinta.ogg',
     chart: 'charts/cara_ceroboh_untuk_mencinta.js',
+    halfEnd: 88700,
     cover: 'images/cara_ceroboh_untuk_mencinta.webp'
   },
     {
@@ -404,6 +443,7 @@ window.SONGS = [
     theme: 'white',
     audio: 'music/balerina_dalam_sepi.ogg',
     chart: 'charts/balerina_dalam_sepi.js',
+    halfEnd: 105200,
     cover: 'images/ramune.webp'
   },
     {
@@ -414,6 +454,7 @@ window.SONGS = [
     slots: 4,
     audio: 'music/burung_unta_si_pembohong.ogg',
     chart: 'charts/burung_unta_si_pembohong.js',
+    halfEnd: 94700,
     cover: 'images/ramune.webp'
   },
     {
@@ -424,6 +465,7 @@ window.SONGS = [
     slots: 3,
     audio: 'music/finland_miracle.ogg',
     chart: 'charts/finland_miracle.js',
+    halfEnd: 102100,
     cover: 'images/ramune.webp'
   },
   {
@@ -435,6 +477,7 @@ window.SONGS = [
     theme: 'white',
     audio: 'music/rapsodi.ogg',
     chart: 'charts/rapsodi.js',
+    halfEnd: 73600,
     cover: 'images/rapsodi.webp'
   },
     {
@@ -447,6 +490,7 @@ window.SONGS = [
     guest: 'shani',
     audio: 'music/menanti.ogg',
     chart: 'charts/menanti.js',
+    halfEnd: 78400,
     cover: 'images/rapsodi.webp'
   },
     {
@@ -457,6 +501,7 @@ window.SONGS = [
     petalChoco: true,
     audio: 'music/sweet_&_bitter.ogg',
     chart: 'charts/sweet___bitter.js',
+    halfEnd: 97400,
     cover: 'images/rapsodi.webp'
   },
     {
@@ -467,6 +512,7 @@ window.SONGS = [
     slots: 3,
     audio: 'music/relax.ogg',
     chart: 'charts/relax.js',
+    halfEnd: 86900,
     cover: 'images/relax.webp'
   },
     {
@@ -478,6 +524,7 @@ window.SONGS = [
     petalFruit: true,
     audio: 'music/bukan_alpukat.ogg',
     chart: 'charts/bukan_alpukat.js',
+    halfEnd: 88100,
     cover: 'images/relax.webp'
   },
    {
@@ -488,6 +535,7 @@ window.SONGS = [
     petalNotes: true,
     audio: 'music/fajar_sang_idola.ogg',
     chart: 'charts/fajar_sang_idola.js',
+    halfEnd: 132500,
     cover: 'images/fajar_sang_idola.webp'
   },
     {
@@ -498,6 +546,7 @@ window.SONGS = [
     petalIndo: true,
     audio: 'music/bersama_sama_semuanya.ogg',
     chart: 'charts/bersama_sama_semuanya.js',
+    halfEnd: 65700,
     cover: 'images/fajar_sang_idola.webp'
   },
     {
@@ -507,6 +556,7 @@ window.SONGS = [
     team: null,
     audio: 'music/sobakasu_no_kiss.ogg',
     chart: 'charts/sobakasu_no_kiss.js',
+    halfEnd: 114400,
     cover: 'images/fajar_sang_idola.webp'
   },
     {
@@ -517,6 +567,7 @@ window.SONGS = [
     fx: 'lightning',
     audio: 'music/high_tension.ogg',
     chart: 'charts/high_tension.js',
+    halfEnd: 86300,
     cover: 'images/high_tension.webp'
   },
     {
@@ -526,6 +577,7 @@ window.SONGS = [
     team: null,
     audio: 'music/kenyataan_yang_ternoda.ogg',
     chart: 'charts/kenyataan_yang_ternoda.js',
+    halfEnd: 109200,
     cover: 'images/high_tension.webp'
   },
   {
@@ -535,6 +587,7 @@ window.SONGS = [
     team: null,
     audio: 'music/after_rain.ogg',
     chart: 'charts/after_rain.js',
+    halfEnd: 79800,
     cover: 'images/high_tension.webp'
   },
     {
@@ -544,6 +597,7 @@ window.SONGS = [
     team: null,
     audio: 'music/musim_yang_selanjutnya.ogg',
     chart: 'charts/musim_yang_selanjutnya.js',
+    halfEnd: 85800,
     cover: 'images/high_tension.webp'
   },
     {
@@ -553,6 +607,7 @@ window.SONGS = [
     team: null,
     audio: 'music/everyday_kachuusha.ogg',
     chart: 'charts/everyday_kachuusha.js',
+    halfEnd: 121600,
     cover: 'images/kachuusha.webp'
   },
     {
@@ -562,6 +617,7 @@ window.SONGS = [
     team: null,
     audio: 'music/seesaw_game_penuh_air_mata.ogg',
     chart: 'charts/seesaw_game_penuh_air_mata.js',
+    halfEnd: 99800,
     cover: 'images/kachuusha.webp'
   },
     {
@@ -571,6 +627,7 @@ window.SONGS = [
     team: null,
     audio: 'music/uza.ogg',
     chart: 'charts/uza.js',
+    halfEnd: 117100,
     cover: 'images/uza.webp'
   },
     {
@@ -580,6 +637,7 @@ window.SONGS = [
     team: null,
     audio: 'music/saka_agari.ogg',
     chart: 'charts/saka_agari.js',
+    halfEnd: 118600,
     cover: 'images/saka_agari.webp'
   },
     {
@@ -593,6 +651,7 @@ window.SONGS = [
     petalRoach: true,
     audio: 'music/balada_serangga.ogg',
     chart: 'charts/balada_serangga.js',
+    halfEnd: 90300,
     cover: 'images/saka_agari.webp'
   },
     {
@@ -602,6 +661,7 @@ window.SONGS = [
     team: null,
     audio: 'music/to_be_continued.ogg',
     chart: 'charts/to_be_continued.js',
+    halfEnd: 113200,
     cover: 'images/saka_agari.webp'
   },
     {
@@ -612,6 +672,7 @@ window.SONGS = [
     guest: 'yona',
     audio: 'music/telapak_tangan.ogg',
     chart: 'charts/telapak_tangan.js',
+    halfEnd: 103700,
     cover: 'images/saka_agari.webp'
   },
     {
@@ -622,6 +683,7 @@ window.SONGS = [
     guest: 'melody',
     audio: 'music/dirimu_melody.ogg',
     chart: 'charts/dirimu_melody.js',
+    halfEnd: 105200,
     cover: 'images/dirimu_melody.webp'
   },
     {
@@ -632,6 +694,7 @@ window.SONGS = [
     slots: 5,
     audio: 'music/cinta_pertama.ogg',
     chart: 'charts/cinta_pertama.js',
+    halfEnd: 133000,
     cover: 'images/sekarang_sedang_jatuh_cinta.webp'
   },
     {
@@ -644,6 +707,7 @@ window.SONGS = [
     petalSunflower: true,
     audio: 'music/sungai_impian.ogg',
     chart: 'charts/sungai_impian.js',
+    halfEnd: 86300,
     cover: 'images/saikou_kayo.webp',
     volume: 1.5
   },
@@ -655,6 +719,7 @@ window.SONGS = [
     audio: 'music/pesawat_kertas_365_hari.ogg',
     chart: 'charts/pesawat_kertas_365_hari.js',
     petalPlane: true,
+    halfEnd: 122300,
     cover: 'images/mahagita.webp',
     volume: 1.2
   },
@@ -666,6 +731,7 @@ window.SONGS = [
     fx: 'meteors',
     audio: 'music/persentase_meteor.ogg',
     chart: 'charts/persentase_meteor.js',
+    halfEnd: 77900,
     cover: 'images/dewi_theater.webp'
   },
     {
@@ -675,6 +741,7 @@ window.SONGS = [
     team: null,
     audio: 'music/arah_sang_cinta_dan_balasannya.ogg',
     chart: 'charts/arah_sang_cinta_dan_balasannya.js',
+    halfEnd: 102700,
     cover: 'images/sambil_menggandeng_erat_tanganku.webp'
   },
     {
@@ -684,6 +751,7 @@ window.SONGS = [
     team: null,
     audio: 'music/papan_penanda_isi_hati.ogg',
     chart: 'charts/papan_penanda_isi_hati.js',
+    halfEnd: 117300,
     cover: 'images/papan_penanda_isi_hati.webp'
   },
     {
@@ -694,6 +762,7 @@ window.SONGS = [
     petalSakura: true,
     audio: 'music/sakura_no_hanabiratachi.ogg',
     chart: 'charts/sakura_no_hanabiratachi.js',
+    halfEnd: 120400,
     cover: 'images/gingham_check.webp'
   },
     {
@@ -705,6 +774,7 @@ window.SONGS = [
     audio: 'music/dua_orang_yang_terlarang.ogg',
     chart: 'charts/dua_orang_yang_terlarang.js',
     theme: 'blackwhite',
+    halfEnd: 111300,
     cover: 'images/seishun_girls.webp'
   },
     {
@@ -714,6 +784,7 @@ window.SONGS = [
     team: null,
     audio: 'music/beach_sandal.ogg',
     chart: 'charts/beach_sandal.js',
+    halfEnd: 106800,
     cover: 'images/seishun_girls.webp'
   },
     {
@@ -723,6 +794,7 @@ window.SONGS = [
     team: null,
     audio: 'music/dont_disturb.ogg',
     chart: 'charts/dont_disturb.js',
+    halfEnd: 104000,
     cover: 'images/seishun_girls.webp'
   },
     {
@@ -732,6 +804,7 @@ window.SONGS = [
     team: null,
     audio: 'music/fortune_cookie_yang_mencinta.ogg',
     chart: 'charts/fortune_cookie_yang_mencinta.js',
+    halfEnd: 122200,
     cover: 'images/fortune_cookie_yang_mencinta.webp'
   },
     {
@@ -741,6 +814,7 @@ window.SONGS = [
     team: null,
     audio: 'music/baby_baby_baby.ogg',
     chart: 'charts/baby_baby_baby.js',
+    halfEnd: 91400,
     cover: 'images/fortune_cookie_yang_mencinta.webp'
   },
     {
@@ -750,6 +824,7 @@ window.SONGS = [
     team: null,
     audio: 'music/bingo.ogg',
     chart: 'charts/bingo.js',
+    halfEnd: 122500,
     cover: 'images/matahari_milikku.webp'
   },
     {
@@ -762,6 +837,7 @@ window.SONGS = [
     petalSunflower: true,
     audio: 'music/himawari.ogg',
     chart: 'charts/himawari.js',
+    halfEnd: 109700,
     cover: 'images/matahari_milikku.webp'
   },
     {
@@ -771,6 +847,7 @@ window.SONGS = [
     team: null,
     audio: 'music/river.ogg',
     chart: 'charts/river.js',
+    halfEnd: 116800,
     cover: 'images/river.webp'
   },
     {
@@ -780,6 +857,7 @@ window.SONGS = [
     team: null,
     audio: 'music/jejak_awan_pesawat.ogg',
     chart: 'charts/jejak_awan_pesawat.js',
+    halfEnd: 94400,
     cover: 'images/rkj.webp'
   },
     {
@@ -789,6 +867,7 @@ window.SONGS = [
     team: null,
     audio: 'music/cahaya_panjang.ogg',
     chart: 'charts/cahaya_panjang.js',
+    halfEnd: 119400,
     cover: 'images/rkj.webp'
   },
     {
@@ -799,6 +878,7 @@ window.SONGS = [
     slots: 3,
     audio: 'music/ekor_malaikat.ogg',
     chart: 'charts/ekor_malaikat.js',
+    halfEnd: 80200,
     cover: 'images/pajama_drive.webp'
   },
     {
@@ -808,6 +888,7 @@ window.SONGS = [
     team: null,
     audio: 'music/jurus_rahasia_teleport.ogg',
     chart: 'charts/jurus_rahasia_teleport.js',
+    halfEnd: 87600,
     cover: 'images/pajama_drive.webp'
   },
     {
@@ -817,6 +898,7 @@ window.SONGS = [
     team: null,
     audio: 'music/heavy_rotation.ogg',
     chart: 'charts/heavy_rotation.js',
+    halfEnd: 113500,
     cover: 'images/heavy_rotation.webp'
   },
     {

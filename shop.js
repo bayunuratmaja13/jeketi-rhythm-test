@@ -811,6 +811,7 @@
   }
   function showHud(r) {
     hideHud();
+    cheerPaused = false;
     if (!r || !r.cards.length || !window.Cards) return;
     hud = h('div', 'card-cheer' + (cheerPaused ? ' paused' : ''));
     hud.innerHTML = '<b class="cc-bonus">+' + r.bonus + '%</b>';
