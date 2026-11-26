@@ -3388,7 +3388,7 @@ window.CHART_DATA = [
     "duration": 761
   },
   {
-    "time": 314152,
+    "time": 314037,
     "lane": 2
   },
   {

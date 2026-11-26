@@ -1,17 +1,5 @@
 window.CHART_DATA = [
   {
-    "time": 701,
-    "lane": 0
-  },
-  {
-    "time": 1056,
-    "lane": 2
-  },
-  {
-    "time": 1466,
-    "lane": 1
-  },
-  {
     "time": 2671,
     "lane": 3,
     "duration": 712
@@ -56,48 +44,39 @@ window.CHART_DATA = [
   {
     "time": 13290,
     "lane": 1,
-    "duration": 1206
+    "duration": 2006
   },
   {
-    "time": 14676,
-    "lane": 0
+    "time": 14647,
+    "lane": 2
   },
   {
-    "time": 14885,
+    "time": 14840,
     "lane": 3
   },
   {
-    "time": 15116,
-    "lane": 1
+    "time": 15122,
+    "lane": 2
   },
   {
     "time": 15374,
     "lane": 3,
-    "duration": 1292
+    "duration": 2351
   },
   {
-    "time": 16835,
+    "time": 16708,
     "lane": 2
   },
   {
-    "time": 16862,
-    "lane": 0
-  },
-  {
-    "time": 17055,
+    "time": 16953,
     "lane": 1
   },
   {
-    "time": 17268,
-    "lane": 0
+    "time": 17237,
+    "lane": 2
   },
   {
-    "time": 17493,
-    "lane": 3,
-    "duration": 1370
-  },
-  {
-    "time": 19127,
+    "time": 19045,
     "lane": 2
   },
   {
@@ -587,12 +566,12 @@ window.CHART_DATA = [
     "lane": 3
   },
   {
-    "time": 63436,
-    "lane": 1
+    "time": 63406,
+    "lane": 2
   },
   {
-    "time": 63718,
-    "lane": 0
+    "time": 63704,
+    "lane": 1
   },
   {
     "time": 63983,
@@ -623,11 +602,7 @@ window.CHART_DATA = [
     "lane": 2
   },
   {
-    "time": 65588,
-    "lane": 3
-  },
-  {
-    "time": 65890,
+    "time": 65856,
     "lane": 2
   },
   {
@@ -1167,16 +1142,16 @@ window.CHART_DATA = [
     "duration": 376
   },
   {
-    "time": 106222,
+    "time": 106189,
     "lane": 2
   },
   {
-    "time": 106512,
-    "lane": 3
+    "time": 106498,
+    "lane": 2
   },
   {
     "time": 106741,
-    "lane": 0,
+    "lane": 2,
     "duration": 2029
   },
   {
@@ -1242,8 +1217,11 @@ window.CHART_DATA = [
   },
   {
     "time": 113108,
-    "lane": 3,
-    "duration": 346
+    "lane": 3
+  },
+  {
+    "time": 113258,
+    "lane": 2
   },
   {
     "time": 113454,
@@ -1278,7 +1256,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 114530,
+    "time": 114652,
     "lane": 1,
     "duration": 493
   },
@@ -1291,10 +1269,6 @@ window.CHART_DATA = [
     "time": 115776,
     "lane": 1,
     "duration": 365
-  },
-  {
-    "time": 116310,
-    "lane": 0
   },
   {
     "time": 116379,
@@ -1338,7 +1312,7 @@ window.CHART_DATA = [
     "duration": 359
   },
   {
-    "time": 121112,
+    "time": 121089,
     "lane": 2,
     "duration": 362
   },
@@ -1573,12 +1547,12 @@ window.CHART_DATA = [
     "lane": 1
   },
   {
-    "time": 144475,
+    "time": 144429,
     "lane": 2
   },
   {
-    "time": 144503,
-    "lane": 0
+    "time": 144694,
+    "lane": 1
   },
   {
     "time": 144982,
@@ -1604,16 +1578,12 @@ window.CHART_DATA = [
     "duration": 409
   },
   {
-    "time": 146587,
-    "lane": 0,
-    "duration": 171
+    "time": 146527,
+    "lane": 3,
+    "duration": 331
   },
   {
-    "time": 146867,
-    "lane": 1
-  },
-  {
-    "time": 147095,
+    "time": 147071,
     "lane": 3,
     "duration": 1501
   },
@@ -1726,7 +1696,7 @@ window.CHART_DATA = [
   {
     "time": 157725,
     "lane": 2,
-    "duration": 282
+    "duration": 368
   },
   {
     "time": 158182,
@@ -2510,15 +2480,15 @@ window.CHART_DATA = [
   {
     "time": 228016,
     "lane": 1,
-    "duration": 1479
+    "duration": 1734
   },
   {
-    "time": 229581,
+    "time": 229283,
     "lane": 2
   },
   {
-    "time": 229742,
-    "lane": 0
+    "time": 229750,
+    "lane": 2
   },
   {
     "time": 229930,
@@ -2787,6 +2757,10 @@ window.CHART_DATA = [
     "lane": 2
   },
   {
+    "time": 249817,
+    "lane": 1
+  },
+  {
     "time": 250065,
     "lane": 1,
     "duration": 403
@@ -2903,7 +2877,11 @@ window.CHART_DATA = [
   {
     "time": 258632,
     "lane": 2,
-    "duration": 567
+    "duration": 487
+  },
+  {
+    "time": 259119,
+    "lane": 0
   },
   {
     "time": 259362,
@@ -2949,7 +2927,7 @@ window.CHART_DATA = [
     "duration": 1428
   },
   {
-    "time": 263392,
+    "time": 263304,
     "lane": 0
   },
   {

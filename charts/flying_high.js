@@ -324,22 +324,19 @@ window.CHART_DATA = [
   {
     "time": 26516,
     "lane": 0,
-    "duration": 930
+    "duration": 908
   },
   {
-    "time": 27603,
+    "time": 27424,
+    "lane": 2,
+    "duration": 462
+  },
+  {
+    "time": 28003,
     "lane": 1
   },
   {
-    "time": 27823,
-    "lane": 3
-  },
-  {
-    "time": 28093,
-    "lane": 2
-  },
-  {
-    "time": 28356,
+    "time": 28294,
     "lane": 1,
     "duration": 444
   },
@@ -2271,6 +2268,10 @@ window.CHART_DATA = [
     "time": 165401,
     "lane": 2,
     "duration": 742
+  },
+  {
+    "time": 165955,
+    "lane": 1
   },
   {
     "time": 166255,
