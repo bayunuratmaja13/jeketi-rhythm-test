@@ -558,7 +558,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 42135,
+    "time": 41933,
     "lane": 2,
     "duration": 801
   },
@@ -1561,7 +1561,7 @@ window.CHART_DATA = [
     "duration": 352
   },
   {
-    "time": 119123,
+    "time": 119051,
     "lane": 1,
     "duration": 1106
   },

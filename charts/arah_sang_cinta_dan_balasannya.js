@@ -2762,7 +2762,7 @@ window.CHART_DATA = [
     "duration": 1167
   },
   {
-    "time": 201418,
+    "time": 201379,
     "lane": 2,
     "duration": 1348
   },

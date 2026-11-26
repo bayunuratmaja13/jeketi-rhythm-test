@@ -33,7 +33,7 @@ window.CHART_DATA = [
     "duration": 2911
   },
   {
-    "time": 11862,
+    "time": 11761,
     "lane": 3,
     "duration": 650
   },
@@ -68,12 +68,12 @@ window.CHART_DATA = [
     "duration": 1049
   },
   {
-    "time": 19664,
+    "time": 19568,
     "lane": 3,
     "duration": 487
   },
   {
-    "time": 20263,
+    "time": 20136,
     "lane": 1
   },
   {
@@ -89,7 +89,7 @@ window.CHART_DATA = [
   {
     "time": 22866,
     "lane": 2,
-    "duration": 327
+    "duration": 511
   },
   {
     "time": 23465,
@@ -109,7 +109,7 @@ window.CHART_DATA = [
   {
     "time": 25232,
     "lane": 3,
-    "duration": 353
+    "duration": 495
   },
   {
     "time": 25840,
@@ -124,12 +124,12 @@ window.CHART_DATA = [
   {
     "time": 27057,
     "lane": 0,
-    "duration": 488
+    "duration": 719
   },
   {
-    "time": 27891,
+    "time": 27959,
     "lane": 1,
-    "duration": 490
+    "duration": 1024
   },
   {
     "time": 29156,
@@ -422,7 +422,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 53386,
+    "time": 53437,
     "lane": 2,
     "duration": 919
   },
@@ -500,7 +500,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 61119,
+    "time": 61072,
     "lane": 1,
     "duration": 1462
   },
@@ -905,10 +905,6 @@ window.CHART_DATA = [
     "lane": 1
   },
   {
-    "time": 96522,
-    "lane": 0
-  },
-  {
     "time": 96672,
     "lane": 2
   },
@@ -1079,7 +1075,7 @@ window.CHART_DATA = [
   {
     "time": 109304,
     "lane": 2,
-    "duration": 275
+    "duration": 520
   },
   {
     "time": 109882,
@@ -1433,8 +1429,8 @@ window.CHART_DATA = [
     "lane": 2
   },
   {
-    "time": 135900,
-    "lane": 0
+    "time": 135965,
+    "lane": 2
   },
   {
     "time": 136039,
@@ -2756,25 +2752,25 @@ window.CHART_DATA = [
   {
     "time": 247902,
     "lane": 0,
-    "duration": 472
+    "duration": 428
   },
   {
-    "time": 248457,
+    "time": 248330,
     "lane": 3,
     "duration": 303
   },
   {
-    "time": 248833,
+    "time": 248754,
     "lane": 2,
     "duration": 227
   },
   {
-    "time": 249128,
+    "time": 249078,
     "lane": 1,
     "duration": 491
   },
   {
-    "time": 249713,
+    "time": 249676,
     "lane": 3,
     "duration": 249
   },
@@ -3401,14 +3397,14 @@ window.CHART_DATA = [
     "lane": 3
   },
   {
-    "time": 296369,
+    "time": 296421,
     "lane": 1,
     "duration": 1743
   },
   {
-    "time": 298318,
+    "time": 298338,
     "lane": 0,
-    "duration": 9305
+    "duration": 9125
   },
   {
     "time": 299122,
@@ -3435,7 +3431,7 @@ window.CHART_DATA = [
     "lane": 1
   },
   {
-    "time": 303077,
+    "time": 303057,
     "lane": 2,
     "duration": 306
   },
@@ -3448,17 +3444,17 @@ window.CHART_DATA = [
     "lane": 2
   },
   {
-    "time": 305105,
+    "time": 305186,
     "lane": 1,
     "duration": 306
   },
   {
-    "time": 306036,
+    "time": 306098,
     "lane": 2,
-    "duration": 1587
+    "duration": 1365
   },
   {
-    "time": 307781,
+    "time": 307749,
     "lane": 3,
     "duration": 3530
   }

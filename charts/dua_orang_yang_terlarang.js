@@ -2266,12 +2266,12 @@ window.CHART_DATA = [
     "duration": 443
   },
   {
-    "time": 199930,
+    "time": 199971,
     "lane": 0,
     "duration": 518
   },
   {
-    "time": 199930,
+    "time": 199971,
     "lane": 3,
     "duration": 518
   },
