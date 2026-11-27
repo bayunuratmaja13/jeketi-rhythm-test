@@ -1,6 +1,6 @@
 const GAME_V = new URL(self.location.href).searchParams.get('v') || '0';
 const AUDIO_VERSION = 'v2';
-const PACK_VERSION = 'p1';
+const PACK_VERSION = 'p2';
 const MEDIA = 'jeketi-media-' + GAME_V;
 const AUDIO = 'jeketi-audio-' + AUDIO_VERSION;
 const PACK = 'jeketi-pack-' + PACK_VERSION;

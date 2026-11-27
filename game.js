@@ -19,6 +19,32 @@ const backToMainBtn = document.getElementById('back-to-main-btn');
 
 const music = document.getElementById('music');
 music.preload = 'auto';
+
+// iPhone/iPad only let the game start a song by itself if the same <audio> element
+// has already been played during a tap. So play a short silent sound on the first tap.
+const SILENT_WAV = (() => {
+  const n = 800, b = new Uint8Array(44 + n), v = new DataView(b.buffer);
+  const text = (at, s) => { for (let i = 0; i < s.length; i++) b[at + i] = s.charCodeAt(i); };
+  text(0, 'RIFF'); v.setUint32(4, 36 + n, true); text(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  text(36, 'data'); v.setUint32(40, n, true); b.fill(128, 44);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+})();
+let musicUnlocked = false;
+function unlockMusic() {
+  if (musicUnlocked || music.getAttribute('src')) return;
+  const clear = () => {
+    if (music.getAttribute('src') !== SILENT_WAV) return;
+    music.pause(); music.removeAttribute('src'); music.load();
+  };
+  music.src = SILENT_WAV;
+  const p = music.play();
+  if (p && p.then) p.then(() => { musicUnlocked = true; clear(); }, clear);
+}
+['touchend', 'click', 'keydown'].forEach((type) => document.addEventListener(type, unlockMusic, true));
+// Keep sound on when the iPhone is in silent mode.
+try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
 const scoreEl = document.getElementById('score');
 const comboEl = document.getElementById('combo');
 const judgementEl = document.getElementById('judgement');
@@ -1513,7 +1539,7 @@ function ensureAudio() {
       Object.defineProperty(audioCtx, 'destination', { value: bus, configurable: true });
     } catch (e) {  }
   }
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  if (audioCtx.state !== 'running' && audioCtx.state !== 'closed') audioCtx.resume().catch(() => {});
 }
 
 const noiseCache = new Map();

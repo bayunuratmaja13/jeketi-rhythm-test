@@ -22,63 +22,97 @@
 <body>
 <script>
 (function () {
-  var coarse = matchMedia('(pointer: coarse)').matches;
-  if (!coarse) { location.replace('game.html' + location.search + location.hash); return; }
-
-  if ('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)) {
-    addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=' + (window.GAME_VERSION || 0)).catch(function () {}); });
-  }
-
-  var VW = 1536, VH = 776;
-  var debug = /[?&]debug/.test(location.search);
-  var f = document.createElement('iframe');
-  f.id = 'g';
-  f.setAttribute('allow', 'autoplay; fullscreen; screen-wake-lock');
-  f.setAttribute('allowfullscreen', '');
-  f.src = 'game.html?v=' + Date.now() + location.search.replace('?','&') + location.hash;
-  document.body.appendChild(f);
-  var dbg;
-  if (debug) { dbg = document.createElement('div'); dbg.id = 'dbg'; document.body.appendChild(dbg); }
-
-  var playing = false;
-  var PW = 1000;
-  var lastKey = '';
-  function fit() {
-    var w = window.innerWidth, h = window.innerHeight;
-    var key = w + 'x' + h + (playing ? 'P' : 'M');
-    if (key === lastKey) return;
-    lastKey = key;
-    if (w > h && playing) {
-      f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
-    } else if (w > h && (w < VW || h < VH)) {
-      var s = Math.min(w / VW, h / VH);
-      f.style.width = VW + 'px';
-      f.style.height = VH + 'px';
-      f.style.transform = 'translate(' + ((w - VW * s) / 2) + 'px,' + ((h - VH * s) / 2) + 'px) scale(' + s + ')';
-    } else {
-      f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
+  // Ask the server for the newest version number, skipping every browser cache.
+  // If that fails (offline or very slow), use the one loaded by <script src="version.js">.
+  function getVersion(done) {
+    var finished = false;
+    var timer = setTimeout(function () { finish(); }, 3000);
+    function finish(v) {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (v) window.GAME_VERSION = v;
+      done(window.GAME_VERSION || 0);
     }
-    if (dbg) dbg.textContent = (playing ? 'PLAY ' : 'MENU ') + w + 'x' + h + '  frame ' + f.style.width + ' x ' + f.style.height + '  dpr ' + devicePixelRatio;
+    if (location.protocol === 'file:' || !window.fetch) { finish(); return; }
+    fetch('version.js?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (text) {
+        var m = /GAME_VERSION\s*=\s*(\d+)/.exec(text);
+        finish(m && Number(m[1]));
+      })
+      .catch(function () { finish(); });
   }
-  fit();
-  function refit() { fit(); [100, 300, 700, 1500].forEach(function (t) { setTimeout(fit, t); }); }
-  addEventListener('resize', refit);
-  addEventListener('orientationchange', refit);
-  document.addEventListener('fullscreenchange', refit);
-  document.addEventListener('webkitfullscreenchange', refit);
-  if (window.visualViewport) visualViewport.addEventListener('resize', refit);
-  if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', refit);
-  setInterval(fit, 600);
 
-  addEventListener('message', function (e) {
-    if (e.data && e.data.jeketi === 'play') { playing = !!e.data.on; fit(); return; }
-    if (!e.data || e.data.jeketi !== 'fullscreen') return;
-    var el = document.documentElement;
-    try {
-      var p = el.requestFullscreen ? el.requestFullscreen() : (el.webkitRequestFullscreen && el.webkitRequestFullscreen());
-      if (p && p.catch) p.catch(function () {});
-    } catch (err) {}
-  });
+  getVersion(start);
+
+  function start(version) {
+    var coarse = matchMedia('(pointer: coarse)').matches;
+    if (!coarse) {
+      var q = location.search.replace(/([?&])v=[^&]*&?/g, '$1').replace(/[?&]$/, '');
+      location.replace('game.html' + q + (q ? '&' : '?') + 'v=' + version + location.hash);
+      return;
+    }
+
+    if ('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)) {
+      var registerSW = function () {
+        navigator.serviceWorker.register('sw.js?v=' + version, { updateViaCache: 'none' }).catch(function () {});
+      };
+      if (document.readyState === 'complete') registerSW();
+      else addEventListener('load', registerSW);
+    }
+
+    var VW = 1536, VH = 776;
+    var debug = /[?&]debug/.test(location.search);
+    var f = document.createElement('iframe');
+    f.id = 'g';
+    f.setAttribute('allow', 'autoplay; fullscreen; screen-wake-lock');
+    f.setAttribute('allowfullscreen', '');
+    f.src = 'game.html?v=' + Date.now() + location.search.replace('?','&') + location.hash;
+    document.body.appendChild(f);
+    var dbg;
+    if (debug) { dbg = document.createElement('div'); dbg.id = 'dbg'; document.body.appendChild(dbg); }
+
+    var playing = false;
+    var PW = 1000;
+    var lastKey = '';
+    function fit() {
+      var w = window.innerWidth, h = window.innerHeight;
+      var key = w + 'x' + h + (playing ? 'P' : 'M');
+      if (key === lastKey) return;
+      lastKey = key;
+      if (w > h && playing) {
+        f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
+      } else if (w > h && (w < VW || h < VH)) {
+        var s = Math.min(w / VW, h / VH);
+        f.style.width = VW + 'px';
+        f.style.height = VH + 'px';
+        f.style.transform = 'translate(' + ((w - VW * s) / 2) + 'px,' + ((h - VH * s) / 2) + 'px) scale(' + s + ')';
+      } else {
+        f.style.width = '100%'; f.style.height = '100%'; f.style.transform = 'none';
+      }
+      if (dbg) dbg.textContent = (playing ? 'PLAY ' : 'MENU ') + w + 'x' + h + '  frame ' + f.style.width + ' x ' + f.style.height + '  dpr ' + devicePixelRatio;
+    }
+    fit();
+    function refit() { fit(); [100, 300, 700, 1500].forEach(function (t) { setTimeout(fit, t); }); }
+    addEventListener('resize', refit);
+    addEventListener('orientationchange', refit);
+    document.addEventListener('fullscreenchange', refit);
+    document.addEventListener('webkitfullscreenchange', refit);
+    if (window.visualViewport) visualViewport.addEventListener('resize', refit);
+    if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', refit);
+    setInterval(fit, 600);
+
+    addEventListener('message', function (e) {
+      if (e.data && e.data.jeketi === 'play') { playing = !!e.data.on; fit(); return; }
+      if (!e.data || e.data.jeketi !== 'fullscreen') return;
+      var el = document.documentElement;
+      try {
+        var p = el.requestFullscreen ? el.requestFullscreen() : (el.webkitRequestFullscreen && el.webkitRequestFullscreen());
+        if (p && p.catch) p.catch(function () {});
+      } catch (err) {}
+    });
+  } // end of start()
 })();
 </script>
 <noscript><meta http-equiv="refresh" content="0; url=game.html"></noscript>
