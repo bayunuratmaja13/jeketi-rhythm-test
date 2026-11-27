@@ -384,7 +384,9 @@ body.center-picking .sq-cell.sel, body.center-picking .sq-cell.sel:hover {
 body.low-fx #beat-pulse { display: none; }
 body.low-fx .cc-bob, body.low-fx .cc-aura, body.low-fx .cc-spark { animation: none !important; }
 
-.tcard.secret { filter: grayscale(.9) brightness(.6); }
+.tcard.secret { --metal: linear-gradient(135deg, #5c5c64, #8c8c94 50%, #5c5c64); --ltr: linear-gradient(180deg, #d8d8dc, #9a9aa2); --ol: #222226; --lg: rgba(0, 0, 0, 0); --inner: rgba(255, 255, 255, .12); --gc: transparent; --rim: transparent; }
+.tcard.secret .tc-face { animation: none; }
 .tcard.secret .tc-glow, .tcard.secret .tc-sheen, .tcard.secret .tc-sweep, .tcard.secret .tc-foil { display: none; }
-.tcard.secret .tc-front .tc-lock { display: flex; }
 .tcard.secret .tc-front .tc-art { background: #4a4a52; }
+.tcard.secret .tc-front .tc-lock { display: flex; background: rgba(8, 4, 14, .35); color: #c9c9cf; }
+.tcard.secret .tc-lock svg { filter: none; }
