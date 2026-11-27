@@ -383,3 +383,8 @@ body.center-picking .sq-cell.sel, body.center-picking .sq-cell.sel:hover {
 
 body.low-fx #beat-pulse { display: none; }
 body.low-fx .cc-bob, body.low-fx .cc-aura, body.low-fx .cc-spark { animation: none !important; }
+
+.tcard.secret { filter: grayscale(.9) brightness(.6); }
+.tcard.secret .tc-glow, .tcard.secret .tc-sheen, .tcard.secret .tc-sweep, .tcard.secret .tc-foil { display: none; }
+.tcard.secret .tc-front .tc-lock { display: flex; }
+.tcard.secret .tc-front .tc-art { background: #4a4a52; }

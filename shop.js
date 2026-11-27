@@ -76,8 +76,10 @@
     haruka: { id: 'haruka', name: 'Haruka', team: 'Special', color: '#ff6ad5', front: 'images/cards/haruka.webp', back: 'images/cards/love_back.webp', guest: true },
     vienny: { id: 'vienny', name: 'Vienny', team: 'Special', color: '#ff6ad5', front: 'images/cards/vienny.webp', back: 'images/cards/love_back.webp', guest: true },
     djtaz: { id: 'djtaz', name: 'DJ Taz', team: 'Special', color: '#ff6ad5', front: 'images/cards/djtaz.webp', back: 'images/cards/love_back.webp', guest: true },
+    mystery: { id: 'mystery', name: '???', label: '???', team: 'Special', color: '#ff6ad5', front: '', back: 'images/cards/love_back.webp', guest: true, secret: true },
   };
   const GUEST_BONUS = 25;
+  const SECRET_LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg>';
   GUESTS.melody.bonus = 48;
   const guestBonus = (id) => (GUESTS[id] ? (GUESTS[id].bonus != null ? GUESTS[id].bonus : GUEST_BONUS) : 0);
   const guestLabel = (id) => (GUESTS[id] ? (GUESTS[id].label || GUEST_LABEL) : '');
@@ -87,6 +89,13 @@
   function mkCard(id, ti) {
     const m = member(id), el = C().makeCard(m, C().TIERS[ti], true);
     if (m.guest) { const b = el.querySelector('.tc-badge'); if (b) { const lb = m.label || GUEST_LABEL; b.textContent = lb; b.dataset.t = lb; } }
+    if (m.secret) {
+      el.classList.add('secret');
+      el.querySelectorAll('.sp').forEach(x => x.remove());
+      el.querySelectorAll('.tc-front img').forEach(x => x.remove());
+      const art = el.querySelector('.tc-front .tc-art');
+      if (art) art.insertAdjacentHTML('beforeend', '<div class="tc-lock">' + SECRET_LOCK + '</div>');
+    }
     return el;
   }
   function songGuests(song) {
@@ -661,7 +670,7 @@
       sub.innerHTML = 'Tap one of your equipped cards below.<br>A higher tier card gives a bigger <b>CENTER</b> bonus.';
     } else {
       const ti = bestT(cpick.sel), t = C().TIERS && C().TIERS[ti], isG = !!GUESTS[cpick.sel];
-      const pct = isG ? guestBonus(cpick.sel) : centerBonusFor(ti), lab = isG ? guestLabel(cpick.sel) : (t ? t.id : '');
+      const pct = isG ? (GUESTS[cpick.sel].secret ? '???' : guestBonus(cpick.sel)) : centerBonusFor(ti), lab = isG ? guestLabel(cpick.sel) : (t ? t.id : '');
       title.textContent = 'PICK ' + String(member(cpick.sel).name || '').toUpperCase() + ' AS CENTER?';
       sub.innerHTML = '<b>CENTER</b> bonus <b>+' + pct + '%</b>' + (lab ? ' <small>(' + esc(lab) + ' card)</small>' : '');
     }

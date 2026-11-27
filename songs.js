@@ -855,6 +855,7 @@ window.SONGS = [
     title: 'Jejak Awan Pesawat',
     artist: 'JKT48',
     team: null,
+    guest: 'mystery',
     audio: 'music/jejak_awan_pesawat.ogg',
     chart: 'charts/jejak_awan_pesawat.js',
     halfEnd: 94400,

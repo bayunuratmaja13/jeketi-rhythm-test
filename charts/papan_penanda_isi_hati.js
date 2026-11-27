@@ -499,12 +499,12 @@ window.CHART_DATA = [
     "lane": 1
   },
   {
-    "time": 45399,
+    "time": 45522,
     "lane": 0,
     "duration": 908
   },
   {
-    "time": 46709,
+    "time": 46580,
     "lane": 3,
     "duration": 908
   },
@@ -514,7 +514,7 @@ window.CHART_DATA = [
     "duration": 952
   },
   {
-    "time": 49150,
+    "time": 49009,
     "lane": 1,
     "duration": 510
   },
@@ -1671,48 +1671,19 @@ window.CHART_DATA = [
     "duration": 473
   },
   {
-    "time": 139241,
+    "time": 139139,
     "lane": 1,
     "duration": 390
   },
   {
-    "time": 139799,
+    "time": 139551,
     "lane": 3,
     "duration": 191
   },
   {
-    "time": 140139,
-    "lane": 2
-  },
-  {
-    "time": 140432,
+    "time": 139810,
     "lane": 1,
-    "duration": 169
-  },
-  {
-    "time": 140740,
-    "lane": 0
-  },
-  {
-    "time": 141017,
-    "lane": 3,
-    "duration": 156
-  },
-  {
-    "time": 141344,
-    "lane": 0
-  },
-  {
-    "time": 141657,
-    "lane": 2
-  },
-  {
-    "time": 141968,
-    "lane": 1
-  },
-  {
-    "time": 142256,
-    "lane": 2
+    "duration": 2360
   },
   {
     "time": 142571,
@@ -2005,12 +1976,12 @@ window.CHART_DATA = [
     "duration": 484
   },
   {
-    "time": 163076,
+    "time": 163019,
     "lane": 1,
     "duration": 219
   },
   {
-    "time": 163295,
+    "time": 163267,
     "lane": 2,
     "duration": 154
   },
@@ -2663,17 +2634,17 @@ window.CHART_DATA = [
     "duration": 525
   },
   {
-    "time": 212678,
+    "time": 212598,
     "lane": 1,
     "duration": 452
   },
   {
-    "time": 213271,
+    "time": 213241,
     "lane": 0,
     "duration": 733
   },
   {
-    "time": 213271,
+    "time": 213241,
     "lane": 2,
     "duration": 733
   },
@@ -2790,7 +2761,7 @@ window.CHART_DATA = [
     "duration": 780
   },
   {
-    "time": 225575,
+    "time": 225515,
     "lane": 2,
     "duration": 177
   },
@@ -2871,16 +2842,16 @@ window.CHART_DATA = [
     "duration": 841
   },
   {
-    "time": 234053,
+    "time": 233942,
     "lane": 2
   },
   {
-    "time": 235183,
+    "time": 235169,
     "lane": 1,
     "duration": 875
   },
   {
-    "time": 236428,
+    "time": 236374,
     "lane": 2,
     "duration": 1081
   }
