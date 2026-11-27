@@ -61,6 +61,7 @@
   }
   const ownedCount = (m) => TIERS.filter(t => entry(m, t)).length;
   const hasFresh = (m) => TIERS.some(t => { const e = store[keyOf(m, t)]; return !!(e && e.fresh); });
+  const canCombineMember = (m) => TIERS.some((t, i) => canCombine(m.id, i));
 
   const $ = (id) => document.getElementById(id);
   const screen = $('cards-screen'), tabsEl = $('cards-tabs'), rowEl = $('cards-row');
@@ -119,7 +120,7 @@
       const n = list.reduce((s, m) => s + ownedCount(m), 0), tot = list.length * TIERS.length;
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'cards-tab' + (T.id === cur.team ? ' on' : '') + (n === tot ? ' complete' : '') + (list.some(hasFresh) ? ' has-new' : '');
+      b.className = 'cards-tab' + (T.id === cur.team ? ' on' : '') + (n === tot ? ' complete' : '') + (list.some(hasFresh) ? ' has-new' : '') + (list.some(canCombineMember) ? ' can-combine' : '');
       b.style.setProperty('--tc', T.color);
       b.innerHTML = `<span>Team ${T.id}</span><small>${n}/${tot}</small>`;
       b.addEventListener('click', () => { if (cur.team === T.id) return; tab = list[0].id; renderTabs(); renderRow(true); });
@@ -130,7 +131,7 @@
       const n = ownedCount(m);
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'cards-chip' + (m.id === tab ? ' on' : '') + (n === TIERS.length ? ' complete' : '') + (hasFresh(m) ? ' has-new' : '');
+      b.className = 'cards-chip' + (m.id === tab ? ' on' : '') + (n === TIERS.length ? ' complete' : '') + (hasFresh(m) ? ' has-new' : '') + (canCombineMember(m) ? ' can-combine' : '');
       b.style.setProperty('--tc', m.color);
       b.innerHTML = `${m.name}<small>${n}/${TIERS.length}</small>`;
       b.addEventListener('click', () => { if (tab === m.id) return; tab = m.id; renderTabs(); renderRow(true); });
@@ -157,6 +158,9 @@
       slot.insertAdjacentHTML('beforeend', `<div class="cap">${e || isSeen(m, t) ? t.name : 'Locked'}</div>`);
       rowEl.appendChild(slot);
     });
+    let cleared = false;
+    TIERS.forEach(t => { const e = store[keyOf(m, t)]; if (e && e.fresh) { e.fresh = false; cleared = true; } });
+    if (cleared) { persist(); refreshBadge(); renderTabs(); }
     if (deal) { void rowEl.offsetWidth; rowEl.classList.add('deal'); }
   }
 
@@ -169,7 +173,9 @@
   function renderAll(deal) { renderTabs(); renderRow(deal); renderProgress(); }
 
   function refreshBadge() {
-    if (openBtn) openBtn.classList.toggle('has-new', Object.values(store).some(e => e && e.fresh));
+    if (!openBtn) return;
+    openBtn.classList.toggle('has-new', Object.values(store).some(e => e && e.fresh));
+    openBtn.classList.toggle('can-combine', canCombineAny());
   }
 
   let toastTimer = 0;

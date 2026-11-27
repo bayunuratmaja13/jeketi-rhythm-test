@@ -19,7 +19,8 @@
   box-shadow: 0 4px 0 rgba(180, 40, 100, 1);
 }
 #my-cards-btn .btn-fallback { font-size: 17.6px; padding: 8px 13px; border-radius: 8px; box-shadow: 0 3px 0 rgba(180, 40, 100, 1); }
-#my-cards-btn.has-new::after {
+#my-cards-btn.has-new::after,
+#my-cards-btn.can-combine::after {
   content: '';
   position: absolute;
   top: 0; right: 0;
@@ -29,6 +30,11 @@
   border: 3px solid #fff;
   box-shadow: 0 0 10px rgba(255, 61, 113, .8);
   animation: dot-pop 1.1s ease-in-out infinite;
+}
+#my-cards-btn.can-combine::after {
+  pointer-events: none;
+  background: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, .85);
 }
 @keyframes dot-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
 
@@ -423,7 +429,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tcard *, .tcard::before, .tc-new, #my-cards-btn.has-new::after, .deal .slot { animation: none !important; }
+  .tcard *, .tcard::before, .tc-new, #my-cards-btn.has-new::after, #my-cards-btn.can-combine::after, .cards-tab::after, .cards-chip::after, .deal .slot { animation: none !important; }
   .tc-inner { transition-duration: .01s; }
 }
 
@@ -511,8 +517,9 @@
   .points-earned b { font-size: 18px; }
   .points-earned { margin-top: 4px; }
 }
-.cards-tab.has-new, .cards-chip.has-new { position: relative; }
-.cards-tab.has-new::after, .cards-chip.has-new::after {
+.cards-tab.has-new, .cards-chip.has-new, .cards-tab.can-combine, .cards-chip.can-combine { position: relative; }
+.cards-tab.has-new::after, .cards-chip.has-new::after,
+.cards-tab.can-combine::after, .cards-chip.can-combine::after {
   content: '';
   position: absolute;
   top: 3px; right: 3px;
@@ -523,6 +530,11 @@
   box-shadow: 0 0 8px rgba(255, 61, 113, .85);
   pointer-events: none;
   animation: dot-pop 1.1s ease-in-out infinite;
+}
+/* green = cards ready to combine (overrides red NEW dot) */
+.cards-tab.can-combine::after, .cards-chip.can-combine::after {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, .85);
 }
 
 .tcard.ghost { filter: grayscale(1) brightness(.5) contrast(.9); opacity: .8; cursor: pointer; }
