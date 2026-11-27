@@ -149,7 +149,7 @@ const goCoverEl = document.getElementById('go-cover');
 const btnGoPlayAgain = document.getElementById('btn-go-play-again');
 const btnGoBack = document.getElementById('btn-go-back');
 
-const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 5;
+const SPEED_MIN = 0, SPEED_MAX = 10, SPEED_STEP = 0.5, SPEED_DEFAULT = 4;
 const SPEED_RESET_VER = 1;
 const GFX_RESET_VER = 1;
 const GFX_DEFAULT = true;
