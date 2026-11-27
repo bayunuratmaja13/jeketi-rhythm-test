@@ -161,6 +161,8 @@
 .dy-plus { align-self: flex-start; padding: 1px 10px; border: 2px solid var(--red); border-radius: 3px; background: var(--yellow); color: var(--red);
   font: clamp(13px, 3.4dvh, 18px)/1.5 var(--font-ui); letter-spacing: .06em; font-style: normal; transform: rotate(-3deg); }
 
+.dy-plus.used { border-color: #8c867b; background: #e4dfd3; color: #6d675d; }
+
 .dy-mlist { flex: 1 1 auto; display: flex; flex-direction: column; gap: clamp(7px, 1.6dvh, 11px); }
 .dy-m {
   flex: 1 1 auto; display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #fff; color: #3a2140;

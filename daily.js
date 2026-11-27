@@ -5,6 +5,7 @@
   const MISSION_REWARD = { easy: 40, med: 80, hard: 120 };
   const ALL_BONUS = 100;
   const FEATURED_MULT = 1.5;
+  const FEATURED_LIMIT = 3; // bonus plays per day
   const RANK = { C: 1, B: 2, A: 3, S: 4, SS: 5 };
 
   const DAYS = [
@@ -71,7 +72,7 @@
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
-  const fresh = () => ({ v: 1, day: 0, last: '', total: 0, m: { date: '', bonus: 0, list: [] } });
+  const fresh = () => ({ v: 1, day: 0, last: '', total: 0, m: { date: '', bonus: 0, list: [] }, fb: { date: '', used: 0 } });
   function load() {
     try {
       const o = JSON.parse(localStorage.getItem(KEY));
@@ -84,7 +85,11 @@
 
   const songs = () => (Array.isArray(window.SONGS) ? window.SONGS : []);
   function featuredSong() { const s = songs(); return s.length ? s[dayNum() % s.length] : null; }
-  const isFeatured = (id) => { const f = featuredSong(); return !!f && id != null && f.id === id; };
+  const isTodaysSong = (id) => { const f = featuredSong(); return !!f && id != null && f.id === id; };
+  const bonusUsed = () => (S.fb && S.fb.date === dateKey() ? Number(S.fb.used) || 0 : 0);
+  const bonusLeft = () => Math.max(0, FEATURED_LIMIT - bonusUsed());
+  // true only while this song still gives the bonus today
+  const isFeatured = (id) => isTodaysSong(id) && bonusLeft() > 0;
 
   function ensureToday() {
     const t = dateKey();
@@ -106,10 +111,12 @@
         case 'combo': it.p = Math.max(it.p, info.maxCombo || 0); break;
         case 'grade': if ((RANK[info.grade] || 0) >= d.arg) it.p += 1; break;
         case 'fc': if (info.fullCombo) it.p += 1; break;
-        case 'featured': if (isFeatured(info.songId)) it.p += 1; break;
+        case 'featured': if (isTodaysSong(info.songId)) it.p += 1; break;
       }
       it.p = Math.min(it.p, d.target);
     });
+    // the game asks isFeatured() before calling onRun(), so count this play now
+    if (isFeatured(info.songId)) S.fb = { date: dateKey(), used: bonusUsed() + 1 };
     save(); refreshDot(); if (isOpen()) render();
   }
   const allClaimed = () => S.m.list.length === 3 && S.m.list.every(it => it.c);
@@ -165,7 +172,16 @@
     return canCheckIn() || S.m.list.some(it => !it.c && DEF[it.id] && it.p >= DEF[it.id].target) || (allClaimed() && !S.m.bonus);
   }
   const btn = document.getElementById('daily-btn');
-  function refreshDot() { if (btn) btn.classList.toggle('has-new', hasNew()); }
+  function refreshDot() { if (btn) btn.classList.toggle('has-new', hasNew()); refreshBadges(); }
+  // keep the badge on the song cards in step with the plays left
+  function refreshBadges() {
+    document.querySelectorAll('#song-grid .song-card').forEach(card => {
+      let badge = card.querySelector('.daily-badge');
+      if (!isFeatured(card.dataset.songId)) { if (badge) badge.remove(); return; }
+      if (!badge) { badge = document.createElement('div'); badge.className = 'daily-badge'; card.prepend(badge); }
+      badge.textContent = '★ DAILY +50%';
+    });
+  }
 
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const screen = document.createElement('div');
@@ -202,7 +218,7 @@
     DAYS.forEach((r, k) => { const i = k + 1; days += tileHTML(i, r, i <= claimed ? 'done' : (can && i === nd ? 'today' : '')); });
     const f = featuredSong();
     const feat = f ? '<div class="dy-feat"><div class="dy-feat-c"><span>♪</span>' + (f.cover ? '<img src="' + esc(f.cover) + '" alt="" onerror="this.remove()">' : '') + '</div>' +
-      '<div class="dy-feat-t"><small>★ TODAY\'S FEATURED SONG</small><b>' + esc(f.title || f.id) + '</b><em class="dy-plus">+50% POINTS</em></div>' +
+      '<div class="dy-feat-t"><small>★ TODAY\'S FEATURED SONG</small><b>' + esc(f.title || f.id) + '</b><em class="dy-plus' + (bonusLeft() ? '' : ' used') + '">' + (bonusLeft() ? '+50% POINTS · ' + bonusLeft() + ' / ' + FEATURED_LIMIT + ' LEFT' : 'BONUS USED UP TODAY') + '</em></div>' +
       '<button class="dy-go" type="button" data-id="' + esc(f.id) + '">GO ▶</button></div>' : '';
     let ml = '';
     S.m.list.forEach((it, i) => {
@@ -304,7 +320,7 @@
 
   window.Daily = {
     isFeatured, featuredSong, featuredId: () => { const f = featuredSong(); return f ? f.id : null; },
-    FEATURED_MULT, onRun, show, hide, refresh: refreshDot,
+    FEATURED_MULT, FEATURED_LIMIT, bonusLeft, onRun, show, hide, refresh: refreshDot,
     debugNextDay() { dayOffset++; ensureToday(); refreshDot(); if (isOpen()) render(); return dateKey(); },
     reset() { S = fresh(); dayOffset = 0; save(); ensureToday(); refreshDot(); if (isOpen()) render(); },
   };
