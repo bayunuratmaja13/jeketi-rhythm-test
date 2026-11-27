@@ -5,7 +5,7 @@
   right: max(12px, calc(env(safe-area-inset-right, 0px) + 8px));
   z-index: 10;
 }
-#my-cards-btn .btn-gif { height: clamp(37px, 8vh, 67px); width: auto; }
+#my-cards-btn .btn-gif { height: clamp(56px, 12vh, 100px); width: auto; }
 #my-cards-btn .btn-fallback,
 .cards-title-text {
   font-family: 'Fredoka', var(--font-game), sans-serif;

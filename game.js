@@ -35,6 +35,10 @@ const screenFlash = mk('div', 'screen-flash');
 const missFlash = mk('div', 'miss-flash');
 const tierGlow = mk('div', 'tier-glow');
 const beatPulse = mk('div', 'beat-pulse');
+const BEAT_PULSE = false;
+const SCREEN_FLASH = false;
+if (!BEAT_PULSE) beatPulse.style.display = 'none';
+if (!SCREEN_FLASH) screenFlash.style.display = 'none';
 
 comboEl.innerHTML = '<span class="combo-num"></span><span class="combo-label">COMBO</span>';
 comboEl.className = 'off';
@@ -240,6 +244,7 @@ APPROACH_TIME = approachFor(OPT.speed);
 function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(Object.assign({ speedScale: SPEED_SCALE, speedReset: SPEED_RESET_VER, gfxReset: GFX_RESET_VER }, OPT))); } catch (e) {  } }
 
 const LITE_DPR = 0.75;
+const FLAT_HOLD = true;
 function fxLite() { return qRung >= 3; }
 function fxLight() { return !OPT.gfx || qRung >= 2; }
 function fxMid() { return !OPT.gfx || qRung >= 2; }
@@ -1528,6 +1533,24 @@ function getNoiseBuffer(seconds, decay) {
 }
 
 const HIT_VOLUME = 0;
+function getHiNoiseBuffer(seconds, decay, hz) {
+  const key = 'hp|' + seconds + '|' + decay + '|' + hz;
+  let buf = noiseCache.get(key);
+  if (buf && buf.sampleRate === audioCtx.sampleRate) return buf;
+  const src = getNoiseBuffer(seconds, decay).getChannelData(0), sr = audioCtx.sampleRate;
+  buf = audioCtx.createBuffer(1, src.length, sr);
+  const out = buf.getChannelData(0);
+  const w0 = 2 * Math.PI * hz / sr, cs = Math.cos(w0), al = Math.sin(w0) / (2 * Math.pow(10, 1 / 20));
+  const a0 = 1 + al, b0 = (1 + cs) / 2 / a0, b1 = -(1 + cs) / a0, a1 = -2 * cs / a0, a2 = (1 - al) / a0;
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < src.length; i++) {
+    const x = src[i], y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+    out[i] = y; x2 = x1; x1 = x; y2 = y1; y1 = y;
+  }
+  noiseCache.set(key, buf);
+  return buf;
+}
+
 function playHitSound(judgement, comboValue) {
   if (HIT_VOLUME <= 0) return;
   ensureAudio();
@@ -1565,14 +1588,11 @@ function playHitSound(judgement, comboValue) {
   osc.stop(now + 0.055);
 
   const noise = audioCtx.createBufferSource();
-  noise.buffer = getNoiseBuffer(0.02, 0.1);
+  noise.buffer = getHiNoiseBuffer(0.02, 0.1, 3000);
   const noiseGain = audioCtx.createGain();
   noiseGain.gain.setValueAtTime(0.06 * HIT_VOLUME, now);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'highpass';
-  filter.frequency.value = 3000;
-  noise.connect(filter).connect(noiseGain).connect(audioCtx.destination);
+  noise.connect(noiseGain).connect(audioCtx.destination);
   noise.start(now);
 }
 
@@ -2051,8 +2071,8 @@ function layoutField() {
   const W = playfieldEl.clientWidth, H = playfieldEl.clientHeight;
   if (!W || !H) return;
   const F = FIELD;
-  const dprCap = qLowRes ? LITE_DPR : OPT.gfx ? (COARSE ? 1.5 : 2) : 1;
-  const pxCap = qLowRes ? 0.55e6 : OPT.gfx ? (COARSE ? 1.0e6 : 1.2e6) : 1.0e6, dprMin = qLowRes ? 0.5 : 1;
+  const dprCap = qLowRes ? LITE_DPR : OPT.gfx ? (COARSE ? 1.25 : 1.5) : 1;
+  const pxCap = qLowRes ? 0.55e6 : OPT.gfx ? (COARSE ? 0.8e6 : 1.0e6) : 1.0e6, dprMin = qLowRes ? 0.5 : 1;
   let dpr = Math.min(window.devicePixelRatio || 1, dprCap);
   while (W * H * dpr * dpr > pxCap && dpr > dprMin) dpr = Math.max(dprMin, dpr - 0.25);
   layoutVer++;
@@ -2275,7 +2295,7 @@ function drawField(now, dt) {
         if (yH > yT) {
           const cxH = laneX(n.lane, sH), cxT = laneX(n.lane, sT);
           const bwH = F.noteW * 0.78 * sH, bwT = F.noteW * 0.78 * sT;
-          if (fxLight()) {
+          if (FLAT_HOLD || fxLight()) {
             c.fillStyle = n.holding ? colr.h2 : colr.h1;
             holdPath(c, cxT, bwT, yT, cxH, bwH, yH); c.fill();
           } else {
@@ -2439,6 +2459,7 @@ function beamHit(laneIndex, judgementName) {
 function setLanePressed(laneIndex, pressed) { lanePressedState[laneIndex] = pressed; }
 
 function triggerScreenFlash() {
+  if (!SCREEN_FLASH) return;
   screenFlash.classList.add('active');
   setTimeout(() => screenFlash.classList.remove('active'), 80);
 }
@@ -2452,10 +2473,11 @@ function triggerMissFlash(kind) {
 let shakeAnim = null;
 function shakeScreen(intensity) {
   if (fxMid() || PHONE_FX) return;
+  if (mode === 'playing' || mode === 'countdown') return;
   const s = Math.min(SHAKE_MAX, intensity * SHAKE_SCALE);
   if (s < 0.2) return;
   if (shakeAnim) shakeAnim.cancel();
-  const shakeTarget = (mode === 'playing' || mode === 'countdown') ? playfieldEl : game;
+  const shakeTarget = game;
   shakeAnim = shakeTarget.animate([
     { transform: 'translate3d(0, 0, 0)' },
     { transform: `translate3d(${-s}px, ${0.6 * s}px, 0)`, offset: 0.25 },
@@ -2479,6 +2501,7 @@ const petals = (() => {
   }
   let mixPal = false;
   const TARGETS = COARSE ? [4, 6, 9, 12, 16] : [8, 14, 22, 32, 44];
+  const PETAL_SCALE = 0.7;
   const sprites = [];
   const list = [];
   let w = 0, h = 0, dpr = 1, tier = 0, quality = 0.3, dirty = false;
@@ -2897,7 +2920,7 @@ const petals = (() => {
   function updateSpell(dt, t) {
     tier = t;
     const sec = Math.min(dt, 100) / 1000;
-    const want = reduceMotion ? 0 : Math.round(SPELL_N[tier] * quality);
+    const want = reduceMotion ? 0 : Math.round(SPELL_N[tier] * quality * PETAL_SCALE);
     if (want === 0 && !spl.length) {
       if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
       return;
@@ -3029,7 +3052,8 @@ const petals = (() => {
   function resize() {
     w = window.innerWidth;
     h = window.innerHeight;
-    dpr = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+    dpr = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.25);
+    while (w * h * dpr * dpr > 1.2e6 && dpr > 1) dpr = Math.max(1, dpr - 0.25);
     cv.width = Math.floor(w * dpr);
     cv.height = Math.floor(h * dpr);
   }
@@ -3058,9 +3082,9 @@ const petals = (() => {
   function target() {
     if (reduceMotion) return 0;
     if (planeMode) return Math.round(PLANE_N[tier] * quality);
-    if (chocoMode) return Math.round(CHOCO_N[tier] * quality);
-    if (sunMode) return Math.round(SUN_N[tier] * quality);
-    return Math.round(TARGETS[tier] * quality);
+    if (chocoMode) return Math.round(CHOCO_N[tier] * quality * PETAL_SCALE);
+    if (sunMode) return Math.round(SUN_N[tier] * quality * PETAL_SCALE);
+    return Math.round(TARGETS[tier] * quality * PETAL_SCALE);
   }
 
   let curText = null;
@@ -3128,7 +3152,8 @@ const petals = (() => {
       if (reduceMotion || fxLight() || songFx) return;
       if (planeMode) return;
       if (spellMode) { for (let i = 0; i < Math.min(count, 3) && spl.length < 80; i++) spawnSpell(true); return; }
-      for (let i = 0; i < count && list.length < 90; i++) spawn(true, true);
+      const nb = Math.ceil(count * 0.6);
+      for (let i = 0; i < nb && list.length < 60; i++) spawn(true, true);
     },
     update(dt, t) {
       if (!ctx) return;
@@ -3312,8 +3337,8 @@ const moonFx = (() => {
     if (!on) return;
     const w = game.clientWidth, h = game.clientHeight;
     if (!w || !h) return;
-    let d = COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
-    while (w * h * d * d > 2.5e6 && d > 1) d = Math.max(1, d - 0.25);
+    let d = Math.min(window.devicePixelRatio || 1, 1);
+    while (w * h * d * d > 1.4e6 && d > 0.75) d = Math.max(0.75, d - 0.05);
     if (!force && w === W && h === H && d === dpr) return;
     W = w; H = h; dpr = d;
     cv.width = Math.round(w * d); cv.height = Math.round(h * d);
@@ -3408,7 +3433,7 @@ const sparklerFx = (() => {
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
   const K = COARSE ? 0.32 : 0.4;
-  const MAXP = COARSE ? 60 : 100, MAXF = COARSE ? 130 : 200;
+  const MAXP = COARSE ? 46 : 74, MAXF = COARSE ? 100 : 150;
   const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
   function sprite(size, stops) {
@@ -3471,7 +3496,7 @@ const sparklerFx = (() => {
 
   function burstFw(f) {
     const R = f.spec.size * H, d = 2.1;
-    const n = fxLite() ? 12 : fxLight() ? 22 : COARSE ? 36 : 56;
+    const n = fxLite() ? 12 : fxLight() ? 22 : COARSE ? 30 : 44;
     for (let k = 0; k < n; k++) {
       const a = (6.2832 * k) / n + (Math.random() - 0.5) * 0.12, r = Math.random();
       let v, life, grav, w;
@@ -3535,7 +3560,7 @@ const sparklerFx = (() => {
 
       const light = fxLite();
       const rateK = light ? 0.25 : fxLight() ? 0.5 : 1;
-      const rate = (COARSE ? 18 : 30) * rateK, srate = (COARSE ? 3 : 5) * rateK;
+      const rate = (COARSE ? 14 : 22) * rateK, srate = (COARSE ? 2.5 : 4) * rateK;
       for (let i = 0; i < 4; i++) {
         if (act[i] <= 0.001) { acc[i] = 0; accS[i] = 0; continue; }
         acc[i] += rate * act[i] * sec;
@@ -3659,9 +3684,9 @@ const lightningFx = (() => {
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const K = COARSE ? 0.35 : 0.5;
+  const K = COARSE ? 0.3 : 0.42;
   const START_AT = 10, FULL_AT = 300;
-  const NB = COARSE ? 2 : 3, NA = COARSE ? 5 : 8;
+  const NB = COARSE ? 2 : 3, NA = COARSE ? 4 : 6;
   const mk = () => ({ l: 0, m: 1, n: 0, n2: 0, p: new Float32Array(48) });
   const bolts = Array.from({ length: NB }, mk), arcs = Array.from({ length: NA }, mk);
   const GLOW = (() => {
@@ -3834,8 +3859,8 @@ const meteorFx = (() => {
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:0;';
   game.insertBefore(cv, game.firstChild);
   const c = cv.getContext('2d');
-  const K = COARSE ? 0.4 : 0.5;
-  const MAXM = COARSE ? 14 : 24;
+  const K = COARSE ? 0.34 : 0.42;
+  const MAXM = COARSE ? 10 : 16;
   const spr = (() => {
     const k = document.createElement('canvas'); k.width = 160; k.height = 24;
     const g = k.getContext('2d');
@@ -4167,7 +4192,7 @@ function showJudgement(text, color) {
   judgementEl.style.color = color;
   const miss = text === 'MISS' || text === 'BAD';
   const isP = text === 'PERFECT', isG = text === 'GREAT';
-  judgementEl.style.textShadow = qRung >= 2 ? '' : isP ? '0 0 4px #fff, 0 0 12px ' + color + ', 0 0 26px ' + color + ', 0 0 46px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
+  judgementEl.style.textShadow = qRung >= 2 ? '' : isP ? '0 0 14px ' + color + ', 0 2px 0 rgba(0,0,0,0.35)' : isG ? '0 0 8px ' + color : '';
   if (judgeAnim) judgeAnim.cancel();
   const s0 = isP ? 2.1 : isG ? 1.35 : 1.12, T = 'translateX(-50%) scale(';
   perfectTilt = -perfectTilt;
@@ -5400,7 +5425,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function updateBeat(now, dt) {
-  if (fxMid()) return;
+  if (!BEAT_PULSE || fxMid()) return;
   let v = kick;
   kick *= Math.exp(-dt / 140);
   if (kick < 0.01) kick = 0;
@@ -5518,7 +5543,9 @@ function update(ts) {
   drawField(now, dt);
 
   accFx += dt; accBeat += dt;
-  const ambT = fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30;
+  const ambT = songFx
+    ? (fxLite() ? 80 : qRung >= 2 ? 60 : fxLight() ? 48 : qRung >= 1 ? 40 : 30)
+    : (fxLite() ? 90 : qRung >= 2 ? 66 : fxLight() ? 58 : qRung >= 1 ? 52 : 46);
   if (performance.now() - playBeganAt < AMBIENT_DELAY_MS) { accFx = 0; accBeat = 0; }
   else if (accFx >= ambT) {
     const d = accFx; accFx = 0;

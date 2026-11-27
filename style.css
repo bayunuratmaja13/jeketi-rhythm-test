@@ -1867,10 +1867,9 @@ body[data-tier="4"] .card-cheer { --ch: 4; }
   position: absolute; left: -35%; right: -35%; top: -20%; bottom: -20%; border-radius: 50%;
   background: radial-gradient(circle, var(--ac) 0%, transparent 62%);
   opacity: calc(.12 + var(--ch) * .09 + var(--ct) * .07);
-  animation: cc-aura var(--bd, 1s) ease-in-out infinite;
-  will-change: transform, opacity; z-index: -1;
+  transform: scale(1.04); transition: opacity .4s ease-out; z-index: -1;
 }
-.cc-card.pos-l .cc-aura, .cc-card.pos-r .cc-aura { opacity: calc(.06 + var(--ch) * .05 + var(--ct) * .04); }
+.cc-card.pos-l .cc-aura, .cc-card.pos-r .cc-aura { opacity: 0; }
 @keyframes cc-aura { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.18); } }
 
 .cc-spark { display: none; position: absolute; color: var(--ac); font-size: calc(var(--cw) * .24); line-height: 1; text-shadow: 0 0 6px var(--ac); animation: cc-twinkle .9s ease-in-out infinite; }

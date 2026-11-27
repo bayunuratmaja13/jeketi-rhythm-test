@@ -888,7 +888,7 @@
     const c = $('my-cards-btn');
     if (c && window.Cards && C().canCombineAny()) c.classList.add('has-new');
   }
-  setInterval(refreshBadges, 5000);
+  setInterval(() => { const g = $('game'); if ((g && g.style.display !== 'none') || document.hidden) return; refreshBadges(); }, 5000);
 
   function openShop() {
     show('shop');
