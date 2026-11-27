@@ -818,11 +818,19 @@ window.CHART_DATA = [
     "lane": 3
   },
   {
-    "time": 56331,
+    "time": 56020,
     "lane": 0
   },
   {
-    "time": 56495,
+    "time": 56211,
+    "lane": 1
+  },
+  {
+    "time": 56349,
+    "lane": 0
+  },
+  {
+    "time": 56521,
     "lane": 1
   },
   {
@@ -918,7 +926,7 @@ window.CHART_DATA = [
     "lane": 3
   },
   {
-    "time": 62717,
+    "time": 62684,
     "lane": 0,
     "duration": 352
   },
@@ -1420,23 +1428,14 @@ window.CHART_DATA = [
   {
     "time": 93364,
     "lane": 3,
-    "duration": 310
+    "duration": 1293
   },
   {
-    "time": 93754,
+    "time": 94253,
     "lane": 1
   },
   {
-    "time": 94061,
-    "lane": 0,
-    "duration": 227
-  },
-  {
-    "time": 94350,
-    "lane": 1
-  },
-  {
-    "time": 94466,
+    "time": 94445,
     "lane": 0,
     "duration": 212
   },
@@ -1501,7 +1500,7 @@ window.CHART_DATA = [
     "duration": 496
   },
   {
-    "time": 99078,
+    "time": 99034,
     "lane": 3,
     "duration": 247
   },
@@ -2566,8 +2565,8 @@ window.CHART_DATA = [
     "duration": 1252
   },
   {
-    "time": 171993,
-    "lane": 1
+    "time": 171877,
+    "lane": 2
   },
   {
     "time": 172152,
@@ -2584,7 +2583,7 @@ window.CHART_DATA = [
     "duration": 440
   },
   {
-    "time": 173275,
+    "time": 173238,
     "lane": 2
   },
   {
@@ -2614,7 +2613,7 @@ window.CHART_DATA = [
     "lane": 0
   },
   {
-    "time": 174740,
+    "time": 174685,
     "lane": 2,
     "duration": 417
   },
@@ -3102,22 +3101,22 @@ window.CHART_DATA = [
     "duration": 287
   },
   {
-    "time": 204414,
+    "time": 204353,
     "lane": 2,
     "duration": 302
   },
   {
-    "time": 204785,
+    "time": 204713,
     "lane": 0,
-    "duration": 200
+    "duration": 287
   },
   {
-    "time": 205062,
+    "time": 205035,
     "lane": 1,
     "duration": 216
   },
   {
-    "time": 205386,
+    "time": 205335,
     "lane": 3
   },
   {
@@ -3142,7 +3141,7 @@ window.CHART_DATA = [
     "duration": 406
   },
   {
-    "time": 206828,
+    "time": 206795,
     "lane": 2
   },
   {
