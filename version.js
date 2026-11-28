@@ -1,1 +1,1 @@
-window.GAME_VERSION = 42
+window.GAME_VERSION = 43

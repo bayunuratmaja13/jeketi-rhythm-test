@@ -1804,7 +1804,7 @@ body[data-tier="4"] #score {
   .title-img { max-height: clamp(36px, 14vh, 56px); }
 }
 #rotate-hint { cursor: pointer; }
-#rotate-hint small { font-size: 13px; letter-spacing: .5px; opacity: .8; font-family: 'Fredoka', var(--font-game), sans-serif; }
+#rotate-hint small { font-size: 19.5px; letter-spacing: .5px; opacity: .8; font-family: 'Fredoka', var(--font-game), sans-serif; }
 html, body { overscroll-behavior: none; }
 
 .card-cheer {
